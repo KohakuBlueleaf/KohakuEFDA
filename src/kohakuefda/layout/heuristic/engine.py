@@ -70,8 +70,12 @@ def run(
 
     How much floor to keep back for lanes is the one thing the cost cannot know in advance:
     reserve too little and the search compresses until nothing routes, too much and it hands
-    back a layout larger than the one it was meant to beat. So the reserve is swept and each
-    setting judged on what it actually built, which is the number being asked for.
+    back a layout larger than the one it was meant to beat. So ``route_slacks`` is a list of
+    reserves, each judged on what it actually built, which is the number being asked for.
+
+    One reserve is enough on the bundled scenarios and each further one costs a whole search,
+    so the default carries a single tight value; widen the list for a netlist that will not
+    build, and the best of what builds is what comes back.
     """
     reserves = [float(part) for part in str(params["route_slacks"]).split(",") if part]
     best: tuple[tuple[int, int], object] | None = None

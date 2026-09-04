@@ -93,7 +93,7 @@ LAYOUT_DEFAULTS: dict[str, int | float | str] = {
     "w_crowd": 1.0,
     "w_tight": 4.0,
     "route_slack": 1.5,
-    "route_slacks": "1.1,1.3,1.6,2.0",
+    "route_slacks": "1.1",
     "route_heat": 0.25,
     "route_cool": 0.5,
     "flow_order": "bottom-up",
