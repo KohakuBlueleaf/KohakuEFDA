@@ -36,6 +36,8 @@ class Weights:
     group: float = 8.0
     shut: float = 8.0
     crowd: float = 1.0
+    tight: float = 4.0
+    slack: float = 1.5
 
     @classmethod
     def of(cls, params: dict) -> "Weights":
@@ -46,6 +48,8 @@ class Weights:
             group=float(params["w_group"]),
             shut=float(params["w_shut"]),
             crowd=float(params["w_crowd"]),
+            tight=float(params["w_tight"]),
+            slack=float(params["route_slack"]),
         )
 
 
@@ -107,6 +111,9 @@ class Placement:
         self.h = [self.size[b][0][1] for b in range(self.count)]
         self.length = [0] * len(self.wire_from)
         self.extra = [0] * self.count
+        self.floor = sum(
+            self.size[b][0][0] * self.size[b][0][1] for b in range(self.count)
+        )
         self.stride = site.width
         self.heat = [0.0] * (site.width * site.height)
         self.terms = Terms()
@@ -216,7 +223,19 @@ class Placement:
         self.terms = self.recompute()
 
     def cost(self) -> float:
-        return self.terms.total(self.weights, self.scale)
+        """What the placement costs, with the floor its lanes will need charged for.
+
+        A lane is floor exactly as a machine is (LOG-11), and half-perimeter measures the
+        shortest a lane could be, not the cells it takes: a routed lane runs about half again
+        as far as the estimate, which route_slack allows for. Without the reserve the
+        search compresses until the machines fit and the lanes have nowhere left to run.
+        """
+        base = self.terms.total(self.weights, self.scale)
+        needed = self.terms.wire * self.weights.slack
+        spare = self.terms.area - self.floor - needed
+        if spare < 0:
+            base -= self.weights.tight * spare / self.scale.wire
+        return base
 
     def rescale(self) -> None:
         """Measure the terms against where the walk starts, so the cost is near one."""

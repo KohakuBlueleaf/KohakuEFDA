@@ -11,6 +11,7 @@ the flow's order is offered a few other orders before it is given up on.
 import logging
 import random
 
+from kohakuefda.layout.heuristic import native
 from kohakuefda.layout.heuristic.anneal import Annealer
 from kohakuefda.layout.heuristic.genetic import Evolver
 from kohakuefda.layout.heuristic.seed import start
@@ -42,10 +43,17 @@ def materialise(site: Site, spread: Spread, anchors: dict, tries: int) -> bool:
     return not site.unplaced() and not site.unrouted()
 
 
-def search(state: Placement, params: dict, rng, observe, cancelled) -> None:
-    """Run whichever search is asked for over the placement."""
+def search(state: Placement, params: dict, rng, observe, cancelled, fast=None) -> None:
+    """Run whichever search is asked for over the placement.
+
+    The native walk takes the whole state over once and runs about a hundred times faster, so
+    it is used whenever the extension is built and a watcher does not need to see the walk;
+    the Python search is the reference and stands in otherwise.
+    """
     if str(params["heuristic"]) == "evolve":
         Evolver(state, params, rng).run(state.anchors(), observe, cancelled)
+    elif fast is not None and observe is None:
+        native.anneal(fast, state, params, rng.randrange(1 << 32))
     else:
         Annealer(state, params, rng).run(observe, cancelled)
 
@@ -71,11 +79,22 @@ def run(
     spread = Spread(site, params, rng)
     anchors = start(site, state, params, rng)
     state.adopt(anchors)
-    log.info("heuristic start", search=how, blocks=state.count, area=state.terms.area)
+    fast = (
+        native.build(state, Weights.of(params))
+        if str(params["native"]) != "off"
+        else None
+    )
+    log.info(
+        "heuristic start",
+        search=how,
+        blocks=state.count,
+        area=state.terms.area,
+        native=fast is not None,
+    )
     budget = int(params["sa_moves"])
     for attempt in range(rounds):
         settings = {**params, "sa_moves": budget if not attempt else budget // 2}
-        search(state, settings, rng, observe, cancelled)
+        search(state, settings, rng, observe, cancelled, fast)
         anchors = state.anchors()
         if materialise(site, spread, anchors, int(params["build_tries"])) or repair(
             site, spread, state, anchors, int(params["repair_tries"])
@@ -93,6 +112,8 @@ def run(
         state.cool(float(params["route_cool"]))
         scorch(site, state, float(params["route_heat"]))
         state.terms = state.recompute()
+        if fast is not None:
+            fast = native.build(state, Weights.of(params))
         log.info(
             "build failed, widening",
             round=attempt + 1,
