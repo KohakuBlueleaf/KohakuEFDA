@@ -52,7 +52,7 @@ Mental models: why the tool is shaped the way it is. Field lists live in the ref
 - [Foundations](concepts/foundations/README.md): why the project exists, the factory as the tool models it, and the pipeline.
 - [Planning](concepts/planning/README.md): recipe graph, the solver, lanes and stability.
 - [Cells and netlists](concepts/cells/README.md): one cell per machine with its ports as pins, the core, bus parts, bricks, outside inputs and zone units in their groups, and how a plan becomes cells and nets.
-- [Layout](concepts/layout/README.md): blocks and groups, placing and routing as one operation, building the line and annealing it, pylons, the router, blueprint modules.
+- [Layout](concepts/layout/README.md): blocks and groups, placing and routing as one operation, the lattice spread and the shrink, the searches over them, pylons, the router, blueprint modules.
 - [Verification](concepts/verification/README.md): geometry rules and the steady-state evaluator.
 - [Glossary](concepts/glossary.md): every project-specific term, with the game's own names in three languages.
 

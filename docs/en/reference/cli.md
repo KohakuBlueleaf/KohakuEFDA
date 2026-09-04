@@ -90,10 +90,14 @@ Plan, then build one cell per machine and the nets between their pins. Prints ce
 ## `layout`
 
 ```
-kohakuefda layout SCENARIO.toml [-o DIR] [--seed N] [--iterations N] [--time-budget S] [--png] [--frames] [-v ID] [--root PATH]
+kohakuefda layout SCENARIO.toml [-o DIR] [--seed N] [--attempts N] [-j WORKERS] [--png] [--frames] [-v ID] [--root PATH]
 ```
 
-Run the whole pipeline. Writes `plan.json`, `netlist.json`, `placement.json`, `layout.json`, `evaluation.json` and `report.json` (and `layout.png` with `--png`, which needs matplotlib) into `DIR` (default `out`). `--frames` also writes `frames/layout.json`, the recorded build, improve and final frames. Prints the grid, the modules, the utilisation table and the findings. `--seed` fixes the engine's random choices; `--iterations` sets the improvement moves after construction (default 3000); `--time-budget` bounds the whole layout in seconds (default 30), and 0 lets it run the full step count, which makes a seeded run reproducible. A line the square cannot hold is still written in a larger area and reported with `layout.too_big`. Exit 1 on any error finding.
+Run the whole pipeline. Writes `plan.json`, `netlist.json`, `placement.json`, `layout.json`, `evaluation.json` and `report.json` (and `layout.png` with `--png`, which needs matplotlib) into `DIR` (default `out`). `--frames` also writes `frames/layout.json`, the recorded catalogue, build and final frames. Prints the grid, the modules, the utilisation table and the findings.
+
+`--seed` fixes the search; the same seed and settings give the same layout, whatever the machine load. `--attempts` is how many complete layouts the search tries before it settles (default 32000), shared out over the workers. `-j`/`--workers` is how many searches run at once; 0, the default, asks the machine how many cores it can spare. There is no time budget: a run is bounded by its steps, which is reproducible, where a clock is not.
+
+The area is what the basement gives and is never enlarged to make a layout fit. A line the square cannot hold is reported with `layout.too_big` and the size it needed. Exit 1 on any error finding.
 
 ## `check`
 

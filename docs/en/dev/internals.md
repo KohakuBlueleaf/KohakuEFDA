@@ -18,7 +18,7 @@ Read with `src/kohakuefda/` open. Concept pages explain why; this page says wher
 | `data/` | The manifest client, table fetch with a SHA manifest, the mirror, wiki names, the normalisers that build `Dataset`, the update classifier, the IndustrialPlanner importer. |
 | `flow/` | Lane sizing, plan nets, stability findings, the steady-state evaluator. |
 | `plan/` | Recipe graph, the HiGHS model, the planner, outcomes, alternatives, zone membership, one cell per machine, the netlist. |
-| `layout/` | World geometry and connectivity, fragments, depot access and bus arithmetic, the pylon cover, blocks, the board, the group rules, the live site where machines and their wires share one grid, the builder that constructs and anneals it, the engine, assembly, chunking, the stages, the pipeline. |
+| `layout/` | World geometry and connectivity, fragments, depot access and bus arithmetic, the pylon cover, blocks, the board, the group rules, the live site where machines and their wires share one grid, the spread that lays a whole layout at once, the shrink that squeezes it, the genome and the searches over it, the engine, assembly, chunking, the stages, the pipeline. |
 | `route/` | The occupancy grid, the A* pathfinder, the router. |
 | `verify/` | Geometry rules, rate rules, the report. |
 | `render/` | Rich tables, the text grid, the PNG. |

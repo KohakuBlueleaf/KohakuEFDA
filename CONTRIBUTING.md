@@ -8,8 +8,28 @@ page has the commands.
 ```bash
 uv venv --python 3.13            # once; the repo keeps its venv in .venv/
 uv pip install -e ".[dev]"       # library + pytest, ruff, black
-uv pip install -e ".[dev,cpsat,viz]"   # plus OR-Tools and matplotlib
+uv pip install -e ".[dev,cpsat,viz,native]"   # plus OR-Tools, matplotlib, maturin
 ```
+
+Two parts are built separately and neither is checked in. The web app, without
+which `kohakuefda serve` will not start:
+
+```bash
+cd src/kohakuefda-viewer && npm install && npm run build
+```
+
+The native routing grid, which is optional but worth about ten times the run —
+the build backend is setuptools, so `pip install -e .` does not build the crate:
+
+```bash
+maturin develop --release
+python -c "import kohakuefda.route.pathfinder as p; print(p.NATIVE)"   # True
+```
+
+If maturin complains that `VIRTUAL_ENV` and `CONDA_PREFIX` are both set, unset
+one. If copying the extension fails with `os error 32` on Windows, a worker
+process from an interrupted layout run is holding it open; stop it and rebuild.
+[The native routing grid](docs/en/dev/native.md) has the detail.
 
 ## Checks
 
@@ -20,6 +40,7 @@ black .
 ruff check .
 python scripts/dev/comment_budget.py src scripts tests
 pytest -q
+cargo test                       # the crate's own tests
 ```
 
 Viewer (`src/kohakuefda-viewer/`):
@@ -28,6 +49,7 @@ Viewer (`src/kohakuefda-viewer/`):
 npm install
 npm run format:check
 npm run lint
+npm test
 npm run build          # writes src/kohakuefda/web_dist/
 ```
 

@@ -1,6 +1,6 @@
 ---
 title: Layout
-summary: Every machine is a block; placing one and routing its belts are the same operation, the line is built from the busiest machine outward and then annealed, and the result is cut into blueprint-sized modules.
+summary: Every machine is a block; placing one and routing its belts are the same operation, machines are spread over a derived lattice and then squeezed, and the result is cut into blueprint-sized modules.
 tags:
   - concepts
   - layout
