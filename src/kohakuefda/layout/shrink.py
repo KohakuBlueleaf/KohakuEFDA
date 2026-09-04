@@ -17,7 +17,9 @@ import random
 
 from kohakuefda.layout.site import Site
 from kohakuefda.layout.spread import Spread
+from kohakuefda.model.control import CancelledError
 from kohakuefda.model.layout import Cell, Rect
+from kohakuefda.util.progress import Ticker
 
 log = logging.getLogger(__name__)
 PINNED = ("slot", "edge")
@@ -32,15 +34,33 @@ def inside(area: Rect, cell: Cell) -> bool:
 class Shrink:
     """Presses and carves a standing layout; ``run`` returns whether it got any smaller."""
 
-    def __init__(self, site: Site, spread: Spread, params: dict) -> None:
+    def __init__(
+        self,
+        site: Site,
+        spread: Spread,
+        params: dict,
+        observe=None,
+        cancelled=None,
+    ) -> None:
         self.site = site
         self.spread = spread
         self.params = params
+        self.observe = observe
+        self.cancelled = cancelled
         self.rounds = max(0, int(params["shrink_rounds"]))
         self.walk = max(0, int(params["shrink_walk"]))
         self.heat = max(1e-9, float(params["shrink_heat"]))
         self.spin = min(1.0, max(0.0, float(params["shrink_spin"])))
         self.rng = random.Random(int(params["seed"]))
+
+    def stop(self) -> bool:
+        """Whether the caller has asked for the run to end."""
+        return self.cancelled is not None and self.cancelled()
+
+    def show(self, kind: str) -> None:
+        """Hand a watcher the layout as it stands, so a squeeze is not a silent wait."""
+        if self.observe is not None:
+            self.observe(self.spread.frame(kind))
 
     # ---- what counts as smaller -----------------------------------------
 
@@ -59,7 +79,21 @@ class Shrink:
             cells.update(
                 (spot[0] + dx, spot[1] + dy) for dy in range(size) for dx in range(size)
             )
-        x0, y0, x1, y1 = site.area
+        return self.box(cells)
+
+    def rough(self) -> Size:
+        """The same measure without covering the layout in pylons.
+
+        Finding where the pylons go is a cover over every machine, and a squeeze asks whether
+        a layout is smaller once per machine per direction. Paying for the cover on every one
+        of those made a squeeze that took a moment take twenty seconds, so it is asked only of
+        the arrangements that are already smaller without it.
+        """
+        return self.box(set(self.site.occupied()))
+
+    def box(self, cells: set[Cell]) -> Size:
+        """The rectangle those cells need inside the area, then the layout's lane cells."""
+        x0, y0, x1, y1 = self.site.area
         inside = [c for c in cells if x0 <= c[0] < x1 and y0 <= c[1] < y1]
         if not inside:
             return (0, 0)
@@ -67,10 +101,22 @@ class Shrink:
         ys = [c[1] for c in inside]
         return (
             (max(xs) - min(xs) + 1) * (max(ys) - min(ys) + 1),
-            site.wire_cells(),
+            self.site.wire_cells(),
         )
 
-    def apply(self, anchors: dict[str, tuple[int, int, int]], before: Size) -> bool:
+    def smaller(self, before: Size, coarse: Size) -> bool:
+        """Whether the layout now is smaller, the cheap question asked first.
+
+        Pylons only ever grow the rectangle, so an arrangement whose machines and lanes need
+        more room than they did is not going to win once they are added.
+        """
+        if self.rough() > coarse:
+            return False
+        return self.measure() < before
+
+    def apply(
+        self, anchors: dict[str, tuple[int, int, int]], before: Size, coarse: Size
+    ) -> bool:
         """Rebuild the whole layout at these anchors and keep it only if it still stands whole
         and is smaller than ``before``."""
         site = self.site
@@ -79,7 +125,7 @@ class Shrink:
             self.spread.rebuild(anchors, self.spread.laid)
             and not site.unplaced()
             and not site.unrouted()
-            and self.measure() < before
+            and self.smaller(before, coarse)
         ):
             return True
         site.restore(state)
@@ -97,7 +143,7 @@ class Shrink:
         rows = sorted({y for y in range(y0, y1)} - {c[1] for c in standing})
         return columns, rows
 
-    def carve(self, before: Size) -> bool:
+    def carve(self, before: Size, coarse: Size) -> bool:
         """Delete one line nothing stands on, pulling everything past it in by a cell."""
         columns, rows = self.empty_lines()
         for axis, lines in ((0, columns), (1, rows)):
@@ -110,11 +156,11 @@ class Shrink:
                         anchors[block_id] = (x - 1 if x > line else x, y, rotation)
                     else:
                         anchors[block_id] = (x, y - 1 if y > line else y, rotation)
-                if self.apply(anchors, before):
+                if self.apply(anchors, before, coarse):
                     return True
         return False
 
-    def press(self, axis: int, step: int, before: Size) -> bool:
+    def press(self, axis: int, step: int, before: Size, coarse: Size) -> bool:
         """Slide every machine as far as it will go along one axis, nearest the wall first.
 
         A machine stops at the first cell another has already claimed, so the sweep never
@@ -145,9 +191,9 @@ class Shrink:
                 x, y = (x + step, y) if axis == 0 else (x, y + step)
             taken |= set(cells)
             anchors[block_id] = (x, y, rotation)
-        return self.apply(anchors, before)
+        return self.apply(anchors, before, coarse)
 
-    def nudge(self, before: Size) -> bool:
+    def nudge(self, before: Size, coarse: Size) -> bool:
         """Move one machine one cell toward what it is wired to.
 
         A press moves everything at once and a layout that dense often will not route, so it
@@ -164,7 +210,7 @@ class Shrink:
                 if (
                     site.place(block_id, x + dx, y + dy, rotation)
                     and not site.unrouted()
-                    and self.measure() < before
+                    and self.smaller(before, coarse)
                 ):
                     return True
                 site.restore(state)
@@ -199,7 +245,7 @@ class Shrink:
 
     # ---- the pass --------------------------------------------------------
 
-    def turn(self, before: Size) -> bool:
+    def turn(self, before: Size, coarse: Size) -> bool:
         """One machine turned where it stands, if it leaves the layout smaller."""
         site = self.site
         movable = [i for i in site.placed if site.blocks[i].constraint not in PINNED]
@@ -211,7 +257,7 @@ class Shrink:
                 if (
                     site.place(block_id, x, y, (rotation + turned) % 360)
                     and not site.unrouted()
-                    and self.measure() < before
+                    and self.smaller(before, coarse)
                 ):
                     return True
                 site.restore(state)
@@ -251,41 +297,53 @@ class Shrink:
         movable = [i for i in site.placed if site.blocks[i].constraint not in PINNED]
         if not movable:
             return False
-        current = self.measure()
-        best, kept = current, site.snapshot()
+        current = self.rough()
+        best, mark = self.measure(), current
+        kept = site.snapshot()
         moved = False
+        ticker = Ticker(self.walk, "walk")
         for step in range(self.walk):
+            if self.stop():
+                raise CancelledError("cancelled")
             temperature = self.heat * (1.0 - step / self.walk) + 1e-9
             state = site.snapshot()
-            before = self.measure()
             if not self.stir(movable):
                 site.restore(state)
+                ticker.tick(step + 1, f"area {best[0]}")
                 continue
-            after = self.measure()
-            delta = (after[0] - before[0]) + 0.25 * (after[1] - before[1])
+            after = self.rough()
+            delta = (after[0] - current[0]) + 0.25 * (after[1] - current[1])
             if delta <= 0 or self.rng.random() < math.exp(-delta / temperature):
                 current = after
-                if after < best:
-                    best, kept, moved = after, site.snapshot(), True
+                if after <= mark and self.measure() < best:
+                    best, mark = self.measure(), after
+                    kept, moved = site.snapshot(), True
+                    self.show("improve")
             else:
                 site.restore(state)
+            ticker.tick(step + 1, f"area {best[0]}")
+        ticker.done()
         site.restore(kept)
         return moved
 
     def settle(self) -> None:
         """Carve, press and nudge until none of them makes the layout smaller."""
         for round_index in range(self.rounds):
+            if self.stop():
+                raise CancelledError("cancelled")
             before = self.measure()
+            coarse = self.rough()
             if (
-                not self.carve(before)
+                not self.carve(before, coarse)
                 and not any(
-                    self.press(axis, step, self.measure()) for axis, step in SIDES
+                    self.press(axis, step, before, coarse) for axis, step in SIDES
                 )
-                and not self.nudge(self.measure())
-                and not self.turn(self.measure())
+                and not self.nudge(before, coarse)
+                and not self.turn(before, coarse)
             ):
                 log.debug("nothing left to take out", rounds=round_index)
                 return
+            self.show("improve")
 
     def run(self) -> bool:
         """Settle the layout, walk it out of that corner, then settle whatever the walk found."""

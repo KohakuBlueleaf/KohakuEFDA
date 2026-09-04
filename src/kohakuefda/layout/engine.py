@@ -16,7 +16,7 @@ import logging
 import os
 import random
 import time
-from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
+from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, as_completed, wait
 from concurrent.futures.process import BrokenProcessPool
 
 from kohakuefda.layout.assemble import assemble
@@ -36,11 +36,13 @@ from kohakuefda.model.geometry import rotate_edge
 from kohakuefda.model.layout import Cell, Entry, Layout
 from kohakuefda.model.plan import Finding
 from kohakuefda.route.router import Wire
+from kohakuefda.util.progress import Ticker
 from kohakuefda.verify.rules.geometry import check_layout
 
 LAYOUT_DEFAULTS: dict[str, int | float | str] = {
     "seed": 0,
     "workers": 0,
+    "restarts": 8,
     "spread_gap": 0,
     "spread_widest": 6,
     "spread_attempts": 32000,
@@ -50,7 +52,7 @@ LAYOUT_DEFAULTS: dict[str, int | float | str] = {
     "shrink_spin": 0.25,
     "spread_slice": 64,
     "search": "mixed",
-    "heuristic": "off",
+    "heuristic": "anneal",
     "native": "on",
     "start": "scatter",
     "seed_attempts": 1500,
@@ -129,6 +131,37 @@ def rank_of(site: Site, board: Board) -> Rank:
     x0, y0, x1, y1 = site.bbox()
     over = max(0, x1 - x0 - board.square[0], y1 - y0 - board.square[1])
     return (len(site.unplaced()), len(site.unrouted()), over, site.cost())
+
+
+def _restart(
+    dataset: Dataset,
+    netlist: Netlist,
+    params: dict,
+    seed: int,
+    anchors: dict,
+) -> tuple[tuple[int, int, int, int], int]:
+    """One walk from one seed, in its own process: what it came to, and the seed.
+
+    The spread is deterministic, so every restart would lay exactly the same one; it is laid
+    once by the parent and handed here as anchors instead, and only the walk -- which is where
+    the variance is, a fifth of the area between seeds on the same factory -- is repeated.
+    Only the seed comes back, because the parent can replay it and wants the frames.
+    """
+    board = board_of(dataset, netlist.scenario)
+    site = Site(dataset, netlist, board, params)
+    settings = {**params, "seed": seed, "restarts": 1}
+    if not heuristic.run(site, settings, random.Random(seed), None, None, anchors):
+        return (len(netlist.cells), 0, 1 << 30, 1 << 30), seed
+    spread = Spread(site, settings, random.Random(seed))
+    spread.laid = list(site.placed)
+    Shrink(site, spread, settings).run()
+    x0, y0, x1, y1 = site.bbox()
+    return (
+        len(site.unplaced()),
+        len(site.unrouted()),
+        (x1 - x0) * (y1 - y0),
+        site.wire_cells(),
+    ), seed
 
 
 def _island(
@@ -398,45 +431,61 @@ class Engine:
     def attempt(self, observe: Observe | None, cancelled: Cancelled | None) -> bool:
         """Lay the spread: every machine standing in a square of its own, every lane routed.
 
-        With cores to spare the restart search runs on all of them from different seeds, in
-        rounds: every worker takes the same small slice of the attempt budget, the round is
-        waited out in full, and the whole layout from the lowest seed wins. Taking whichever
-        finished first instead would make the result depend on how the machine was loaded, and
-        a run with a seed has to give the same layout every time.
+        One pass, in this process. The spread is constructive: a machine goes into a square
+        with room round it and its lanes are routed where it stands, so there is nothing to
+        search and nothing to hand to another core. Spreading the same lattice over shuffled
+        orders on sixteen cores took longer in wall time than one pass takes, for a layout the
+        placement walk improves on anyway.
         """
         self.site = Site(self.dataset, self.netlist, self.board, self.params)
         self.spread = Spread(self.site, self.params, self.random)
         if observe is not None:
             observe(self.catalogue_frame())
         self.check(cancelled)
-        workers = self.islands()
-        if workers <= 1:
-            alone = self.searching(self.params, int(self.params["seed"]) * PRIME)
-            self.spread = Spread(self.site, alone, self.random)
-            return self.spread.run(observe, cancelled)
-        budget = int(self.params["spread_attempts"])
-        slice_size = max(1, int(self.params["spread_slice"]))
-        share = dict(self.params)
-        share["spread_attempts"] = slice_size
-        self.spread = Spread(self.site, share, self.random)
+        return self.spread.run(observe, cancelled)
+
+    def luckiest(self, anchors: dict, cancelled: Cancelled | None) -> int:
+        """The seed that lays out best, found by trying several at once.
+
+        The walk over placements finishes a fifth apart on the same factory depending on where
+        it started, and more moves do not close that -- restarts do. They are independent, so
+        the cores that ran them are the whole win: eight seeds cost one seed's wall time, and
+        the layout that comes back is the best of them rather than the first.
+
+        Only the winning seed comes back; the parent lays it out again itself, so a watcher
+        sees a run being built rather than a result appearing.
+        """
+        wanted = max(1, int(self.params.get("restarts", 1)))
         seed = int(self.params["seed"])
-        pool = ProcessPoolExecutor(max_workers=workers)
-        try:
-            for start in range(0, max(1, budget), slice_size * workers):
+        if wanted <= 1 or str(self.params["heuristic"]) == "off":
+            return seed
+        seeds = [seed + index * PRIME for index in range(wanted)]
+        ticker = Ticker(len(seeds), "restarts")
+        best: tuple | None = None
+        done = 0
+        with ProcessPoolExecutor(max_workers=min(wanted, self.islands())) as pool:
+            futures = {
+                pool.submit(
+                    _restart, self.dataset, self.netlist, self.params, s, anchors
+                ): s
+                for s in seeds
+            }
+            for future in as_completed(futures):
                 self.check(cancelled)
-                seeds = [
-                    seed + (start + index * slice_size) * PRIME
-                    for index in range(workers)
-                ]
-                winner = self.best_of(pool, share, seeds, cancelled)
-                if winner is not None:
-                    self.spread = Spread(
-                        self.site, self.searching(share, winner), random.Random(winner)
-                    )
-                    return self.spread.run(observe, cancelled)
-        finally:
-            pool.shutdown(wait=False, cancel_futures=True)
-        return False
+                done += 1
+                try:
+                    score, got = future.result()
+                except (BrokenProcessPool, OSError, ValueError, RuntimeError) as error:
+                    log.warning("a restart did not finish", error=str(error))
+                    continue
+                if best is None or (score, got) < best:
+                    best = (score, got)
+                ticker.tick(done, f"best area {best[0][2]}")
+        ticker.done()
+        if best is None:
+            return seed
+        log.info("restarts done", tried=len(seeds), seed=best[1], area=best[0][2])
+        return best[1]
 
     def islands(self) -> int:
         """How many searches run at once; ``workers`` 0 asks the machine what it can spare."""
@@ -482,7 +531,13 @@ class Engine:
         if not whole:
             log.info("heuristic layout was not whole, keeping the built one")
             return
-        Shrink(other, Spread(other, self.params, self.random), self.params).run()
+        Shrink(
+            other,
+            Spread(other, self.params, self.random),
+            self.params,
+            observe,
+            cancelled,
+        ).run()
         theirs = self.measure(other)
         log.info(
             "heuristic contended",
@@ -573,9 +628,12 @@ class Engine:
             seed=int(self.params["seed"]),
         )
         if self.attempt(observe, cancelled):
-            Shrink(self.site, self.spread, self.params).run()
+            Shrink(self.site, self.spread, self.params, observe, cancelled).run()
             if observe is not None:
                 observe(self.spread.frame("build"))
+        lucky = self.luckiest(dict(self.site.placed), cancelled)
+        self.params = {**self.params, "seed": lucky}
+        self.random = random.Random(lucky)
         self.contend(observe, cancelled)
         if not self.site.placed:
             raise LayoutError("no layout could be produced")

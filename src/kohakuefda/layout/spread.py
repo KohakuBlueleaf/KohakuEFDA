@@ -17,12 +17,14 @@ import time
 
 from kohakuefda.layout.depot_via import brick_rotation
 from kohakuefda.layout.genome import Genome, Score
-from kohakuefda.layout.search import SEARCHES
 from kohakuefda.layout.site import Anchor, Site
 from kohakuefda.model.control import CancelledError
 from kohakuefda.model.geometry import Edge, rotated_size
+from kohakuefda.util.progress import Ticker
 
 log = logging.getLogger(__name__)
+# How many times a pass is re-laid with the machines it could not seat put first.
+PROMOTIONS = 3
 ENTRY_ROTATION = {Edge.W: 0, Edge.N: 90, Edge.E: 180, Edge.S: 270}
 ANCHOR_KINDS = ("depot", "zone")
 UNGROUPED = "~"
@@ -468,51 +470,144 @@ class Spread:
             "clean": not site.unplaced(),
         }
 
-    def run(self, observe=None, cancelled=None) -> bool:
-        """Lay the lattice again and again until one comes out whole.
+    def standing(self, whole: bool) -> tuple[int, int, int, int, int, int]:
+        """How good a pass came out: legal first, then how small.
 
-        One lattice costs a few hundredths of a second, so the way to the arrangement that
-        works is many cheap attempts rather than one expensive walk: each gap in the range,
-        each direction of the flow, and then attempt after attempt with the order shuffled
-        where it was free to differ. The first lattice with every machine standing and every
-        lane running is the answer and the search stops there; otherwise the best of them is
-        kept and named, so what is missing is a machine and not a mystery.
+        The gaps and the two directions of the flow are a handful of arrangements, not a
+        search, and stopping at the first one that comes out whole leaves the smaller ones on
+        the table for nothing. Legal means every rule the site can answer for, not just that
+        the machines stand and the lanes run: a tighter pass that leaves a machine off the
+        power or a brick off its bus face is not the better one.
+        """
+        site = self.site
+        x0, y0, x1, y1 = site.bbox()
+        return (
+            0 if whole else 1,
+            len(self.failed),
+            len(site.unrouted()),
+            len(site.pylons()[1]),
+            site.faults(),
+            (x1 - x0) * (y1 - y0),
+        )
+
+    def pass_at(
+        self, gap: int, observe=None, cancelled=None, promote: list[str] | None = None
+    ) -> bool:
+        """Lay every machine once with this much room round each square.
+
+        One machine is one step: it stands, its lanes are routed where it stands, a watcher is
+        told and the cancel is answered, so nothing here takes longer than placing a machine.
+        """
+        site = self.site
+        for block_id in list(site.placed):
+            site.remove(block_id)
+        self.grid_squares = self.squares(gap)
+        self.next_square = 0
+        self.laid = self.order()
+        if promote:
+            ahead = [b for b in promote if b in self.laid]
+            self.laid = ahead + [b for b in self.laid if b not in set(ahead)]
+        self.failed = []
+        ticker = Ticker(len(self.laid), f"spread gap {gap}")
+        for index, block_id in enumerate(self.laid):
+            if cancelled is not None and cancelled():
+                raise CancelledError("layout cancelled")
+            if not self.stand(block_id, gap):
+                self.failed.append(block_id)
+            if observe is not None:
+                observe(self.frame("build"))
+            ticker.tick(index + 1, block_id, len(self.failed))
+        for block_id in list(self.failed):
+            if self.stand(block_id, gap):
+                self.failed.remove(block_id)
+                if observe is not None:
+                    observe(self.frame("build"))
+        if self.failed:
+            self.seat(gap, observe)
+        ticker.done()
+        return not self.failed and not site.unrouted()
+
+    def seat(self, gap: int, observe=None) -> None:
+        """Put the machines that found nowhere down anyway, and route the netlist as a whole.
+
+        A machine is refused for want of a path far more often than for want of room: the lanes
+        already laid have taken the corridors out of every square by the time it is offered
+        one. Standing it without routing and handing the whole netlist to the router lets it
+        rip up what is in the way and negotiate, which is the one thing placing a lane at a
+        time cannot do.
+        """
+        site = self.site
+        state = site.snapshot()
+        homeless = list(self.failed)
+        for block_id in homeless:
+            for x, y in self.grid_squares:
+                if any(
+                    site.place(block_id, x, y, rotation, route=False)
+                    for rotation in self.turns(block_id)
+                ):
+                    self.failed.remove(block_id)
+                    break
+        if site.unplaced():
+            site.restore(state)
+            self.failed = homeless
+            return
+        site.router.route(strict=False)
+        if site.unrouted():
+            site.restore(state)
+            self.failed = homeless
+            return
+        if observe is not None:
+            observe(self.frame("build"))
+
+    def run(self, observe=None, cancelled=None) -> bool:
+        """Lay the spread once, along the flow, wiring each machine as it stands.
+
+        There is nothing here worth searching. A square holds the widest block with a lane's
+        room beside it, so a machine that stands has room for what it is wired to, and walking
+        the flow puts it beside the machine that feeds it; routing it the moment it stands is
+        easy precisely because the room around it is still empty. Laying the same lattice tens
+        of thousands of times over shuffled orders bought a few per cent of area for a hundred
+        times the work, and the placement walk that follows buys that properly.
+
+        One machine is one step: it stands, its lanes are routed, a watcher is told, and the
+        cancel is answered. Nothing here takes longer than placing a single machine.
         """
         site = self.site
         started = time.monotonic()
-        kept: list = [None]
-
-        def decode(genome: Genome) -> Score:
-            if cancelled is not None and cancelled():
-                raise CancelledError("layout cancelled")
-            missed = self.lay(list(genome.order), genome.gap)
-            self.top_down = genome.top_down
-            score = self.score(missed)
-            if kept[0] is None or score < kept[0][0]:
-                kept[0] = (score, site.snapshot(), list(missed), list(self.laid))
-                log.debug("lattice improved", score=score, gap=genome.gap)
-            return score
-
-        SEARCHES[self.strategy](
-            decode, self.sample, self.rng, self.attempts, self.gaps()
-        )
-        best = kept[0]
-        site.restore(best[1])
-        self.failed = best[2]
-        self.laid = best[3]
-        if observe is not None:
-            anchors = dict(site.placed)
-            state = site.snapshot()
-            if not self.rebuild(anchors, self.laid, observe):
-                site.restore(state)
+        kept: tuple | None = None
+        wanted = self.top_down
+        for gap in self.gaps():
+            for top_down in (wanted, not wanted):
+                self.top_down = top_down
+                promote: list[str] = []
+                for _ in range(PROMOTIONS):
+                    whole = self.pass_at(gap, observe, cancelled, promote)
+                    score = self.standing(whole)
+                    if kept is None or score < kept[0]:
+                        kept = (
+                            score,
+                            site.snapshot(),
+                            list(self.failed),
+                            list(self.laid),
+                        )
+                    if whole or not self.failed or set(self.failed) <= set(promote):
+                        break
+                    promote = list(self.failed) + promote
+                    log.debug("seating the homeless first", gap=gap, blocks=promote)
+                if whole:
+                    break
+            if whole:
+                break
+        site.restore(kept[1])
+        self.failed = list(kept[2])
+        self.laid = list(kept[3])
         whole = not self.failed and not site.unrouted()
+        x0, y0, x1, y1 = site.bbox()
         log.info(
             "spread done" if whole else "spread incomplete",
-            search=self.strategy,
-            attempts=self.attempts,
             seconds=round(time.monotonic() - started, 2),
             placed=f"{len(site.placed)}/{len(site.blocks)}",
-            size=f"{site.bbox()[2] - site.bbox()[0]}x{site.bbox()[3] - site.bbox()[1]}",
+            size=f"{x1 - x0}x{y1 - y0}",
             wires=site.wire_cells(),
             homeless=len(self.failed),
             unrouted=len(site.unrouted()),
