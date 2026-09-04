@@ -1,0 +1,13 @@
+mode = "machines"
+gas = false
+
+[supply]
+
+[targets]
+item_plant_moss_powder_3 = "min"
+
+[basement]
+region = "wuling"
+basement_id = "cardiac_remediation_station"
+level = 3
+depot_level = 3

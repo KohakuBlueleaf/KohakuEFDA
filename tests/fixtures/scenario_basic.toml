@@ -1,0 +1,23 @@
+# A small Wuling scenario used by the tests: Hetonite from ores, water and acid.
+
+mode = "area"
+mixed_lanes = true
+gas = false
+
+[supply]
+item_copper_ore = 120
+item_iron_ore = "unlimited"
+item_liquid_water = "unlimited"
+item_liquid_acid = "unlimited"
+
+[targets]
+item_copper_enr = 15
+
+[basement]
+region = "wuling"
+basement_id = "sky_king_flats"
+level = 2
+depot_level = 1
+
+[recipe_overrides]
+item_copper_enr = "pool_copper_enr_1"

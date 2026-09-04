@@ -1,0 +1,13 @@
+"""Shared pytest fixtures."""
+
+from pathlib import Path
+
+import pytest
+
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
+
+
+@pytest.fixture
+def fixtures_dir() -> Path:
+    """Directory of test-owned fixture files."""
+    return FIXTURES

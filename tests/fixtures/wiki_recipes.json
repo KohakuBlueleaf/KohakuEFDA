@@ -1,0 +1,6592 @@
+{
+ "source": "https://endfield.wiki.gg/api.php",
+ "recipes": [
+  {
+   "facility": "Refining Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Ore",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium",
+     "count": 1
+    },
+    {
+     "item": "Sewage",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Ore",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Ore",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Fiber",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Fiber",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Originium Ore",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Origocrust",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Origocrust Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Origocrust",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Dense Origocrust Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Packed Origocrust",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Dense Ferrium Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Fiber",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Dense Carbon Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Stabilized Carbon",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Dense Originium Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Dense Origocrust Powder",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Originium Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Origocrust Powder",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Yazhen",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Carbon",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Jincao",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Carbon",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Sandleaf",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Carbon",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Buckflower",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Carbon",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Citrome",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Carbon",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Wood",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Carbon",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Yazhen Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Carbon Powder",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Jincao Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Carbon Powder",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Sandleaf Powder",
+     "count": 3
+    }
+   ],
+   "products": [
+    {
+     "item": "Carbon Powder",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Buckflower Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Carbon Powder",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Citrome Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Carbon Powder",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ground Buckflower Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Dense Carbon Powder",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Refining Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ground Citrome Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Dense Carbon Powder",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Shredding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Powder",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Shredding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Powder",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Shredding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Fiber",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Powder",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Shredding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Originium Ore",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Originium Powder",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Shredding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Carbon",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Carbon Powder",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Shredding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Origocrust",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Origocrust Powder",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Shredding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Buckflower",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Buckflower Powder",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Shredding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Citrome",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Citrome Powder",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Shredding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Sandleaf",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Sandleaf Powder",
+     "count": 3
+    }
+   ]
+  },
+  {
+   "facility": "Shredding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Aketine",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Aketine Powder",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Shredding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Jincao",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Jincao Powder",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Shredding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Yazhen",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Yazhen Powder",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Fitting Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Part",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Fitting Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Fiber",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Part",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Fitting Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Part",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Fitting Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Fiber",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Part",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Fitting Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Part",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Fitting Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite",
+     "count": 5
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Part",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Fitting Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Pyrrolite",
+     "count": 5
+    }
+   ],
+   "products": [
+    {
+     "item": "Pyrrolite Part",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Moulding Unit",
+   "mode": "Gas",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium",
+     "count": 2
+    },
+    {
+     "item": "Inergen",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Canister",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Moulding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium",
+     "count": 2
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Moulding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Fiber",
+     "count": 2
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Moulding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel",
+     "count": 2
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Moulding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Fiber",
+     "count": 2
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Moulding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium",
+     "count": 2
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Moulding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite",
+     "count": 2
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Planting Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Buckflower Seed",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Buckflower",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Planting Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Jincao Seed",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Jincao",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Planting Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Citrome Seed",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Citrome",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Planting Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Yazhen Seed",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Yazhen",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Planting Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Sandleaf Seed",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Sandleaf",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Planting Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Aketine Seed",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Aketine",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Seed-Picking Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Buckflower",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Buckflower Seed",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Seed-Picking Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Citrome",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Citrome Seed",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Seed-Picking Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Sandleaf",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Sandleaf Seed",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Seed-Picking Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Aketine",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Aketine Seed",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Seed-Picking Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Jincao",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Jincao Seed",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Seed-Picking Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Yazhen",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Yazhen Seed",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Seed-Picking Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Reed Rye",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Reed Rye Seed",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Seed-Picking Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Tartpepper",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Tartpepper Seed",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Seed-Picking Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Redjade Ginseng",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Redjade Ginseng Seed",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Seed-Picking Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amber Rice",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amber Rice Seed",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Gearing Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Origocrust",
+     "count": 5
+    },
+    {
+     "item": "Amethyst Fiber",
+     "count": 5
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Component",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Gearing Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Origocrust",
+     "count": 10
+    },
+    {
+     "item": "Ferrium",
+     "count": 10
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Component",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Gearing Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Packed Origocrust",
+     "count": 10
+    },
+    {
+     "item": "Cryston Fiber",
+     "count": 10
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Component",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Gearing Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Part",
+     "count": 2
+    },
+    {
+     "item": "Heavy Xiranite",
+     "count": 2
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Component",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Gearing Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Packed Origocrust",
+     "count": 10
+    },
+    {
+     "item": "Xiranite",
+     "count": 10
+    }
+   ],
+   "products": [
+    {
+     "item": "Xiranite Component",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Gearing Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Part",
+     "count": 10
+    },
+    {
+     "item": "Xiranite",
+     "count": 10
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Component",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Gearing Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Pyrrolite Part",
+     "count": 1
+    },
+    {
+     "item": "Heavy Xiranite",
+     "count": 2
+    }
+   ],
+   "products": [
+    {
+     "item": "Pyrrolite Component",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 5
+    },
+    {
+     "item": "Citrome Powder",
+     "count": 5
+    }
+   ],
+   "products": [
+    {
+     "item": "Canned Citrome (C)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle (Clean Water)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 10
+    },
+    {
+     "item": "Citrome Powder",
+     "count": 10
+    }
+   ],
+   "products": [
+    {
+     "item": "Canned Citrome (B)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    },
+    {
+     "item": "Precipitation Acid",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle (Precipitation Acid)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle",
+     "count": 10
+    },
+    {
+     "item": "Ground Citrome Powder",
+     "count": 10
+    }
+   ],
+   "products": [
+    {
+     "item": "Canned Citrome (A)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    },
+    {
+     "item": "Sewage",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle (Sewage)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    },
+    {
+     "item": "Jincao Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle (Jincao Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    },
+    {
+     "item": "Yazhen Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle (Yazhen Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Xiranite",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle (Liquid Xiranite)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 5
+    },
+    {
+     "item": "Buckflower Powder",
+     "count": 5
+    }
+   ],
+   "products": [
+    {
+     "item": "Buck Capsule (C)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Heavy Xiranite",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle (Liquid Heavy Xiranite)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    },
+    {
+     "item": "Xircon Effluent",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle (Xircon Effluent)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 10
+    },
+    {
+     "item": "Buckflower Powder",
+     "count": 10
+    }
+   ],
+   "products": [
+    {
+     "item": "Buck Capsule (B)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle",
+     "count": 10
+    },
+    {
+     "item": "Ground Buckflower Powder",
+     "count": 10
+    }
+   ],
+   "products": [
+    {
+     "item": "Buck Capsule (A)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    },
+    {
+     "item": "Inert Xircon Effluent",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle (Inert Xircon Effluent)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    },
+    {
+     "item": "Cuprium Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle (Cuprium Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    },
+    {
+     "item": "Hetonite Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle (Hetonite Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Gas & Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Canister",
+     "count": 1
+    },
+    {
+     "item": "Aquagen",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Canister (Aquagen)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle (Clean Water)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Gas & Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Canister",
+     "count": 1
+    },
+    {
+     "item": "Acridgen",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Canister (Acridgen)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    },
+    {
+     "item": "Precipitation Acid",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle (Precipitation Acid)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Gas & Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Canister",
+     "count": 1
+    },
+    {
+     "item": "Xiragen",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Canister (Xiragen)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Gas & Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Canister",
+     "count": 1
+    },
+    {
+     "item": "Heavy Xiragen",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Canister (Heavy Xiragen)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    },
+    {
+     "item": "Sewage",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle (Sewage)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    },
+    {
+     "item": "Jincao Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle (Jincao Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Gas & Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Canister",
+     "count": 1
+    },
+    {
+     "item": "Inergen",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Canister (Inergen)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    },
+    {
+     "item": "Yazhen Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle (Yazhen Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Gas & Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Canister",
+     "count": 1
+    },
+    {
+     "item": "Cuprium Gas",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Canister (Cuprium Gas)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Xiranite",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle (Liquid Xiranite)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Gas & Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Canister",
+     "count": 1
+    },
+    {
+     "item": "Hetonite Gas",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Canister (Hetonite Gas)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Heavy Xiranite",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle (Liquid Heavy Xiranite)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    },
+    {
+     "item": "Xircon Effluent",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle (Xircon Effluent)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    },
+    {
+     "item": "Inert Xircon Effluent",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle (Inert Xircon Effluent)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Gas & Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Canister",
+     "count": 1
+    },
+    {
+     "item": "Pyrrolite Gas",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Canister (Pyrrolite Gas)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    },
+    {
+     "item": "Cuprium Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle (Cuprium Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    },
+    {
+     "item": "Hetonite Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle (Hetonite Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle (Clean Water)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Precipitation Acid",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle (Precipitation Acid)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Sewage",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle (Sewage)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Jincao Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle (Jincao Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Yazhen Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle (Yazhen Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Xiranite",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle (Liquid Xiranite)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Heavy Xiranite",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle (Liquid Heavy Xiranite)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Xircon Effluent",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle (Xircon Effluent)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Inert Xircon Effluent",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle (Inert Xircon Effluent)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Cuprium Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle (Cuprium Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Hetonite Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle (Hetonite Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle (Clean Water)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    },
+    {
+     "item": "Precipitation Acid",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle (Precipitation Acid)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    },
+    {
+     "item": "Sewage",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle (Sewage)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    },
+    {
+     "item": "Jincao Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle (Jincao Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    },
+    {
+     "item": "Yazhen Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle (Yazhen Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Xiranite",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle (Liquid Xiranite)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Heavy Xiranite",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle (Liquid Heavy Xiranite)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    },
+    {
+     "item": "Xircon Effluent",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle (Xircon Effluent)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    },
+    {
+     "item": "Inert Xircon Effluent",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle (Inert Xircon Effluent)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    },
+    {
+     "item": "Cuprium Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle (Cuprium Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    },
+    {
+     "item": "Hetonite Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle (Hetonite Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle (Clean Water)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Precipitation Acid",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle (Precipitation Acid)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Sewage",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle (Sewage)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Jincao Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle (Jincao Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Yazhen Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle (Yazhen Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Xiranite",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle (Liquid Xiranite)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Heavy Xiranite",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle (Liquid Heavy Xiranite)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Xircon Effluent",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle (Xircon Effluent)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Inert Xircon Effluent",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle (Inert Xircon Effluent)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Cuprium Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle (Cuprium Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Hetonite Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle (Hetonite Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle (Clean Water)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    },
+    {
+     "item": "Precipitation Acid",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle (Precipitation Acid)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    },
+    {
+     "item": "Sewage",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle (Sewage)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    },
+    {
+     "item": "Jincao Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle (Jincao Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    },
+    {
+     "item": "Yazhen Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle (Yazhen Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Xiranite",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle (Liquid Xiranite)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Heavy Xiranite",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle (Liquid Heavy Xiranite)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    },
+    {
+     "item": "Xircon Effluent",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle (Xircon Effluent)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    },
+    {
+     "item": "Inert Xircon Effluent",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle (Inert Xircon Effluent)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    },
+    {
+     "item": "Cuprium Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle (Cuprium Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Filling Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    },
+    {
+     "item": "Hetonite Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle (Hetonite Solution)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Packaging Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Part",
+     "count": 5
+    },
+    {
+     "item": "Aketine Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Industrial Explosive",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Packaging Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Part",
+     "count": 5
+    },
+    {
+     "item": "Originium Powder",
+     "count": 10
+    }
+   ],
+   "products": [
+    {
+     "item": "LC Valley Battery",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Packaging Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Part",
+     "count": 10
+    },
+    {
+     "item": "Originium Powder",
+     "count": 15
+    }
+   ],
+   "products": [
+    {
+     "item": "SC Valley Battery",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Packaging Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Part",
+     "count": 10
+    },
+    {
+     "item": "Dense Originium Powder",
+     "count": 15
+    }
+   ],
+   "products": [
+    {
+     "item": "HC Valley Battery",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Packaging Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Part",
+     "count": 10
+    },
+    {
+     "item": "Ferrium Bottle (Yazhen Solution)",
+     "count": 5
+    }
+   ],
+   "products": [
+    {
+     "item": "Yazhen Syringe (C)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Packaging Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Part",
+     "count": 10
+    },
+    {
+     "item": "Cuprium Bottle (Yazhen Solution)",
+     "count": 5
+    }
+   ],
+   "products": [
+    {
+     "item": "Yazhen Syringe (A)",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Packaging Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Part",
+     "count": 10
+    },
+    {
+     "item": "Ferrium Bottle (Jincao Solution)",
+     "count": 5
+    }
+   ],
+   "products": [
+    {
+     "item": "Jincao Drink",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Packaging Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Part",
+     "count": 10
+    },
+    {
+     "item": "Cuprium Bottle (Jincao Solution)",
+     "count": 5
+    }
+   ],
+   "products": [
+    {
+     "item": "Jincao Tea",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Packaging Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Xiranite",
+     "count": 5
+    },
+    {
+     "item": "Dense Originium Powder",
+     "count": 15
+    }
+   ],
+   "products": [
+    {
+     "item": "LC Wuling Battery",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Packaging Unit",
+   "mode": "Solid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Xircon",
+     "count": 5
+    },
+    {
+     "item": "Dense Originium Powder",
+     "count": 20
+    }
+   ],
+   "products": [
+    {
+     "item": "SC Wuling Battery",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Packaging Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Canister",
+     "count": 1
+    },
+    {
+     "item": "Xiranite",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Separator Core",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Grinding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Powder",
+     "count": 2
+    },
+    {
+     "item": "Sandleaf Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Dense Ferrium Powder",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Grinding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Powder",
+     "count": 2
+    },
+    {
+     "item": "Sandleaf Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Powder",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Grinding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Originium Powder",
+     "count": 2
+    },
+    {
+     "item": "Sandleaf Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Dense Originium Powder",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Grinding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Carbon Powder",
+     "count": 2
+    },
+    {
+     "item": "Sandleaf Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Dense Carbon Powder",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Grinding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Origocrust Powder",
+     "count": 2
+    },
+    {
+     "item": "Sandleaf Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Dense Origocrust Powder",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Grinding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Buckflower Powder",
+     "count": 2
+    },
+    {
+     "item": "Sandleaf Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ground Buckflower Powder",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Grinding Unit",
+   "mode": "Solid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Citrome Powder",
+     "count": 2
+    },
+    {
+     "item": "Sandleaf Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ground Citrome Powder",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Reactor Crucible",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Jincao Powder",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Jincao Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Reactor Crucible",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Yazhen Powder",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Yazhen Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Reactor Crucible",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Xiranite",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Liquid Xiranite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Reactor Crucible",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Heavy Xiranite",
+     "count": 1
+    },
+    {
+     "item": "Precipitation Acid",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Liquid Heavy Xiranite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Reactor Crucible",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Powder",
+     "count": 1
+    },
+    {
+     "item": "Precipitation Acid",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Reactor Crucible",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Liquid Xiranite",
+     "count": 1
+    },
+    {
+     "item": "Sewage",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Xircon Effluent",
+     "count": 1
+    },
+    {
+     "item": "Inert Xircon Effluent",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Reactor Crucible",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Xircon Effluent",
+     "count": 2
+    },
+    {
+     "item": "Ferrium Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Xircon",
+     "count": 1
+    },
+    {
+     "item": "Sewage",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Reactor Crucible",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Solution",
+     "count": 2
+    },
+    {
+     "item": "Ferrium Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite",
+     "count": 1
+    },
+    {
+     "item": "Sewage",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Expanded Crucible",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Jincao Powder",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Jincao Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Expanded Crucible",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Yazhen Powder",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Yazhen Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Expanded Crucible",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Xiranite",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Liquid Xiranite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Expanded Crucible",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Heavy Xiranite",
+     "count": 1
+    },
+    {
+     "item": "Precipitation Acid",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Liquid Heavy Xiranite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Expanded Crucible",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Powder",
+     "count": 1
+    },
+    {
+     "item": "Precipitation Acid",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Expanded Crucible",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Liquid Xiranite",
+     "count": 1
+    },
+    {
+     "item": "Sewage",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Xircon Effluent",
+     "count": 1
+    },
+    {
+     "item": "Inert Xircon Effluent",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Expanded Crucible",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Xircon Effluent",
+     "count": 2
+    },
+    {
+     "item": "Ferrium Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Xircon",
+     "count": 1
+    },
+    {
+     "item": "Sewage",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Expanded Crucible",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Solution",
+     "count": 2
+    },
+    {
+     "item": "Ferrium Powder",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite",
+     "count": 1
+    },
+    {
+     "item": "Sewage",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Forge of the Sky",
+   "mode": "Gas & Fluid",
+   "time": 2,
+   "environment": "Stable ENV",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Carbon",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Xiranite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Forge of the Sky",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Stabilized Carbon",
+     "count": 2
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Xiranite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Forge of the Sky",
+   "mode": "Fluid",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Xiranite",
+     "count": 10
+    },
+    {
+     "item": "Xircon Effluent",
+     "count": 5
+    }
+   ],
+   "products": [
+    {
+     "item": "Heavy Xiranite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Forge of the Sky",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Burdo-Muck",
+     "count": 1
+    },
+    {
+     "item": "Liquid Xiranite",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Bumper-Rich",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle (Clean Water)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle (Precipitation Acid)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    },
+    {
+     "item": "Precipitation Acid",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle (Sewage)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    },
+    {
+     "item": "Sewage",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle (Jincao Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    },
+    {
+     "item": "Jincao Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle (Yazhen Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    },
+    {
+     "item": "Yazhen Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle (Liquid Xiranite)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Xiranite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle (Liquid Heavy Xiranite)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Heavy Xiranite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle (Xircon Effluent)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    },
+    {
+     "item": "Xircon Effluent",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle (Inert Xircon Effluent)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    },
+    {
+     "item": "Inert Xircon Effluent",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle (Cuprium Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    },
+    {
+     "item": "Cuprium Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Gas & Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Canister (Aquagen)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Canister",
+     "count": 1
+    },
+    {
+     "item": "Aquagen",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Amethyst Bottle (Hetonite Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Amethyst Bottle",
+     "count": 1
+    },
+    {
+     "item": "Hetonite Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Gas & Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Canister (Acridgen)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Canister",
+     "count": 1
+    },
+    {
+     "item": "Acridgen",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Bottle (Clean Water)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Gas & Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Canister (Xiragen)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Canister",
+     "count": 1
+    },
+    {
+     "item": "Xiragen",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Bottle (Precipitation Acid)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    },
+    {
+     "item": "Precipitation Acid",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Gas & Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Canister (Heavy Xiragen)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Canister",
+     "count": 1
+    },
+    {
+     "item": "Heavy Xiragen",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Bottle (Sewage)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    },
+    {
+     "item": "Sewage",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Gas & Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Canister (Inergen)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Canister",
+     "count": 1
+    },
+    {
+     "item": "Inergen",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Bottle (Jincao Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    },
+    {
+     "item": "Jincao Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Gas & Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Canister (Cuprium Gas)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Canister",
+     "count": 1
+    },
+    {
+     "item": "Cuprium Gas",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Bottle (Yazhen Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    },
+    {
+     "item": "Yazhen Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Gas & Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Canister (Hetonite Gas)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Canister",
+     "count": 1
+    },
+    {
+     "item": "Hetonite Gas",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Bottle (Liquid Xiranite)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Xiranite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Bottle (Liquid Heavy Xiranite)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Heavy Xiranite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Bottle (Xircon Effluent)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    },
+    {
+     "item": "Xircon Effluent",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Bottle (Inert Xircon Effluent)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    },
+    {
+     "item": "Inert Xircon Effluent",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Gas & Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Canister (Pyrrolite Gas)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Canister",
+     "count": 1
+    },
+    {
+     "item": "Pyrrolite Gas",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Bottle (Cuprium Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    },
+    {
+     "item": "Cuprium Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cryston Bottle (Hetonite Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cryston Bottle",
+     "count": 1
+    },
+    {
+     "item": "Hetonite Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle (Clean Water)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle (Precipitation Acid)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Precipitation Acid",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle (Sewage)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Sewage",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle (Jincao Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Jincao Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle (Yazhen Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Yazhen Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle (Liquid Xiranite)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Xiranite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle (Liquid Heavy Xiranite)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Heavy Xiranite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle (Xircon Effluent)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Xircon Effluent",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle (Inert Xircon Effluent)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Inert Xircon Effluent",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle (Cuprium Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Cuprium Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Ferrium Bottle (Hetonite Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Ferrium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Hetonite Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle (Clean Water)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle (Precipitation Acid)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    },
+    {
+     "item": "Precipitation Acid",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle (Sewage)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    },
+    {
+     "item": "Sewage",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle (Jincao Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    },
+    {
+     "item": "Jincao Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle (Yazhen Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    },
+    {
+     "item": "Yazhen Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle (Liquid Xiranite)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Xiranite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle (Liquid Heavy Xiranite)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Heavy Xiranite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle (Xircon Effluent)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    },
+    {
+     "item": "Xircon Effluent",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle (Inert Xircon Effluent)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    },
+    {
+     "item": "Inert Xircon Effluent",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle (Cuprium Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    },
+    {
+     "item": "Cuprium Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Steel Bottle (Hetonite Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Steel Bottle",
+     "count": 1
+    },
+    {
+     "item": "Hetonite Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Bottle (Clean Water)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Bottle (Precipitation Acid)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Precipitation Acid",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Bottle (Sewage)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Sewage",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Bottle (Jincao Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Jincao Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Bottle (Yazhen Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Yazhen Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Bottle (Liquid Xiranite)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Xiranite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Bottle (Liquid Heavy Xiranite)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Heavy Xiranite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Bottle (Xircon Effluent)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Xircon Effluent",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Bottle (Inert Xircon Effluent)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Inert Xircon Effluent",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Bottle (Cuprium Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Cuprium Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Bottle (Hetonite Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Bottle",
+     "count": 1
+    },
+    {
+     "item": "Hetonite Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Bottle (Clean Water)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Bottle (Precipitation Acid)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    },
+    {
+     "item": "Precipitation Acid",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Bottle (Sewage)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    },
+    {
+     "item": "Sewage",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Bottle (Jincao Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    },
+    {
+     "item": "Jincao Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Bottle (Yazhen Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    },
+    {
+     "item": "Yazhen Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Bottle (Liquid Xiranite)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Xiranite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Bottle (Liquid Heavy Xiranite)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    },
+    {
+     "item": "Liquid Heavy Xiranite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Bottle (Xircon Effluent)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    },
+    {
+     "item": "Xircon Effluent",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Bottle (Inert Xircon Effluent)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    },
+    {
+     "item": "Inert Xircon Effluent",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Bottle (Cuprium Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    },
+    {
+     "item": "Cuprium Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Separating Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Bottle (Hetonite Solution)",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Bottle",
+     "count": 1
+    },
+    {
+     "item": "Hetonite Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Purification Unit",
+   "mode": "Gas",
+   "time": 2,
+   "environment": "Stable ENV",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Xiragen",
+     "count": 2
+    },
+    {
+     "item": "Separator Core",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Heavy Xiragen",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Purification Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Inert Xircon Effluent",
+     "count": 4
+    }
+   ],
+   "products": [
+    {
+     "item": "Xircon Effluent",
+     "count": 1
+    },
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Purification Unit",
+   "mode": "Fluid",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Solution",
+     "count": 4
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Solution",
+     "count": 1
+    },
+    {
+     "item": "Precipitation Acid",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Purification Unit",
+   "mode": "Gas",
+   "time": 2,
+   "environment": "Stable ENV",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Gas",
+     "count": 2
+    },
+    {
+     "item": "Separator Core",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Gas",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Purification Unit",
+   "mode": "Gas",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Xiragen",
+     "count": 2
+    },
+    {
+     "item": "Separator Core",
+     "count": 2
+    }
+   ],
+   "products": [
+    {
+     "item": "Heavy Xiragen",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Purification Unit",
+   "mode": "Gas",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Gas",
+     "count": 2
+    },
+    {
+     "item": "Separator Core",
+     "count": 2
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Gas",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Fluid-Gas Transmuting Unit",
+   "mode": "Fluidify",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Aquagen",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Fluid-Gas Transmuting Unit",
+   "mode": "Gasify",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Clean Water",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Aquagen",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Fluid-Gas Transmuting Unit",
+   "mode": "Gasify",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Precipitation Acid",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Acridgen",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Fluid-Gas Transmuting Unit",
+   "mode": "Fluidify",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Acridgen",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Precipitation Acid",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Fluid-Gas Transmuting Unit",
+   "mode": "Gasify",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Liquid Xiranite",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Xiragen",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Fluid-Gas Transmuting Unit",
+   "mode": "Fluidify",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Xiragen",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Liquid Xiranite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Fluid-Gas Transmuting Unit",
+   "mode": "Gasify",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Liquid Heavy Xiranite",
+     "count": 2
+    }
+   ],
+   "products": [
+    {
+     "item": "Heavy Xiragen",
+     "count": 5
+    }
+   ]
+  },
+  {
+   "facility": "Fluid-Gas Transmuting Unit",
+   "mode": "Fluidify",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Heavy Xiragen",
+     "count": 5
+    }
+   ],
+   "products": [
+    {
+     "item": "Liquid Heavy Xiranite",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Fluid-Gas Transmuting Unit",
+   "mode": "Gasify",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Solution",
+     "count": 2
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Gas",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Fluid-Gas Transmuting Unit",
+   "mode": "Fluidify",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Gas",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Solution",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Fluid-Gas Transmuting Unit",
+   "mode": "Fluidify",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Gas",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Solution",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Fluid-Gas Transmuting Unit",
+   "mode": "Gasify",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Solution",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Gas",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Solid-Gas Transmuting Unit",
+   "mode": "Solidify",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Xiragen",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Xiranite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Solid-Gas Transmuting Unit",
+   "mode": "Gasify",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Xiranite",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Xiragen",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Solid-Gas Transmuting Unit",
+   "mode": "Gasify",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Heavy Xiranite",
+     "count": 2
+    }
+   ],
+   "products": [
+    {
+     "item": "Heavy Xiragen",
+     "count": 5
+    }
+   ]
+  },
+  {
+   "facility": "Solid-Gas Transmuting Unit",
+   "mode": "Solidify",
+   "time": 10,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Heavy Xiragen",
+     "count": 5
+    }
+   ],
+   "products": [
+    {
+     "item": "Heavy Xiranite",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Solid-Gas Transmuting Unit",
+   "mode": "Solidify",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium Gas",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Solid-Gas Transmuting Unit",
+   "mode": "Gasify",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Cuprium",
+     "count": 2
+    }
+   ],
+   "products": [
+    {
+     "item": "Cuprium Gas",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Solid-Gas Transmuting Unit",
+   "mode": "Gasify",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite Gas",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "facility": "Solid-Gas Transmuting Unit",
+   "mode": "Solidify",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Gas",
+     "count": 2
+    }
+   ],
+   "products": [
+    {
+     "item": "Hetonite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Solid-Gas Transmuting Unit",
+   "mode": "Solidify",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Pyrrolite Gas",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Pyrrolite",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Solid-Gas Transmuting Unit",
+   "mode": "Gasify",
+   "time": 2,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Pyrrolite",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Pyrrolite Gas",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "Gas Reactor Globe",
+   "mode": "Gas",
+   "time": 2,
+   "environment": "Acrid ENV",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Hetonite Gas",
+     "count": 2
+    },
+    {
+     "item": "Xiragen",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Pyrrolite Gas",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "facility": "",
+   "mode": "Power",
+   "time": 8,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "Originium Ore",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Power",
+     "count": 50
+    }
+   ]
+  },
+  {
+   "facility": "",
+   "mode": "Power",
+   "time": 40,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "LC Valley Battery",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Power",
+     "count": 220
+    }
+   ]
+  },
+  {
+   "facility": "",
+   "mode": "Power",
+   "time": 40,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "SC Valley Battery",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Power",
+     "count": 420
+    }
+   ]
+  },
+  {
+   "facility": "",
+   "mode": "Power",
+   "time": 40,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "HC Valley Battery",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Power",
+     "count": 1100
+    }
+   ]
+  },
+  {
+   "facility": "",
+   "mode": "Power",
+   "time": 40,
+   "environment": "",
+   "event": false,
+   "ingredients": [
+    {
+     "item": "LC Wuling Battery",
+     "count": 1
+    }
+   ],
+   "products": [
+    {
+     "item": "Power",
+     "count": 1600
+    }
+   ]
+  }
+ ]
+}

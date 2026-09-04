@@ -1,0 +1,25 @@
+# A player's Wuling line: one Gearing Unit of Hetonite Equipment Blueprints with only
+# 10 Cuprium Ore per minute; natural resources otherwise unlimited, Xiranite from the depot.
+
+mode = "machines"
+mixed_lanes = true
+gas = true
+liquids = true
+
+[supply]
+item_copper_ore = 10
+item_originium_ore = "unlimited"
+item_iron_ore = "unlimited"
+item_quartz_sand = "unlimited"
+item_liquid_water = "unlimited"
+item_liquid_acid = "unlimited"
+item_xiranite_powder = "unlimited"
+
+[targets]
+item_equip_script_4_2 = "min"
+
+[basement]
+region = "wuling"
+basement_id = "cardiac_remediation_station"
+level = 3
+depot_level = 2
