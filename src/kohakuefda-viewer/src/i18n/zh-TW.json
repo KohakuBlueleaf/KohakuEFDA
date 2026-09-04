@@ -1,0 +1,418 @@
+{
+  "app": {
+    "title": "KohakuEFDA",
+    "theme": "淺色 / 深色"
+  },
+  "lang": {
+    "en": "EN",
+    "zh-TW": "繁中",
+    "zh-CN": "简中"
+  },
+  "nav": {
+    "studio": "工作室",
+    "runs": "紀錄",
+    "dataset": "遊戲資料",
+    "plan": "規劃",
+    "layout": "佈局",
+    "modules": "藍圖分塊",
+    "report": "報告"
+  },
+  "status": {
+    "idle": "尚未載入。",
+    "loading": "載入中…",
+    "error": "無法載入：{error}",
+    "ready": "已載入 {n} 個檔案，遊戲資料 {version}。",
+    "missing": "還沒有內容。到工作室建一條產線，或服務命令列寫出的資料夾。",
+    "noRun": "沒有進行中的建置",
+    "run": "建置",
+    "source": "來源",
+    "stagesDone": "已完成 {n} / {total} 個階段",
+    "frames": "幀",
+    "apiOn": "已連上伺服器",
+    "apiOff": "連不上伺服器"
+  },
+  "stage": {
+    "plan": "規劃",
+    "netlist": "單元",
+    "layout": "佈局",
+    "verify": "檢查"
+  },
+  "stageHelp": {
+    "plan": "算出要用哪些配方、幾台設施才能做出你要的東西，以及會產出什麼。",
+    "netlist": "列出每一台設施、自動化核心、外圍的泵與倉庫磚，以及它們之間的傳送帶與管道。",
+    "layout": "逐台把機器放下，同時就把它與上下游之間的輸送帶接好——接不上的位置根本不會被採用；接著在時間預算內不斷搬動機器、重走線路、擠掉空行空列。可以先看搭建，再看最佳化。",
+    "verify": "用遊戲規則檢查完成的佈局，並量測每台設施實際的運作。"
+  },
+  "flow": {
+    "status": {
+      "idle": "未執行",
+      "queued": "排隊中",
+      "running": "執行中",
+      "done": "完成",
+      "failed": "失敗",
+      "cancelled": "已停止"
+    },
+    "run": "執行",
+    "runThrough": "一路執行到底",
+    "cancel": "停止",
+    "params": "設定",
+    "log": "歷程",
+    "noRun": "請先建置一條產線。",
+    "notReady": "前面的階段要先完成。",
+    "noApi": "連不上伺服器。請執行：kohakuefda serve out/",
+    "inspector": "設定",
+    "reset": "重設為預設值",
+    "live": "跟隨",
+    "step": "步",
+    "cost": "成本",
+    "unrouted": "未繞線",
+    "costCurve": "擺放成本",
+    "noFrames": "還沒有幀。",
+    "final": "結果",
+    "fits": "放得進方格",
+    "tooBig": "超出方格",
+    "showFinal": "顯示結果",
+    "building": "搭建中",
+    "improving": "最佳化中",
+    "wire": "線路格數"
+  },
+  "terms": {
+    "area": "面積",
+    "width": "寬",
+    "height": "高",
+    "waste": "空格",
+    "length": "傳送帶與管線格數",
+    "pylons": "電塔",
+    "bricks_underused": "未滿載的磚塊",
+    "junctions": "分流器與合流器"
+  },
+  "paramGroup": {
+    "search": "搜尋",
+    "space": "空間",
+    "routing": "佈線",
+    "other": "其他",
+    "moves": "動作"
+  },
+  "params": {
+    "seed": "隨機種子",
+    "frame_every": "每 N 步一幀",
+    "entry_sides": "外部輸入可用的邊",
+    "pylon": "電塔種類",
+    "route_iterations": "繞線輪數",
+    "present_cost": "衝突懲罰",
+    "present_growth": "懲罰成長",
+    "turn_cost": "轉彎代價",
+    "bridge_cost": "橋接代價",
+    "history_cost": "歷史代價",
+    "candidate_tries": "每台機器嘗試的位置數",
+    "w_wire": "每格輸送帶／管線的權重",
+    "w_unit": "每個分流器／合流器的權重",
+    "w_pull": "向角落收攏的力度",
+    "spread_attempts": "嘗試的格陣數",
+    "spread_gap": "額外通道寬度",
+    "spread_widest": "最寬通道",
+    "flow_order": "流向走法",
+    "workers": "同時搜尋數"
+  },
+  "choices": {
+    "entry_sides": {
+      "NW": "北與西",
+      "N": "北",
+      "W": "西",
+      "NESW": "任一邊"
+    }
+  },
+  "picker": {
+    "search": "輸入名稱搜尋…",
+    "all": "全部",
+    "solid": "固體",
+    "liquid": "液體",
+    "gas": "氣體",
+    "none": "沒有符合的項目。"
+  },
+  "region": {
+    "valley4": "四號谷地",
+    "wuling": "武陵"
+  },
+  "examples": {
+    "valley_battery": "範例：四號谷地做電池",
+    "wuling_hetonite": "範例：武陵做赫托石",
+    "gas_xiranite": "範例：含氣體的希拉石"
+  },
+  "entry": {
+    "title": "設計",
+    "where": "你在哪裡",
+    "whereHint": "選擇核心集成工業區與等級；等級決定可以蓋的區域大小。",
+    "what": "你想要什麼",
+    "whatHint": "選產品，再說要多少：能做出來就好、盡量多、或指定速率。",
+    "have": "你有什麼",
+    "haveHint": "這些是產線需要的原料。有很多就留白；否則填每分鐘進來多少。",
+    "build": "怎麼蓋",
+    "buildHint": "設施最少，或是在區域裡榨出最多產出。",
+    "area": "核心集成工業區",
+    "hub": "樞紐",
+    "level": "等級",
+    "depotLevel": "倉庫等級",
+    "square": "區域：{w} × {h} 格",
+    "squareUnknown": "此等級的區域大小未知；先以 50 × 50 計算。",
+    "addProduct": "加入產品",
+    "pickProduct": "你想做什麼？",
+    "noTargets": "還沒選產品。",
+    "intent": {
+      "min": "做出來就好",
+      "max": "盡量多",
+      "rate": "指定"
+    },
+    "intentHint": {
+      "min": "能做出來的最小產線：最後一步一台設施，餵飽它。",
+      "max": "區域與原料允許下最大的產線。",
+      "rate": "你自己指定每分鐘的速率。"
+    },
+    "perMinute": "每分鐘",
+    "plenty": "很多",
+    "addMaterial": "加入原料",
+    "pickMaterial": "你還有什麼？",
+    "fromDepot": "來自倉庫",
+    "fromOutside": "來自外部",
+    "alreadyHave": "我已經有一些中間產物",
+    "noNeeds": "先選產品；需要的原料會出現在這裡。",
+    "dropped": "移除（產線將無法做出產品）",
+    "remove": "移除",
+    "simplest": "最簡單",
+    "simplestHint": "設施最少，有些可能閒著。",
+    "efficient": "最有效率",
+    "efficientHint": "同樣產出用最小面積。",
+    "advanced": "進階",
+    "balanced": "折衷（設施與面積）",
+    "gas": "我可以用氣體設施",
+    "gasHint": "氣體產線需要氣體擴散裝置的區域。",
+    "liquids": "我可以用液體設施（管道、反應池、水泵）",
+    "liquidsHint": "關閉後只規劃傳送帶與固體配方。",
+    "banned": "我還不能蓋的設施",
+    "bannedHint": "這些設施上的配方永遠不會被用到。",
+    "banMachine": "禁用設施",
+    "pickBan": "哪個設施你還不能蓋？",
+    "gathered": "只能手動採集",
+    "gatheredHint": "工廠裡沒有東西能做出這些。只有你願意一直補貨才勾選；否則產線會另找路徑。",
+    "mined": "開採",
+    "pumped": "抽取",
+    "mixedLanes": "允許進倉庫的混合傳送帶",
+    "mixedLanesHint": "終點是倉庫時，多種物品可共用一條傳送帶。",
+    "areaFill": "「盡量多」的面積預算",
+    "areaFillHint": "設施最多可覆蓋區域的比例（預設 0.5）。",
+    "overrides": "指定配方",
+    "addOverride": "為某個物品指定配方",
+    "pickOverride": "哪個物品要用特定配方？",
+    "examples": "範例…",
+    "import": "匯入 scenario.toml",
+    "export": "下載 scenario.toml",
+    "reset": "重新開始",
+    "buildButton": "建置",
+    "buildAll": "一路到底",
+    "buildAllHint": "規劃、擺放、佈線、檢查一次完成。",
+    "buildFooter": "建置會先規劃產線並顯示產出。擺放、佈線、檢查在流程上接著跑。",
+    "mode": {
+      "machines": "最簡單",
+      "area": "最有效率",
+      "balanced": "折衷"
+    }
+  },
+  "studio": {
+    "welcome": "設計一條產線",
+    "welcomeHint": "在左側選擇你在哪裡、想要什麼、有什麼，然後按「建置」。流程上的每個階段都可以換設定重跑。"
+  },
+  "outcomes": {
+    "delivered": "做出",
+    "deliveredHint": "以產品送進倉庫",
+    "stored": "存起來",
+    "storedHint": "多出的固體送進倉庫",
+    "dumped": "處理掉",
+    "dumpedHint": "液體經處理後排回外部",
+    "consumed": "用掉",
+    "consumedHint": "從倉庫或外部取用的原料",
+    "missing": "做不到",
+    "missingHint": "什麼都做不出來；檢查原料",
+    "useIt": "拿來用",
+    "noPlan": "還沒有規劃。按「建置」。"
+  },
+  "next": {
+    "title": "拿去做…",
+    "none": "這裡沒有配方會用到它。",
+    "needs": "另外需要",
+    "matching": "{rate}/分",
+    "add": "加進產線",
+    "extend": "取代原產品"
+  },
+  "plan": {
+    "heading": "規劃",
+    "status": "結果",
+    "cannotBuild": "這條產線無法照設定建造",
+    "cannotBuildHint": "請調整上方設定（氣體、液體設備、禁用設備、區域），或把該物品加入你已有的材料。",
+    "scale": "比例",
+    "machineCount": "設施",
+    "power": "電力",
+    "powerDraw": "機器總耗電；由電塔輸送，這裡不規劃發電",
+    "footprint": "設施占格",
+    "areaUsed": "占區域 {pct}",
+    "graph": "流向",
+    "details": "表格",
+    "targets": "產品",
+    "recipes": "配方與設施",
+    "items": "物品收支（每分鐘）",
+    "nets": "連接",
+    "findings": "備註",
+    "openFull": "開啟完整規劃頁",
+    "alternatives": "其他做法",
+    "alternativesHint": "每個有多種配方的產品都能給出另一套規劃。挑一個就用該配方重建；把做不出的設施禁用，規劃會另尋出路。",
+    "noAlternatives": "這裡每個產品都只有一種可用配方。",
+    "via": "經由",
+    "machinesShort": "台設施",
+    "cellsShort": "格",
+    "alternativeDelta": "設施 {machines}，格數 {cells}",
+    "usePath": "改用這條路",
+    "bannable": "可以不用的設施",
+    "bannableHint": "禁用其中一台仍有可行規劃。點一下就禁用並重建。",
+    "banAndRebuild": "禁用這台設施並重建"
+  },
+  "planStatus": {
+    "ok": "可行",
+    "degraded": "部分",
+    "infeasible": "做不到"
+  },
+  "netlist": {
+    "none": "還沒有單元。執行「單元」階段。",
+    "nets": "設施之間的連接"
+  },
+  "cellKind": {
+    "recipe": "設施",
+    "dump": "水處理裝置",
+    "unloader": "倉庫卸貨器",
+    "loader": "倉庫裝貨器",
+    "entry": "外部輸入",
+    "zone": "氣體擴散單元",
+    "depot": "倉庫匯流排部件",
+    "core": "自動化核心"
+  },
+  "verify": {
+    "noLayout": "還沒有佈局。執行「擺放」與「佈線」。",
+    "ok": "沒有錯誤",
+    "errors": "{n} 個錯誤",
+    "warnings": "{n} 個警告",
+    "notes": "{n} 個提示"
+  },
+  "layout": {
+    "heading": "佈局",
+    "ground": "傳送帶",
+    "sky": "管道",
+    "labels": "名稱",
+    "items": "流動的物品",
+    "modules": "藍圖分塊",
+    "coverage": "電塔範圍",
+    "cell": "縮放",
+    "hover": "將滑鼠移到格子上查看細節。",
+    "utilisation": "忙碌度",
+    "stalled": "等待",
+    "square": "區域",
+    "fromEdge": "自此邊進入："
+  },
+  "viewport": {
+    "zoomIn": "放大",
+    "zoomOut": "縮小",
+    "fit": "縮放至符合"
+  },
+  "legend": {
+    "fromDepot": "從倉庫取出",
+    "toDepot": "送進倉庫",
+    "fromOutside": "從外部抽取",
+    "toOutside": "排回外部",
+    "entry": "外部輸入"
+  },
+  "runs": {
+    "heading": "紀錄",
+    "intro": "你建過的每條產線，最新在前。開啟以從停下的地方繼續。",
+    "none": "還沒有紀錄。",
+    "delete": "刪除這筆建置",
+    "confirmDelete": "刪除建置 {id}？其檔案將被移除。"
+  },
+  "dataset": {
+    "heading": "遊戲資料",
+    "items": "物品",
+    "machines": "設施",
+    "recipes": "配方",
+    "filter": "篩選…",
+    "count": "{n} 列"
+  },
+  "modules": {
+    "heading": "藍圖分塊",
+    "intro": "佈局切成藍圖大小的分塊，依建造順序排列。點一個在佈局上查看。"
+  },
+  "report": {
+    "heading": "報告"
+  },
+  "phase": {
+    "1": "固體",
+    "2": "液體",
+    "4": "氣體"
+  },
+  "columns": {
+    "id": "識別碼",
+    "name": "名稱",
+    "size": "尺寸",
+    "belt": "傳送帶 入/出",
+    "pipe": "管道 入/出",
+    "power": "電力",
+    "modes": "模式",
+    "machine": "設施",
+    "mode": "模式",
+    "seconds": "秒",
+    "inputs": "輸入（/分）",
+    "outputs": "輸出（/分）",
+    "env": "區域",
+    "phase": "相態",
+    "item": "物品",
+    "requested": "要求 /分",
+    "achieved": "做出 /分",
+    "goal": "多少",
+    "recipe": "配方",
+    "crafts": "製作 /分",
+    "machines": "設施數（精確）",
+    "produced": "產出",
+    "consumed": "消耗",
+    "supplied": "供應",
+    "delivered": "交付",
+    "sunk": "多餘",
+    "net": "淨值",
+    "from": "來源",
+    "to": "去向",
+    "rate": "速率 /分",
+    "lanes": "線道",
+    "severity": "等級",
+    "rule": "規則",
+    "subject": "位置",
+    "message": "訊息",
+    "module": "分塊",
+    "origin": "原點",
+    "entities": "元件"
+  },
+  "endpoint": {
+    "fromDepot": "來自倉庫",
+    "fromOutside": "來自外部",
+    "supply": "供應",
+    "target": "交付",
+    "depot": "存入倉庫",
+    "dump": "處理掉",
+    "sink": "匯"
+  },
+  "graph": {
+    "belt": "傳送帶",
+    "pipe": "管道",
+    "crossings": "{n} 處交叉，皆以跳線標記",
+    "noCrossings": "沒有交叉",
+    "feedback": "虛線為回流，繞行於圖的下方"
+  },
+  "severity": {
+    "error": "錯誤",
+    "warning": "警告",
+    "info": "提示"
+  }
+}

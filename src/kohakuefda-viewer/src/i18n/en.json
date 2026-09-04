@@ -1,0 +1,418 @@
+{
+  "app": {
+    "title": "KohakuEFDA",
+    "theme": "Light / dark"
+  },
+  "lang": {
+    "en": "EN",
+    "zh-TW": "繁中",
+    "zh-CN": "简中"
+  },
+  "nav": {
+    "studio": "Studio",
+    "runs": "Runs",
+    "dataset": "Game data",
+    "plan": "Plan",
+    "layout": "Layout",
+    "modules": "Modules",
+    "report": "Report"
+  },
+  "status": {
+    "idle": "Not loaded.",
+    "loading": "Loading…",
+    "error": "Could not load: {error}",
+    "ready": "Loaded {n} file(s) with game data {version}.",
+    "missing": "Nothing to show yet. Build a line in the Studio, or serve a folder written by the command line.",
+    "noRun": "no run",
+    "run": "run",
+    "source": "source",
+    "stagesDone": "{n} / {total} stages done",
+    "frames": "frames",
+    "apiOn": "server connected",
+    "apiOff": "server not reachable"
+  },
+  "stage": {
+    "plan": "Plan",
+    "netlist": "Cells",
+    "layout": "Layout",
+    "verify": "Check"
+  },
+  "stageHelp": {
+    "plan": "Works out which recipes and how many machines make what you asked for, and what comes out.",
+    "netlist": "Lists every machine on its own: production machines, Gas Dispersing Units with the machines of their zone, the Automation-Core, the outside inputs, the Depot Bus parts and the bricks on them, and the belts and pipes between them.",
+    "layout": "Puts the machines down one at a time and belts each one to the machines it feeds in the same step, so a position that cannot be wired is never used; then keeps moving machines, rerouting lines and squeezing out empty rows for as long as its time budget allows. Watch it build, then improve.",
+    "verify": "Checks the finished layout against the game's rules and measures what every machine really does."
+  },
+  "flow": {
+    "status": {
+      "idle": "not run",
+      "queued": "queued",
+      "running": "running",
+      "done": "done",
+      "failed": "failed",
+      "cancelled": "cancelled"
+    },
+    "run": "Run",
+    "runThrough": "Run to the end",
+    "cancel": "Stop",
+    "params": "Settings",
+    "log": "History",
+    "noRun": "Build a line first.",
+    "notReady": "Earlier stages must finish first.",
+    "noApi": "The server is not reachable. Start it with: kohakuefda serve out/",
+    "inspector": "Settings",
+    "reset": "Reset to defaults",
+    "live": "Follow",
+    "step": "move",
+    "cost": "cost",
+    "unrouted": "unrouted",
+    "costCurve": "Search cost",
+    "noFrames": "No frames yet.",
+    "final": "result",
+    "fits": "fits the square",
+    "tooBig": "too big for the square",
+    "showFinal": "Show the result",
+    "building": "building",
+    "improving": "improving",
+    "wire": "wire cells"
+  },
+  "terms": {
+    "area": "rectangle",
+    "width": "width",
+    "height": "height",
+    "waste": "empty cells",
+    "length": "belt and pipe cells",
+    "pylons": "pylons",
+    "bricks_underused": "bricks not full",
+    "junctions": "Splitters and convergers"
+  },
+  "paramGroup": {
+    "search": "Search",
+    "space": "Space",
+    "routing": "Routing",
+    "other": "Other",
+    "moves": "Moves"
+  },
+  "params": {
+    "seed": "Random seed",
+    "frame_every": "Frame every N moves",
+    "entry_sides": "Border sides for outside inputs",
+    "pylon": "Pylon type",
+    "route_iterations": "Routing passes",
+    "present_cost": "Conflict penalty",
+    "present_growth": "Penalty growth",
+    "turn_cost": "Turn cost",
+    "bridge_cost": "Bridge cost",
+    "history_cost": "History cost",
+    "candidate_tries": "Positions tried per machine",
+    "w_wire": "Weight per belt or pipe cell",
+    "w_unit": "Weight per splitter or converger",
+    "w_pull": "Pull toward the corner",
+    "spread_attempts": "Lattices tried",
+    "spread_gap": "Extra corridor width",
+    "spread_widest": "Widest corridor tried",
+    "flow_order": "Walk the flow",
+    "workers": "Searches at once"
+  },
+  "choices": {
+    "entry_sides": {
+      "NW": "north and west",
+      "N": "north",
+      "W": "west",
+      "NESW": "any side"
+    }
+  },
+  "picker": {
+    "search": "Search by name…",
+    "all": "All",
+    "solid": "Solids",
+    "liquid": "Liquids",
+    "gas": "Gases",
+    "none": "Nothing matches."
+  },
+  "region": {
+    "valley4": "Valley IV",
+    "wuling": "Wuling"
+  },
+  "examples": {
+    "valley_battery": "Example: batteries in Valley IV",
+    "wuling_hetonite": "Example: Hetonite in Wuling",
+    "gas_xiranite": "Example: Xiranite with gas"
+  },
+  "entry": {
+    "title": "Design",
+    "where": "Where are you",
+    "whereHint": "Pick the Core AIC Area and its level; the level sets the square you can build in.",
+    "what": "What do you want",
+    "whatHint": "Pick products. Say how much: the smallest line that works, as much as fits, or an exact rate.",
+    "have": "What you have",
+    "haveHint": "These are the raw materials the line needs. Leave a field empty when you have plenty; otherwise type how many arrive per minute.",
+    "build": "How to build it",
+    "buildHint": "Fewest machines, or the most output the square allows.",
+    "area": "Core AIC Area",
+    "hub": "hub",
+    "level": "Level",
+    "depotLevel": "Depot level",
+    "square": "Square: {w} × {h} cells",
+    "squareUnknown": "Square size unknown for this level; 50 × 50 is assumed.",
+    "addProduct": "Add a product",
+    "pickProduct": "What do you want to make?",
+    "noTargets": "No product chosen yet.",
+    "intent": {
+      "min": "Just make it",
+      "max": "As much as fits",
+      "rate": "Exactly"
+    },
+    "intentHint": {
+      "min": "The smallest line that makes it: one machine of the last step, fed properly.",
+      "max": "The biggest line the square and your materials allow.",
+      "rate": "A rate you choose, per minute."
+    },
+    "perMinute": "per minute",
+    "plenty": "plenty",
+    "addMaterial": "Add a material",
+    "pickMaterial": "What else do you have?",
+    "fromDepot": "from the depot",
+    "fromOutside": "from outside",
+    "alreadyHave": "I already have some intermediate items",
+    "noNeeds": "Pick a product first; the materials it needs appear here.",
+    "dropped": "Remove (the line will not be able to make the product)",
+    "remove": "Remove",
+    "simplest": "Simplest line",
+    "simplestHint": "Fewest machines. Some may idle.",
+    "efficient": "Most efficient",
+    "efficientHint": "Smallest area for the output.",
+    "advanced": "Advanced",
+    "balanced": "Balanced (machines and area)",
+    "gas": "I can use gas machines",
+    "gasHint": "Gas lines need a Gas Dispersing Unit zone.",
+    "liquids": "I can use liquid machines (pipes, crucibles, pumps)",
+    "liquidsHint": "Off: only belts and solid recipes are planned.",
+    "banned": "Machines I cannot build",
+    "bannedHint": "Recipes on these machines are never used.",
+    "banMachine": "Ban a machine",
+    "pickBan": "Which machine can you not build yet?",
+    "gathered": "Gathered by hand only",
+    "gatheredHint": "Nothing in the factory makes these. Tick one only if you will keep bringing it; otherwise the line finds another way.",
+    "mined": "mined",
+    "pumped": "pumped",
+    "mixedLanes": "Allow mixed belts into the depot",
+    "mixedLanesHint": "Several items may share one belt when it ends in the depot.",
+    "areaFill": "Area budget for “as much as fits”",
+    "areaFillHint": "Fraction of the square machines may cover (default 0.5).",
+    "overrides": "Force a recipe",
+    "addOverride": "Choose a recipe for an item",
+    "pickOverride": "Which item should use a specific recipe?",
+    "examples": "Examples…",
+    "import": "Import scenario.toml",
+    "export": "Download scenario.toml",
+    "reset": "Start over",
+    "buildButton": "Build",
+    "buildAll": "All the way",
+    "buildAllHint": "Plan, lay out and check in one go.",
+    "buildFooter": "Build plans the line and shows what comes out. Layout and Check follow on the flow.",
+    "mode": {
+      "machines": "simplest",
+      "area": "efficient",
+      "balanced": "balanced"
+    }
+  },
+  "studio": {
+    "welcome": "Design a production line",
+    "welcomeHint": "Choose where you are, what you want and what you have on the left, then press Build. Every stage on the flow can be rerun with other settings."
+  },
+  "outcomes": {
+    "delivered": "Made",
+    "deliveredHint": "delivered to the depot as products",
+    "stored": "Stored",
+    "storedHint": "surplus solids sent to the depot",
+    "dumped": "Treated",
+    "dumpedHint": "fluids treated and returned outside",
+    "consumed": "Used",
+    "consumedHint": "materials drawn from the depot or from outside",
+    "missing": "Not possible",
+    "missingHint": "nothing could be made; check the materials",
+    "useIt": "Use it",
+    "noPlan": "No plan yet. Press Build."
+  },
+  "next": {
+    "title": "Turn it into…",
+    "none": "Nothing consumes this item here.",
+    "needs": "also needs",
+    "matching": "{rate}/min",
+    "add": "Add to the line",
+    "extend": "Replace the product"
+  },
+  "plan": {
+    "heading": "Plan",
+    "status": "Result",
+    "cannotBuild": "This line cannot be built as asked",
+    "cannotBuildHint": "Change a setting above (gas, liquid machines, banned machines, region) or add the item to what you have.",
+    "scale": "Scale",
+    "machineCount": "Machines",
+    "power": "Power draw",
+    "powerDraw": "total the machines draw; pylons carry it, nothing is generated here",
+    "footprint": "Machine cells",
+    "areaUsed": "{pct} of the square",
+    "graph": "Flow",
+    "details": "Tables",
+    "targets": "Products",
+    "recipes": "Recipes and machines",
+    "items": "Item balances (per minute)",
+    "nets": "Connections",
+    "findings": "Notes",
+    "openFull": "Open the full plan page",
+    "alternatives": "Other ways to make it",
+    "alternativesHint": "Every product with more than one recipe gives another plan. Pick one to rebuild with that recipe; ban a machine you cannot build and the plan finds another way.",
+    "noAlternatives": "Every product has only one usable recipe here.",
+    "via": "via",
+    "machinesShort": "machines",
+    "cellsShort": "cells",
+    "alternativeDelta": "{machines} machines, {cells} cells",
+    "usePath": "Use this path",
+    "bannable": "Machines you could do without",
+    "bannableHint": "Banning one of these still leaves a feasible plan. Click to ban it and rebuild.",
+    "banAndRebuild": "Ban this machine and rebuild"
+  },
+  "planStatus": {
+    "ok": "feasible",
+    "degraded": "partly",
+    "infeasible": "not possible"
+  },
+  "netlist": {
+    "none": "No cells yet. Run the Cells stage.",
+    "nets": "Connections between machines"
+  },
+  "cellKind": {
+    "recipe": "Machine",
+    "dump": "Water Treatment Unit",
+    "unloader": "Depot Unloader",
+    "loader": "Depot Loader",
+    "entry": "Outside input",
+    "zone": "Gas Dispersing Unit",
+    "depot": "Depot Bus part",
+    "core": "Automation-Core"
+  },
+  "verify": {
+    "noLayout": "No layout yet. Run Layout.",
+    "ok": "no errors",
+    "errors": "{n} error(s)",
+    "warnings": "{n} warning(s)",
+    "notes": "{n} note(s)"
+  },
+  "layout": {
+    "heading": "Layout",
+    "ground": "Belts",
+    "sky": "Pipes",
+    "labels": "Names",
+    "items": "What flows",
+    "modules": "Blueprint tiles",
+    "coverage": "Pylon range",
+    "cell": "Zoom",
+    "hover": "Hover a cell for details.",
+    "utilisation": "Busy",
+    "stalled": "Waiting on",
+    "square": "Square",
+    "fromEdge": "enters from the"
+  },
+  "viewport": {
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "fit": "Fit to view"
+  },
+  "legend": {
+    "fromDepot": "takes from the depot",
+    "toDepot": "sends to the depot",
+    "fromOutside": "comes from outside",
+    "toOutside": "returns outside",
+    "entry": "outside input"
+  },
+  "runs": {
+    "heading": "Runs",
+    "intro": "Every line you built, newest first. Open one to continue where it stopped.",
+    "none": "No runs yet.",
+    "delete": "Delete this run",
+    "confirmDelete": "Delete run {id}? Its files are removed."
+  },
+  "dataset": {
+    "heading": "Game data",
+    "items": "Items",
+    "machines": "Machines",
+    "recipes": "Recipes",
+    "filter": "Filter…",
+    "count": "{n} rows"
+  },
+  "modules": {
+    "heading": "Blueprint tiles",
+    "intro": "The layout cut into blueprint-sized tiles, in build order. Click one to see it on the layout."
+  },
+  "report": {
+    "heading": "Report"
+  },
+  "phase": {
+    "1": "solid",
+    "2": "liquid",
+    "4": "gas"
+  },
+  "columns": {
+    "id": "Id",
+    "name": "Name",
+    "size": "Size",
+    "belt": "Belt in/out",
+    "pipe": "Pipe in/out",
+    "power": "Power",
+    "modes": "Modes",
+    "machine": "Machine",
+    "mode": "Mode",
+    "seconds": "Seconds",
+    "inputs": "Inputs (/min)",
+    "outputs": "Outputs (/min)",
+    "env": "Zone",
+    "phase": "Phase",
+    "item": "Item",
+    "requested": "Asked /min",
+    "achieved": "Made /min",
+    "goal": "How much",
+    "recipe": "Recipe",
+    "crafts": "Crafts /min",
+    "machines": "Machines (exact)",
+    "produced": "Produced",
+    "consumed": "Consumed",
+    "supplied": "Supplied",
+    "delivered": "Delivered",
+    "sunk": "Surplus",
+    "net": "Net",
+    "from": "From",
+    "to": "To",
+    "rate": "Rate /min",
+    "lanes": "Lanes",
+    "severity": "Level",
+    "rule": "Rule",
+    "subject": "Where",
+    "message": "Message",
+    "module": "Tile",
+    "origin": "Origin",
+    "entities": "Pieces"
+  },
+  "endpoint": {
+    "fromDepot": "from the depot",
+    "fromOutside": "from outside",
+    "supply": "supply",
+    "target": "delivered",
+    "depot": "stored in the depot",
+    "dump": "treated",
+    "sink": "sink"
+  },
+  "graph": {
+    "belt": "belt",
+    "pipe": "pipe",
+    "crossings": "{n} crossing(s), each marked with a hop",
+    "noCrossings": "no crossings",
+    "feedback": "dashed lines run back under the graph"
+  },
+  "severity": {
+    "error": "error",
+    "warning": "warning",
+    "info": "note"
+  }
+}

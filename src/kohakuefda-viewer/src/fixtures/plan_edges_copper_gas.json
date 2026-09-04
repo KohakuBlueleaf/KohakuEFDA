@@ -1,0 +1,40 @@
+[
+  { "source": "component_copper_cmpt_1", "target": "target:item_copper_cmpt" },
+  { "source": "pool_copper_enr_1", "target": "liquid_transmuter_2_gas_gas_copper_enr_1" },
+  { "source": "furnance_copper_nugget_1", "target": "component_copper_cmpt_1" },
+  { "source": "supply:item_copper_ore", "target": "furnance_copper_nugget_1" },
+  {
+    "source": "liquid_transmuter_2_gas_gas_copper_enr_1",
+    "target": "liquid_transmuter_1_liquid_liquid_copper_enr_1"
+  },
+  {
+    "source": "liquid_transmuter_2_gas_gas_xiranite_1",
+    "target": "liquid_transmuter_1_liquid_liquid_xiranite_1"
+  },
+  {
+    "source": "liquid_transmuter_2_gas_gas_xiranite_1",
+    "target": "liquid_transmuter_2_gas_gas_copper_enr_1"
+  },
+  { "source": "furnance_iron_nugget_1", "target": "grinder_iron_powder_1" },
+  { "source": "supply:item_iron_ore", "target": "furnance_iron_nugget_1" },
+  { "source": "grinder_iron_powder_1", "target": "pool_copper_enr_1" },
+  { "source": "grinder_iron_powder_1", "target": "pool_xiranite_poly_1" },
+  { "source": "liquid_transmuter_1_liquid_liquid_copper_enr_1", "target": "pool_copper_enr_1" },
+  { "source": "furnance_copper_nugget_1", "target": "pool_liquid_xiranite_poly_1" },
+  { "source": "pool_copper_enr_1", "target": "pool_liquid_xiranite_poly_1" },
+  { "source": "pool_xiranite_poly_1", "target": "pool_liquid_xiranite_poly_1" },
+  { "source": "liquid_purifier_xiranite_poly_1", "target": "furnance_copper_nugget_1" },
+  {
+    "source": "liquid_transmuter_1_liquid_liquid_xiranite_1",
+    "target": "pool_liquid_xiranite_poly_1"
+  },
+  {
+    "source": "liquid_transmuter_1_liquid_liquid_xiranite_1",
+    "target": "liquid_transmuter_1_liquid_liquid_copper_enr_1"
+  },
+  { "source": "pool_liquid_xiranite_poly_1", "target": "liquid_purifier_xiranite_poly_1" },
+  { "source": "liquid_purifier_xiranite_poly_1", "target": "pool_xiranite_poly_1" },
+  { "source": "pool_liquid_xiranite_poly_1", "target": "pool_xiranite_poly_1" },
+  { "source": "pool_xiranite_poly_1", "target": "depot:item_xiranite_poly" },
+  { "source": "supply:item_xiranite_powder", "target": "liquid_transmuter_2_gas_gas_xiranite_1" }
+]
