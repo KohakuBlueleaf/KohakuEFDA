@@ -1,0 +1,23 @@
+# Wuling gas line: Xiranite in a stable-gas zone from Carbon MTL and water, Inertgen for
+# the Gas Dispersing Unit.
+
+mode = "area"
+mixed_lanes = true
+gas = true
+
+[supply]
+item_carbon_mtl = "unlimited"
+item_liquid_water = "unlimited"
+item_gas_inert = "unlimited"
+
+[targets]
+item_xiranite_powder = 30
+
+[basement]
+region = "wuling"
+basement_id = "sky_king_flats"
+level = 2
+depot_level = 1
+
+[recipe_overrides]
+item_xiranite_powder = "xiranite_oven_xiranite_powder_2"

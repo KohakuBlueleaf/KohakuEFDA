@@ -1,0 +1,24 @@
+# Wuling: Hetonite from ores, water and acid; crucibles, a Purification Unit, refiners,
+# shredders, Water Treatment Units and pumps in a level-3 Sky King Flats square.
+
+mode = "area"
+mixed_lanes = true
+gas = false
+
+[supply]
+item_copper_ore = 120
+item_iron_ore = "unlimited"
+item_liquid_water = "unlimited"
+item_liquid_acid = "unlimited"
+
+[targets]
+item_copper_enr = 6
+
+[basement]
+region = "wuling"
+basement_id = "sky_king_flats"
+level = 3
+depot_level = 1
+
+[recipe_overrides]
+item_copper_enr = "pool_copper_enr_1"

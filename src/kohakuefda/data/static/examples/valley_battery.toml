@@ -1,0 +1,21 @@
+# Valley IV: LC Valley Batteries from Amethyst Ore and Originium Ore, solids only.
+
+mode = "balanced"
+mixed_lanes = true
+gas = false
+
+[supply]
+item_quartz_sand = "unlimited"
+item_originium_ore = "unlimited"
+
+[targets]
+item_proc_battery_1 = 6
+
+[basement]
+region = "valley4"
+basement_id = "infra_station"
+level = 2
+depot_level = 1
+
+[recipe_overrides]
+item_quartz_glass = "furnance_quartz_glass_1"

@@ -1,0 +1,232 @@
+{
+  "source": "game-knowledge REG-03 (ring), REG-04 (squares), DEP-10 (Wuling bus limits), DEP-12 (Valley IV bus geometry); Valley IV sections in square coordinates, the ring at negative y and x",
+  "basements": {
+    "the_hub": {
+      "names": { "en": "The Hub", "zh_cn": "枢纽区", "zh_tw": "樞紐區" },
+      "region": "valley4",
+      "hub": true,
+      "square_by_level": { "1": [32, 32], "2": [52, 52], "3": [70, 70] },
+      "ring": 5,
+      "depot": {
+        "kind": "fixed",
+        "positions_known": true,
+        "port": { "x": -4, "y": -4, "width": 4, "depth": 4 },
+        "segments_by_level": {
+          "1": [
+            { "x": 0, "y": -4, "width": 8, "depth": 4 },
+            { "x": 8, "y": -4, "width": 8, "depth": 4 },
+            { "x": 16, "y": -4, "width": 8, "depth": 4 }
+          ],
+          "2": [
+            { "x": 0, "y": -4, "width": 8, "depth": 4 },
+            { "x": 8, "y": -4, "width": 8, "depth": 4 },
+            { "x": 16, "y": -4, "width": 8, "depth": 4 },
+            { "x": 24, "y": -4, "width": 8, "depth": 4 },
+            { "x": 32, "y": -4, "width": 8, "depth": 4 },
+            { "x": 40, "y": -4, "width": 8, "depth": 4 }
+          ],
+          "3": [
+            { "x": 0, "y": -4, "width": 8, "depth": 4 },
+            { "x": 8, "y": -4, "width": 8, "depth": 4 },
+            { "x": 16, "y": -4, "width": 8, "depth": 4 },
+            { "x": 24, "y": -4, "width": 8, "depth": 4 },
+            { "x": 32, "y": -4, "width": 8, "depth": 4 },
+            { "x": 40, "y": -4, "width": 8, "depth": 4 },
+            { "x": 48, "y": -4, "width": 8, "depth": 4 },
+            { "x": 56, "y": -4, "width": 8, "depth": 4 },
+            { "x": 64, "y": -4, "width": 8, "depth": 4 }
+          ],
+          "4": [
+            { "x": 0, "y": -4, "width": 8, "depth": 4 },
+            { "x": 8, "y": -4, "width": 8, "depth": 4 },
+            { "x": 16, "y": -4, "width": 8, "depth": 4 },
+            { "x": 24, "y": -4, "width": 8, "depth": 4 },
+            { "x": 32, "y": -4, "width": 8, "depth": 4 },
+            { "x": 40, "y": -4, "width": 8, "depth": 4 },
+            { "x": 48, "y": -4, "width": 8, "depth": 4 },
+            { "x": 56, "y": -4, "width": 8, "depth": 4 },
+            { "x": 64, "y": -4, "width": 8, "depth": 4 },
+            { "x": -4, "y": 0, "width": 4, "depth": 8 },
+            { "x": -4, "y": 8, "width": 4, "depth": 8 },
+            { "x": -4, "y": 16, "width": 4, "depth": 8 }
+          ],
+          "5": [
+            { "x": 0, "y": -4, "width": 8, "depth": 4 },
+            { "x": 8, "y": -4, "width": 8, "depth": 4 },
+            { "x": 16, "y": -4, "width": 8, "depth": 4 },
+            { "x": 24, "y": -4, "width": 8, "depth": 4 },
+            { "x": 32, "y": -4, "width": 8, "depth": 4 },
+            { "x": 40, "y": -4, "width": 8, "depth": 4 },
+            { "x": 48, "y": -4, "width": 8, "depth": 4 },
+            { "x": 56, "y": -4, "width": 8, "depth": 4 },
+            { "x": 64, "y": -4, "width": 8, "depth": 4 },
+            { "x": -4, "y": 0, "width": 4, "depth": 8 },
+            { "x": -4, "y": 8, "width": 4, "depth": 8 },
+            { "x": -4, "y": 16, "width": 4, "depth": 8 },
+            { "x": -4, "y": 24, "width": 4, "depth": 8 },
+            { "x": -4, "y": 32, "width": 4, "depth": 8 },
+            { "x": -4, "y": 40, "width": 4, "depth": 8 }
+          ],
+          "6": [
+            { "x": 0, "y": -4, "width": 8, "depth": 4 },
+            { "x": 8, "y": -4, "width": 8, "depth": 4 },
+            { "x": 16, "y": -4, "width": 8, "depth": 4 },
+            { "x": 24, "y": -4, "width": 8, "depth": 4 },
+            { "x": 32, "y": -4, "width": 8, "depth": 4 },
+            { "x": 40, "y": -4, "width": 8, "depth": 4 },
+            { "x": 48, "y": -4, "width": 8, "depth": 4 },
+            { "x": 56, "y": -4, "width": 8, "depth": 4 },
+            { "x": 64, "y": -4, "width": 8, "depth": 4 },
+            { "x": -4, "y": 0, "width": 4, "depth": 8 },
+            { "x": -4, "y": 8, "width": 4, "depth": 8 },
+            { "x": -4, "y": 16, "width": 4, "depth": 8 },
+            { "x": -4, "y": 24, "width": 4, "depth": 8 },
+            { "x": -4, "y": 32, "width": 4, "depth": 8 },
+            { "x": -4, "y": 40, "width": 4, "depth": 8 },
+            { "x": -4, "y": 48, "width": 4, "depth": 8 },
+            { "x": -4, "y": 56, "width": 4, "depth": 8 },
+            { "x": -4, "y": 64, "width": 4, "depth": 8 }
+          ]
+        }
+      }
+    },
+    "refugee_camp": {
+      "names": { "en": "Refugee Camp", "zh_cn": "难民暂居处", "zh_tw": "" },
+      "region": "valley4",
+      "hub": false,
+      "square_by_level": { "1": [24, 27], "2": [32, 32], "3": [40, 40] },
+      "ring": 5,
+      "depot": {
+        "kind": "fixed",
+        "positions_known": true,
+        "segments_by_level": {
+          "1": [
+            { "x": 0, "y": -4, "width": 8, "depth": 4 },
+            { "x": 8, "y": -4, "width": 8, "depth": 4 }
+          ],
+          "2": [
+            { "x": 0, "y": -4, "width": 8, "depth": 4 },
+            { "x": 8, "y": -4, "width": 8, "depth": 4 },
+            { "x": 16, "y": -4, "width": 8, "depth": 4 },
+            { "x": 24, "y": -4, "width": 8, "depth": 4 }
+          ],
+          "3": [
+            { "x": 0, "y": -4, "width": 8, "depth": 4 },
+            { "x": 8, "y": -4, "width": 8, "depth": 4 },
+            { "x": 16, "y": -4, "width": 8, "depth": 4 },
+            { "x": 24, "y": -4, "width": 8, "depth": 4 },
+            { "x": 32, "y": -4, "width": 8, "depth": 4 }
+          ]
+        }
+      }
+    },
+    "infra_station": {
+      "names": { "en": "Infra-Station", "zh_cn": "基建前站", "zh_tw": "" },
+      "region": "valley4",
+      "hub": false,
+      "square_by_level": { "1": [24, 27], "2": [32, 32], "3": [40, 40] },
+      "ring": 5,
+      "depot": {
+        "kind": "fixed",
+        "positions_known": true,
+        "segments_by_level": {
+          "1": [
+            { "x": 0, "y": -4, "width": 8, "depth": 4 },
+            { "x": 8, "y": -4, "width": 8, "depth": 4 }
+          ],
+          "2": [
+            { "x": 0, "y": -4, "width": 8, "depth": 4 },
+            { "x": 8, "y": -4, "width": 8, "depth": 4 },
+            { "x": 16, "y": -4, "width": 8, "depth": 4 },
+            { "x": 24, "y": -4, "width": 8, "depth": 4 }
+          ],
+          "3": [
+            { "x": 0, "y": -4, "width": 8, "depth": 4 },
+            { "x": 8, "y": -4, "width": 8, "depth": 4 },
+            { "x": 16, "y": -4, "width": 8, "depth": 4 },
+            { "x": 24, "y": -4, "width": 8, "depth": 4 },
+            { "x": 32, "y": -4, "width": 8, "depth": 4 }
+          ]
+        }
+      }
+    },
+    "reconstruction_hq": {
+      "names": { "en": "Reconstruction HQ", "zh_cn": "重建指挥部", "zh_tw": "" },
+      "region": "valley4",
+      "hub": false,
+      "square_by_level": { "1": [24, 27], "2": [32, 32], "3": [40, 40] },
+      "ring": 5,
+      "depot": {
+        "kind": "fixed",
+        "positions_known": true,
+        "segments_by_level": {
+          "1": [
+            { "x": 0, "y": -4, "width": 8, "depth": 4 },
+            { "x": 8, "y": -4, "width": 8, "depth": 4 }
+          ],
+          "2": [
+            { "x": 0, "y": -4, "width": 8, "depth": 4 },
+            { "x": 8, "y": -4, "width": 8, "depth": 4 },
+            { "x": 16, "y": -4, "width": 8, "depth": 4 },
+            { "x": 24, "y": -4, "width": 8, "depth": 4 }
+          ],
+          "3": [
+            { "x": 0, "y": -4, "width": 8, "depth": 4 },
+            { "x": 8, "y": -4, "width": 8, "depth": 4 },
+            { "x": 16, "y": -4, "width": 8, "depth": 4 },
+            { "x": 24, "y": -4, "width": 8, "depth": 4 },
+            { "x": 32, "y": -4, "width": 8, "depth": 4 }
+          ]
+        }
+      }
+    },
+    "wuling_city": {
+      "names": { "en": "Wuling City", "zh_cn": "武陵城", "zh_tw": "武陵城" },
+      "region": "wuling",
+      "hub": true,
+      "square_by_level": { "1": [40, 40], "2": [60, 60], "3": [80, 80] },
+      "ring": 10,
+      "depot": {
+        "kind": "laid",
+        "ports_by_level": { "1": 1, "2": 1, "3": 1, "4": 2, "5": 2 },
+        "sections_by_level": { "1": 5, "2": 10, "3": 15, "4": 20, "5": 25 }
+      }
+    },
+    "sky_king_flats": {
+      "names": { "en": "Sky King Flats", "zh_cn": "天王坪援建点", "zh_tw": "" },
+      "region": "wuling",
+      "hub": false,
+      "square_by_level": { "1": [30, 30], "2": [40, 40], "3": [50, 50] },
+      "ring": 10,
+      "depot": {
+        "kind": "laid",
+        "ports_by_level": { "1": 1, "2": 1, "3": 1, "4": 2 },
+        "sections_by_level": { "1": 4, "2": 6, "3": 8, "4": 12 }
+      }
+    },
+    "cardiac_remediation_station": {
+      "names": { "en": "Cardiac Remediation Station", "zh_cn": "心脏修缮站", "zh_tw": "" },
+      "region": "wuling",
+      "hub": false,
+      "square_by_level": { "1": [30, 30], "2": [40, 40], "3": [50, 50] },
+      "ring": 10,
+      "depot": {
+        "kind": "laid",
+        "ports_by_level": { "1": 1, "2": 1, "3": 1, "4": 2 },
+        "sections_by_level": { "1": 4, "2": 6, "3": 8, "4": 12 }
+      }
+    },
+    "xiranflow_cloudseeder_station": {
+      "names": { "en": "Xiranflow Cloudseeder Station", "zh_cn": "盈天台建设站", "zh_tw": "" },
+      "region": "wuling",
+      "hub": false,
+      "square_by_level": { "1": [30, 30], "2": [40, 40], "3": [50, 50] },
+      "ring": 10,
+      "depot": {
+        "kind": "laid",
+        "ports_by_level": { "1": 1, "2": 1, "3": 1, "4": 2 },
+        "sections_by_level": { "1": 4, "2": 6, "3": 8, "4": 12 }
+      }
+    }
+  }
+}

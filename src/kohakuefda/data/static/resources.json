@@ -1,0 +1,15 @@
+{
+  "source": "Natural resources the factory takes from the world: ores from mining rigs, water and acid from pumps, vent gases from the Gas Extractor. Everything else is made or gathered by hand.",
+  "resources": {
+    "item_originium_ore": "mine",
+    "item_quartz_sand": "mine",
+    "item_iron_ore": "mine",
+    "item_copper_ore": "mine",
+    "item_liquid_water": "pump_1",
+    "item_liquid_acid": "pump_2",
+    "item_gas_inert": "gas_pump_1",
+    "item_gas_water": "gas_pump_1",
+    "item_gas_acid": "gas_pump_1",
+    "item_gas_xiranite": "gas_pump_1"
+  }
+}
