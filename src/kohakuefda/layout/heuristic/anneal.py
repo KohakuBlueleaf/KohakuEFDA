@@ -170,21 +170,28 @@ class Annealer:
         clear it is a needle in the neighbourhood. This walks the offending pairs and takes
         whichever of the four ways out removes the most overlap, whatever it does to the rest
         of the cost: a layout with any overlap does not exist, so nothing else can outweigh it.
+        Either block of a pair will do, and a pair with no way out is set aside rather than
+        ending the pass, since the blocks it is wedged against may themselves move.
         """
         state = self.state
         movable = self.moves.movable
+        stuck: set[tuple[int, int]] = set()
         for _ in range(state.count * 16):
             if not state.terms.overlap and not state.terms.shut:
                 return
-            pair = self._collision(movable)
+            pair = self._collision(movable, stuck)
             if pair is None:
                 return
-            if not self._push(*pair):
-                return
+            if self._push(*pair) or self._push(pair[1], pair[0]):
+                stuck.clear()
+            else:
+                stuck.add(pair)
 
     def _push(self, block: int, other: int) -> bool:
         """Move one block clear of another; False when no direction helps."""
         state = self.state
+        if state.frozen[block]:
+            return False
         ax0, ay0, ax1, ay1 = state.rect(block)
         bx0, by0, bx1, by1 = state.rect(other)
         home = (state.x[block], state.y[block])
@@ -202,11 +209,13 @@ class Annealer:
         state.put(block, landing[0], landing[1], rotation)
         return True
 
-    def _collision(self, movable: list[int]) -> tuple[int, int] | None:
+    def _collision(
+        self, movable: list[int], skip: set[tuple[int, int]]
+    ) -> tuple[int, int] | None:
         state = self.state
         for block in movable:
             for other in range(state.count):
-                if other == block:
+                if other == block or (block, other) in skip:
                     continue
                 if state._overlap(block, other) or state._shut_pair(block, other):
                     return block, other

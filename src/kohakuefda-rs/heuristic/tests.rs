@@ -43,10 +43,7 @@ fn two_blocks() -> Placement {
             tight: 4.0,
             slack: 1.5,
         },
-        scale: Scale {
-            area: 1.0,
-            wire: 1.0,
-        },
+        scale: Scale { area: 1.0, wire: 1.0 },
         terms: Terms::default(),
     }
 }
@@ -77,12 +74,7 @@ fn moving_keeps_the_cost_exact() {
     for _ in 0..500 {
         let block = rng.below(2);
         let rotation = rng.below(4);
-        let (x, y) = state.inside(
-            block,
-            rng.between(0, 36),
-            rng.between(0, 36),
-            rotation,
-        );
+        let (x, y) = state.inside(block, rng.between(0, 36), rng.between(0, 36), rotation);
         state.put(block, x, y, rotation);
         let running = state.terms;
         state.recompute();

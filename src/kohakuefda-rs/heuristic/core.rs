@@ -248,10 +248,7 @@ impl Placement {
 
     /// Every term rebuilt from the anchors: the oracle the incremental update is held to.
     pub fn recompute(&mut self) {
-        let mut terms = Terms {
-            area: self.bbox(),
-            ..Default::default()
-        };
+        let mut terms = Terms { area: self.bbox(), ..Default::default() };
         for wire in 0..self.wire_from.len() {
             self.length[wire] = self.span(wire);
         }
@@ -334,9 +331,6 @@ impl Placement {
     pub fn inside(&self, block: usize, x: i32, y: i32, rotation: usize) -> (i32, i32) {
         let (width, height) = self.size[block][rotation];
         let (x0, y0, x1, y1) = self.room(block);
-        (
-            x.max(x0).min((x1 - width).max(x0)),
-            y.max(y0).min((y1 - height).max(y0)),
-        )
+        (x.max(x0).min((x1 - width).max(x0)), y.max(y0).min((y1 - height).max(y0)))
     }
 }

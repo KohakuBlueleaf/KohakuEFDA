@@ -206,12 +206,7 @@ pub struct Settings {
 /// Anneal a placement in place and leave it at the best arrangement seen.
 pub fn anneal(state: &mut Placement, settings: &Settings, seed: u64) -> Trace {
     let mut rng = Rng::new(seed);
-    let mut moves = Moves::new(
-        state,
-        settings.weights,
-        settings.range_start,
-        settings.range_floor,
-    );
+    let mut moves = Moves::new(state, settings.weights, settings.range_start, settings.range_floor);
     state.rescale();
     let mut uphill = Vec::new();
     for _ in 0..settings.warmup {
@@ -265,11 +260,7 @@ pub fn anneal(state: &mut Placement, settings: &Settings, seed: u64) -> Trace {
         state.put(block, x, y, rotation);
     }
     polish(state, &mut moves, &mut rng, settings);
-    Trace {
-        steps: settings.moves,
-        accepted: taken,
-        best,
-    }
+    Trace { steps: settings.moves, accepted: taken, best }
 }
 
 /// Harden the answer: overlap and corridors priced far higher, only improvements taken.
@@ -295,6 +286,80 @@ fn polish(state: &mut Placement, moves: &mut Moves, rng: &mut Rng, settings: &Se
             None => break,
         }
     }
+    separate(state, &moves.movable.clone());
     state.weights = soft;
     state.recompute();
+}
+
+/// Push overlapping blocks apart until none are left, whatever else it costs. Either block of a
+/// pair will do, and a pair with no way out is set aside rather than ending the pass.
+fn separate(state: &mut Placement, movable: &[usize]) {
+    let mut stuck: Vec<(usize, usize)> = Vec::new();
+    for _ in 0..state.count * 16 {
+        if state.terms.overlap == 0 && state.terms.shut == 0 {
+            return;
+        }
+        match collision(state, movable, &stuck) {
+            None => return,
+            Some((block, other)) => {
+                if push(state, block, other) || push(state, other, block) {
+                    stuck.clear();
+                } else {
+                    stuck.push((block, other));
+                }
+            }
+        }
+    }
+}
+
+/// Move one block clear of another; false when no direction helps.
+fn push(state: &mut Placement, block: usize, other: usize) -> bool {
+    if state.frozen[block] {
+        return false;
+    }
+    let (ax0, ay0, ax1, ay1) = state.rect(block);
+    let (bx0, by0, bx1, by1) = state.rect(other);
+    let home = (state.x[block], state.y[block]);
+    let rotation = state.rotation[block];
+    let mut best = state.terms.overlap;
+    let mut landing = None;
+    for (dx, dy) in [
+        (bx1 - ax0, 0),
+        (bx0 - ax1, 0),
+        (0, by1 - ay0),
+        (0, by0 - ay1),
+    ] {
+        let (x, y) = state.inside(block, home.0 + dx, home.1 + dy, rotation);
+        state.put(block, x, y, rotation);
+        if state.terms.overlap < best {
+            best = state.terms.overlap;
+            landing = Some((x, y));
+        }
+        state.put(block, home.0, home.1, rotation);
+    }
+    match landing {
+        None => false,
+        Some((x, y)) => {
+            state.put(block, x, y, rotation);
+            true
+        }
+    }
+}
+
+fn collision(
+    state: &Placement,
+    movable: &[usize],
+    skip: &[(usize, usize)],
+) -> Option<(usize, usize)> {
+    for &block in movable {
+        for other in 0..state.count {
+            if other == block || skip.contains(&(block, other)) {
+                continue;
+            }
+            if state.overlap(block, other) > 0 || state.shut_pair(block, other) > 0 {
+                return Some((block, other));
+            }
+        }
+    }
+    None
 }

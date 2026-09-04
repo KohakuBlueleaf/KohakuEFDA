@@ -125,6 +125,17 @@ def attempt(
             site, spread, state, anchors, int(params["repair_tries"])
         ):
             return not site.unrouted()
+        log.info(
+            "heuristic round did not build",
+            reserve=float(params["route_slack"]),
+            round=round_index,
+            unplaced=len(site.unplaced()),
+            unrouted=len(site.unrouted()),
+            widened=len(crowded(site, state)),
+            overlap=state.terms.overlap,
+            group=state.terms.group,
+            shut=state.terms.shut,
+        )
         for block in crowded(site, state):
             state.extra[block] = min(widest, state.extra[block] + 1)
         state.cool(float(params["route_cool"]))

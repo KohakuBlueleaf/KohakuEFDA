@@ -100,10 +100,7 @@ impl _Placement {
                     tight: 4.0,
                     slack: 1.5,
                 },
-                scale: Scale {
-                    area: 1.0,
-                    wire: 1.0,
-                },
+                scale: Scale { area: 1.0, wire: 1.0 },
                 terms: Terms::default(),
             },
         })
@@ -121,16 +118,7 @@ impl _Placement {
         tight: f64,
         slack: f64,
     ) {
-        self.inner.weights = Weights {
-            area,
-            wire,
-            overlap,
-            group,
-            shut,
-            crowd,
-            tight,
-            slack,
-        };
+        self.inner.weights = Weights { area, wire, overlap, group, shut, crowd, tight, slack };
     }
 
     fn adopt(&mut self, anchors: Vec<(i32, i32, usize)>) {
@@ -177,14 +165,7 @@ impl _Placement {
     fn terms(&mut self) -> (i64, i64, i64, i64, i64, f64) {
         self.inner.recompute();
         let terms = self.inner.terms;
-        (
-            terms.area,
-            terms.wire,
-            terms.overlap,
-            terms.group,
-            terms.shut,
-            terms.crowd,
-        )
+        (terms.area, terms.wire, terms.overlap, terms.group, terms.shut, terms.crowd)
     }
 
     fn cost(&self) -> f64 {
