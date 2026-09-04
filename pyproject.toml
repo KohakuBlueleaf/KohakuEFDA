@@ -1,0 +1,75 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kohakuefda"
+version = "0.0.1"
+description = "End Field Design Automation: offline production-line planner and layout generator for Arknights: Endfield's AIC factory"
+authors = [
+    { name = "Shih-Ying Yeh (KohakuBlueLeaf)", email = "apolloyeh0123@gmail.com" },
+]
+license = { text = "Apache-2.0" }
+readme = "README.md"
+requires-python = ">=3.13"
+keywords = ["arknights", "endfield", "factory", "layout", "planner", "eda"]
+dependencies = [
+    "numpy>=2.0",
+    "highspy>=1.8",
+    "networkx>=3.3",
+    "pydantic>=2.7",
+    "typer>=0.15",
+    "rich>=13.7",
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+# CP-SAT exact placement for small instances; the SA path works without it.
+cpsat = ["ortools>=9.10"]
+# PNG rendering; the CLI text/rich renderers work without it.
+viz = ["matplotlib>=3.9"]
+# Building the Rust routing grid; the pure-Python search runs without it.
+native = ["maturin>=1.0,<2.0"]
+dev = ["pytest>=8.0", "ruff", "black", "maturin>=1.0,<2.0"]
+
+[project.urls]
+Homepage = "https://github.com/KohakuBlueleaf/KohakuEFDA"
+
+[project.scripts]
+kohakuefda = "kohakuefda.cli.__main__:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["kohakuefda*"]
+
+[tool.setuptools.package-data]
+"kohakuefda.i18n" = ["*.json"]
+"kohakuefda.data.static" = ["*.json", "examples/*.toml"]
+"kohakuefda" = ["web_dist/**/*", "*.pyi", "*.pyd", "*.so", "*.dylib"]
+
+# The Rust extension is built on its own with `maturin develop --release`; the package installs
+# and runs without it, so the wheel is built by setuptools above.
+[tool.maturin]
+python-source = "src"
+module-name = "kohakuefda._native"
+
+[tool.black]
+target-version = ["py313"]
+extend-exclude = "/(\\.ref|\\.internal|\\.venv|web_dist|node_modules)/"
+
+[tool.ruff]
+target-version = "py313"
+extend-exclude = [".ref", ".internal", "web_dist", "node_modules"]
+
+[tool.ruff.lint]
+# RUF012 cannot see that EfdaModel is a pydantic model, which copies mutable defaults.
+ignore = ["RUF012"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["typer.Option", "typer.Argument"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
