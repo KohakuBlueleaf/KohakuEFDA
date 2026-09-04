@@ -76,7 +76,10 @@ def run(
     for attempt in range(rounds):
         settings = {**params, "sa_moves": budget if not attempt else budget // 2}
         search(state, settings, rng, observe, cancelled)
-        if materialise(site, spread, state.anchors(), int(params["build_tries"])):
+        anchors = state.anchors()
+        if materialise(site, spread, anchors, int(params["build_tries"])) or repair(
+            site, spread, state, anchors, int(params["repair_tries"])
+        ):
             log.info(
                 "heuristic done",
                 round=attempt + 1,
@@ -87,6 +90,8 @@ def run(
         blocked = crowded(site, state)
         for block in blocked:
             state.extra[block] = min(widest, state.extra[block] + 1)
+        state.cool(float(params["route_cool"]))
+        scorch(site, state, float(params["route_heat"]))
         state.terms = state.recompute()
         log.info(
             "build failed, widening",
@@ -95,6 +100,102 @@ def run(
             widened=len(blocked),
         )
     return False
+
+
+def repair(
+    site: Site, spread: Spread, state: Placement, anchors: dict, tries: int
+) -> bool:
+    """Nudge the machines whose lanes had no path, with the router itself as the judge.
+
+    The search prices the room a lane needs, not the path it finds, so a placement can be
+    good by every term it knows and still leave one lane stranded. Here the true router says
+    whether a change helped, which is affordable because only a handful of machines and a
+    handful of positions are worth trying. Whatever happens the site is left holding the best
+    arrangement tried, not the last one.
+    """
+    best = len(site.unrouted()) + len(site.unplaced())
+    kept = dict(anchors)
+    for _ in range(max(1, tries)):
+        if not best:
+            break
+        moved = False
+        for block in ends(site, state):
+            block_id = state.ids[block]
+            home = anchors[block_id]
+            for spot in offers(state, block, home):
+                anchors[block_id] = spot
+                build(site, spread, anchors)
+                count = len(site.unrouted()) + len(site.unplaced())
+                if count < best:
+                    best, moved, kept = count, True, dict(anchors)
+                    break
+                anchors[block_id] = home
+            if not best:
+                break
+        if not moved:
+            break
+    anchors.clear()
+    anchors.update(kept)
+    build(site, spread, kept)
+    return not site.unrouted() and not site.unplaced()
+
+
+def ends(site: Site, state: Placement) -> list[int]:
+    """The movable machines at either end of a lane that has no path."""
+    out = []
+    for wire in site.unrouted():
+        for key in (wire.source, wire.sink):
+            index = state.index[site.owner[key].id]
+            if not state.frozen[index] and index not in out:
+                out.append(index)
+    return out
+
+
+def offers(state: Placement, block: int, home: tuple) -> list[tuple[int, int, int]]:
+    """Where one machine might go instead: turned where it stands, or a cell or two over."""
+    out = []
+    for rotation in (0, 90, 180, 270):
+        for dx, dy in ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1), (2, 0), (0, 2)):
+            spot = (home[0] + dx, home[1] + dy, rotation)
+            if spot != home:
+                out.append(spot)
+    return out
+
+
+def build(site: Site, spread: Spread, anchors: dict) -> None:
+    """Put every block down and route the whole netlist, whatever comes of it.
+
+    The router reads a pin table that only holds placed machines, so a layout missing one is
+    not offered to it at all: the caller sees the machines that would not stand instead.
+    """
+    for block_id in list(site.placed):
+        site.remove(block_id)
+    for block_id in spread.order():
+        anchor = anchors.get(block_id)
+        if anchor is not None:
+            site.place(block_id, *anchor, route=False)
+    if not site.unplaced():
+        site.router.route(strict=False)
+
+
+def scorch(site: Site, state: Placement, amount: float) -> None:
+    """Leave heat over the ground every lane without a path wanted.
+
+    The rectangle between a lane's two pins is where it had to run; whatever is standing in
+    it is what stopped it. Heat there is a cost the search can see and move off, which block
+    inflation is not: inflating a machine says "be bigger", heat says "not here".
+    """
+    for wire in site.unrouted():
+        source = site.owner[wire.source]
+        sink = site.owner[wire.sink]
+        a = source.pin_outside(wire.source)
+        b = sink.pin_outside(wire.sink)
+        x0, x1 = sorted((a[0], b[0]))
+        y0, y1 = sorted((a[1], b[1]))
+        state.warm(
+            ((x, y) for y in range(y0, y1 + 1) for x in range(x0, x1 + 1)),
+            amount,
+        )
 
 
 def crowded(site: Site, state: Placement) -> list[int]:

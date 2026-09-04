@@ -173,8 +173,8 @@ class Annealer:
         """
         state = self.state
         movable = self.moves.movable
-        for _ in range(state.count * 8):
-            if not state.terms.overlap:
+        for _ in range(state.count * 16):
+            if not state.terms.overlap and not state.terms.shut:
                 return
             pair = self._collision(movable)
             if pair is None:
@@ -206,7 +206,9 @@ class Annealer:
         state = self.state
         for block in movable:
             for other in range(state.count):
-                if other != block and state._overlap(block, other):
+                if other == block:
+                    continue
+                if state._overlap(block, other) or state._shut_pair(block, other):
                     return block, other
         return None
 

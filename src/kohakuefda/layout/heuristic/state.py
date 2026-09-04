@@ -35,6 +35,7 @@ class Weights:
     overlap: float = 8.0
     group: float = 8.0
     shut: float = 8.0
+    crowd: float = 1.0
 
     @classmethod
     def of(cls, params: dict) -> "Weights":
@@ -44,6 +45,7 @@ class Weights:
             overlap=float(params["w_overlap"]),
             group=float(params["w_group"]),
             shut=float(params["w_shut"]),
+            crowd=float(params["w_crowd"]),
         )
 
 
@@ -72,6 +74,7 @@ class Terms:
     overlap: int = 0
     group: int = 0
     shut: int = 0
+    crowd: float = 0.0
 
     def total(self, weights: Weights, scale: "Scale") -> float:
         return (
@@ -80,6 +83,7 @@ class Terms:
             + weights.overlap * self.overlap / scale.area
             + weights.group * self.group / scale.wire
             + weights.shut * self.shut
+            + weights.crowd * self.crowd
         )
 
 
@@ -103,6 +107,8 @@ class Placement:
         self.h = [self.size[b][0][1] for b in range(self.count)]
         self.length = [0] * len(self.wire_from)
         self.extra = [0] * self.count
+        self.stride = site.width
+        self.heat = [0.0] * (site.width * site.height)
         self.terms = Terms()
         self.scale = Scale()
 
@@ -236,6 +242,7 @@ class Placement:
             for a in range(self.count)
             for b in range(a + 1, self.count)
         )
+        terms.crowd = sum(self._crowd_of(b) for b in range(self.count))
         return terms
 
     def _area(self) -> int:
@@ -360,6 +367,44 @@ class Placement:
             if other != block
         )
 
+    def _crowd_of(self, block: int) -> float:
+        """How contested the ground under this block is.
+
+        A lane that could not be routed leaves heat over the ground it wanted. A machine
+        standing there is what stopped it, so the heat is part of what the machine costs and
+        the search moves it off — the placement-level form of negotiated congestion, where
+        the router raises a per-cell history rather than the placer inflating whole machines.
+        """
+        heat = self.heat
+        stride = self.stride
+        total = 0.0
+        top = self.y[block]
+        for row in range(top, top + self.h[block]):
+            base = row * stride
+            for column in range(self.x[block], self.x[block] + self.w[block]):
+                total += heat[base + column]
+        return total
+
+    def cool(self, keep: float) -> None:
+        """Fade the heat before the next round leaves its own.
+
+        Without this the map only ever grows and every cell ends up hot, which is the same
+        as none of them being hot; what matters is where lanes are contending *now*.
+        """
+        heat = self.heat
+        for index, value in enumerate(heat):
+            if value:
+                heat[index] = value * keep
+
+    def warm(self, cells, amount: float) -> None:
+        """Leave heat on the ground a lane wanted and could not have."""
+        heat = self.heat
+        stride = self.stride
+        for x, y in cells:
+            index = y * stride + x
+            if 0 <= index < len(heat):
+                heat[index] += amount
+
     def _bbox(self) -> int:
         x, y, w, h = self.x, self.y, self.w, self.h
         x0 = y0 = 1 << 30
@@ -387,6 +432,7 @@ class Placement:
         incident = self.incident[block]
         before_overlap = self._overlap_of(block)
         before_shut = self._shut_of(block)
+        before_crowd = self._crowd_of(block)
         before_fault = self._outside(block)
         group = self.group_of[block]
         members = self.groups[group] if group >= 0 else None
@@ -399,6 +445,7 @@ class Placement:
         self.w[block], self.h[block] = self.size[block][rotation // 90]
         terms.overlap += self._overlap_of(block) - before_overlap
         terms.shut += self._shut_of(block) - before_shut
+        terms.crowd += self._crowd_of(block) - before_crowd
         after_fault = self._outside(block)
         if members is not None:
             after_fault += self._group_fault(members)
