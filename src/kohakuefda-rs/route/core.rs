@@ -384,10 +384,12 @@ impl Grid {
                     if foreign && !side.all_owned(next, search.wire, owners.unwrap()) {
                         continue;
                     }
+                    // A splitter or converger is a building standing on the cell: nothing else
+                    // may pass through it, whether or not a wire still holds the cell.
+                    if side.unit[next] {
+                        continue;
+                    }
                     if others > 0 {
-                        if side.unit[next] {
-                            continue;
-                        }
                         let wanted = if step % 2 == 0 { AXIS_H } else { AXIS_V };
                         let legal = others == 1 && axis == wanted;
                         if legal && (ground || self.ground_free(next)) {

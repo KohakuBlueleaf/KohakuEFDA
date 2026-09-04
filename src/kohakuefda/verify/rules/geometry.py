@@ -7,6 +7,7 @@ from itertools import pairwise
 
 from kohakuefda.layout.connect import Connectivity
 from kohakuefda.layout.coverage import inside as rect_inside
+from kohakuefda.layout.coverage import overlaps as rect_overlaps
 from kohakuefda.layout.coverage import zone_rect
 from kohakuefda.layout.depot_via import BUS_PORT, BUS_SECTION
 from kohakuefda.layout.geometry import (
@@ -266,8 +267,9 @@ def zones(dataset: Dataset, layout: Layout) -> list[Finding]:
 
 
 def power_coverage(dataset: Dataset, layout: Layout) -> list[Finding]:
-    """Every powered machine lies inside a pylon's square (COV-01); the core powers nothing by
-    itself (COV-03). A layout with no pylon at all gets one warning."""
+    """Every powered machine touches a pylon's square: partial coverage powers a machine and a
+    single shared cell is enough (COV-01, COV-02). The core powers nothing by itself (COV-03).
+    A layout with no pylon at all gets one warning."""
     out: list[Finding] = []
     pylons = [m for m in layout.machines if m.machine_id in dataset.pylons]
     powered = [
@@ -296,13 +298,13 @@ def power_coverage(dataset: Dataset, layout: Layout) -> list[Finding]:
     ]
     for placed in powered:
         rect = _rect(dataset, placed)
-        if not any(rect_inside(rect, square) for square in squares):
+        if not any(rect_overlaps(rect, square) for square in squares):
             out.append(
                 _finding(
                     "geom.power_uncovered",
                     "error",
                     placed.id,
-                    f"{placed.id} is outside every pylon's 12×12 square",
+                    f"{placed.id} touches no pylon's 12×12 square",
                 )
             )
     return out

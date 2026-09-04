@@ -82,7 +82,7 @@ def _island(
     netlist: Netlist,
     params: dict,
     seed: int,
-) -> tuple[bool, Rank, int]:
+) -> tuple[bool, tuple[int, int, int, int], int]:
     """One run of the restart search in its own process: whether it came out whole, how good
     it was, and where everything ended up.
 
@@ -92,8 +92,11 @@ def _island(
     """
     board = board_of(dataset, netlist.scenario)
     site = Site(dataset, netlist, board, params)
-    whole = Spread(site, params, random.Random(seed)).run()
-    return whole, rank_of(site, board), seed
+    spread = Spread(site, params, random.Random(seed))
+    whole = spread.run()
+    if whole:
+        Shrink(site, spread, params).run()
+    return whole, spread.score([]), seed
 
 
 class LayoutError(RuntimeError):
@@ -393,13 +396,13 @@ class Engine:
             )
             for future in done:
                 try:
-                    whole, _, seed = future.result()
+                    whole, rank, seed = future.result()
                 except (BrokenProcessPool, OSError, ValueError, RuntimeError) as error:
                     log.warning("a search did not finish", error=str(error))
                     continue
                 if whole:
-                    winners.append(seed)
-        return min(winners) if winners else None
+                    winners.append((rank, seed))
+        return min(winners)[1] if winners else None
 
     def run(
         self, observe: Observe | None = None, cancelled: Cancelled | None = None

@@ -50,11 +50,12 @@ def _rect(dataset: Dataset, placed) -> tuple[int, int, int, int]:
 
 
 def _covers(area: tuple[int, int, int, int], rect: tuple[int, int, int, int]) -> bool:
+    """Partial coverage powers a machine: a shared cell is enough (COV-02)."""
     return (
-        area[0] <= rect[0]
-        and area[1] <= rect[1]
-        and rect[2] <= area[2]
-        and rect[3] <= area[3]
+        area[0] < rect[2]
+        and rect[0] < area[2]
+        and area[1] < rect[3]
+        and rect[1] < area[3]
     )
 
 

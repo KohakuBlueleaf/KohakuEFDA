@@ -370,15 +370,14 @@ class Site:
         cost is measured with, so what is paid for is what gets built."""
         if used is None:
             used = set() if self.grid.native is not None else self.occupied()
-        machine = self.dataset.machines[self.pylon.machine_id]
-        size, reach = machine.width, self.pylon.reach
-        clusters, uncovered = self.power(used)
+        size = self.dataset.machines[self.pylon.machine_id].width
+        windows, uncovered = self.power(used)
         anchors: list[Cell] = []
         taken: list[Cell] = []
-        for cluster in clusters:
-            spot = self._pylon_spot(cluster, used, size, reach, taken)
+        for window, members in windows:
+            spot = self._pylon_spot(window, used, size, taken)
             if spot is None:
-                uncovered += self._members_of(cluster)
+                uncovered += members
                 continue
             anchors.append(spot)
             footprint = {
@@ -388,34 +387,37 @@ class Site:
             used |= footprint
         return anchors, uncovered
 
-    def _members_of(self, cluster: Rect) -> list[str]:
-        return sorted(
-            {
-                block_id
-                for block_id in self.placed
-                if self.blocks[block_id].powered
-                and any(
-                    cluster[0] <= r[0]
-                    and r[2] <= cluster[2]
-                    and cluster[1] <= r[1]
-                    and r[3] <= cluster[3]
-                    for r in self.blocks[block_id].machine_rects()
-                )
-            }
+    def anchor_window(self, rect: Rect, size: int, reach: int) -> Rect:
+        """Where a pylon may stand to power ``rect``.
+
+        A machine is powered when its footprint *touches* a pylon's square, not when the
+        square swallows it whole (game-knowledge COV-02), so the anchors that serve a machine
+        are every one whose square overlaps it. Clipped to the area, since that is where a
+        pylon may stand.
+        """
+        x0, y0, x1, y1 = rect
+        area = self.area
+        return (
+            max(area[0], x0 - size - reach + 1),
+            max(area[1], y0 - size - reach + 1),
+            min(area[2] - size + 1, x1 + reach),
+            min(area[3] - size + 1, y1 + reach),
         )
 
-    def power(self, used: set[Cell] | None = None) -> tuple[list[Rect], list[str]]:
-        """The clusters of machines one pylon each can serve, and the machines no pylon can
-        reach at all.
+    def power(
+        self, used: set[Cell] | None = None
+    ) -> tuple[list[tuple[Rect, list[str]]], list[str]]:
+        """The machines one pylon each can serve, as the window that pylon may stand in, and
+        the machines no pylon can reach at all.
 
-        Machines are swept into clusters that each fit inside one pylon's 12x12 *and* still
-        leave the pylon a free square to stand on (game-knowledge COV-01, COV-03); a machine
-        that fits in no such cluster of its own is unreachable wherever the rest goes.
+        Every machine has a window of anchors that would power it; a set of machines shares a
+        pylon exactly when their windows have a cell in common that is free for the pylon to
+        stand on. Machines are swept into the first such group, so what is counted is what
+        gets built.
         """
         used = self.occupied() if used is None else used
         machine = self.dataset.machines[self.pylon.machine_id]
         size, reach = machine.width, self.pylon.reach
-        span = size + 2 * reach
         rects = sorted(
             (
                 (block_id, rect)
@@ -425,46 +427,41 @@ class Site:
             ),
             key=lambda item: (item[1][1], item[1][0]),
         )
-        clusters: list[Rect] = []
+        groups: list[tuple[Rect, list[str]]] = []
         uncovered: list[str] = []
         for block_id, rect in rects:
-            for index, box in enumerate(clusters):
-                grown = (
-                    min(box[0], rect[0]),
-                    min(box[1], rect[1]),
-                    max(box[2], rect[2]),
-                    max(box[3], rect[3]),
+            window = self.anchor_window(rect, size, reach)
+            for index, (shared, members) in enumerate(groups):
+                merged = (
+                    max(shared[0], window[0]),
+                    max(shared[1], window[1]),
+                    min(shared[2], window[2]),
+                    min(shared[3], window[3]),
                 )
                 if (
-                    grown[2] - grown[0] <= span
-                    and grown[3] - grown[1] <= span
-                    and self._pylon_spot(grown, used, size, reach) is not None
+                    merged[0] < merged[2]
+                    and merged[1] < merged[3]
+                    and self._pylon_spot(merged, used, size) is not None
                 ):
-                    clusters[index] = grown
+                    groups[index] = (merged, members + [block_id])
                     break
             else:
-                if self._pylon_spot(rect, used, size, reach) is not None:
-                    clusters.append(rect)
+                if self._pylon_spot(window, used, size) is not None:
+                    groups.append((window, [block_id]))
                 elif block_id not in uncovered:
                     uncovered.append(block_id)
-        return clusters, uncovered
+        return groups, uncovered
 
     def _pylon_spot(
         self,
-        rect: Rect,
+        window: Rect,
         used: set[Cell],
         size: int,
-        reach: int,
         taken: list[Cell] | None = None,
     ) -> Cell | None:
-        """A free square a pylon can stand on that covers ``rect`` whole, or ``None``."""
-        area = self.area
-        window = (
-            max(area[0], rect[2] - size - reach),
-            max(area[1], rect[3] - size - reach),
-            min(area[2] - size, rect[0] + reach) + 1,
-            min(area[3] - size, rect[1] + reach) + 1,
-        )
+        """A free square inside ``window`` that a pylon can stand on, or ``None``."""
+        if window[0] >= window[2] or window[1] >= window[3]:
+            return None
         if self.grid.native is not None:
             spot = self.grid.free_square(window, size, taken or [])
             return None if spot is None else tuple(spot)

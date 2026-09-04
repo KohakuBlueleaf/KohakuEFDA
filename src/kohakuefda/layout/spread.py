@@ -24,6 +24,7 @@ log = logging.getLogger(__name__)
 ENTRY_ROTATION = {Edge.W: 0, Edge.N: 90, Edge.E: 180, Edge.S: 270}
 ANCHOR_KINDS = ("depot", "zone")
 UNGROUPED = "~"
+Score = tuple[int, int, int, int]
 
 
 class Spread:
@@ -228,12 +229,12 @@ class Spread:
         return site.grid.free_for(cells, site.area, site.cells_of.get(block_id, []))
 
     def pitch(self, gap: int) -> int:
-        """The lattice step: the widest free block, plus a pylon beside it, plus ``gap``.
+        """The lattice step: the widest free block, the cell its lanes leave by, and ``gap``.
 
-        A square that holds only its block and a one-cell corridor has nowhere for a pylon to
-        stand, and a machine no pylon reaches is as illegal as one with no floor (COV-01), so
-        the step allows for the pylon's own footprint. What is left over is the corridor, and
-        it is at least as wide as the pylon, so a lane can always cross it too (LOG-11).
+        One cell is the floor, because a connection always costs one (LOG-11). The pylon does
+        not need room beside its machine: partial coverage powers a machine and a single
+        shared cell is enough (COV-02), so a pylon reaches from any corridor whose square
+        overlaps it. ``gap`` widens the corridor for the attempts that need more.
         """
         site = self.site
         free = [
@@ -242,8 +243,7 @@ class Spread:
             if b.constraint not in ("slot", "edge") and not b.group
         ]
         widest = max((max(b.width, b.height) for b in free), default=1)
-        pylon = site.dataset.machines[site.pylon.machine_id].width
-        return widest + pylon + gap
+        return widest + 1 + gap
 
     def squares(self, gap: int) -> list[tuple[int, int]]:
         """Lattice squares in a serpentine, so a block lands next to the one before it and
@@ -408,6 +408,22 @@ class Spread:
             return any(site.place(block_id, *a) for a in anchors)
         return self.settle(block_id, gap)
 
+    def score(self, missed: list[str]) -> "Score":
+        """How good a lattice is: whole first, then small.
+
+        Stopping at the first lattice that comes out whole answers the wrong question — every
+        whole lattice is legal and they differ by a third in area, so the search reads the
+        whole slice and keeps the smallest rather than the earliest.
+        """
+        site = self.site
+        x0, y0, x1, y1 = site.bbox()
+        return (
+            len(missed),
+            len(site.unrouted()),
+            (x1 - x0) * (y1 - y0),
+            site.wire_cells(),
+        )
+
     def frame(self, kind: str) -> dict:
         """The layout as it stands, for a watcher to draw."""
         site = self.site
@@ -441,29 +457,19 @@ class Spread:
         kept and named, so what is missing is a machine and not a mystery.
         """
         site = self.site
-        best: tuple[tuple[int, int, int], object, list[str], list[str]] | None = None
+        best: tuple[Score, object, list[str], list[str]] | None = None
         started = time.monotonic()
+        gaps = list(range(self.gap, self.widest + 1))
         for attempt in range(self.attempts):
             if cancelled is not None and cancelled():
                 raise CancelledError("layout cancelled")
-            gaps = range(self.gap, self.widest + 1)
-            gap = list(gaps)[attempt % len(list(gaps))]
-            self.top_down = bool((attempt // max(1, len(list(gaps)))) % 2)
-            missed = self.lay(gap, shuffle=attempt >= 2 * len(list(gaps)))
-            unrouted = site.unrouted()
-            score = (len(missed), len(unrouted), site.wire_cells())
+            gap = gaps[attempt % len(gaps)]
+            self.top_down = bool((attempt // len(gaps)) % 2)
+            missed = self.lay(gap, shuffle=attempt >= 2 * len(gaps))
+            score = self.score(missed)
             if best is None or score < best[0]:
                 best = (score, site.snapshot(), list(missed), list(self.laid))
-                log.debug(
-                    "lattice improved",
-                    attempt=attempt,
-                    gap=gap,
-                    placed=f"{len(site.placed)}/{len(site.blocks)}",
-                    homeless=len(missed),
-                    unrouted=len(unrouted),
-                )
-            if not missed and not unrouted:
-                break
+                log.debug("lattice improved", attempt=attempt, gap=gap, score=score)
         site.restore(best[1])
         self.failed = best[2]
         self.laid = best[3]

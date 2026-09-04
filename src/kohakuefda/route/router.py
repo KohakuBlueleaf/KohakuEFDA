@@ -272,16 +272,26 @@ class Router:
 
     def options(self, key: PinKey, wire: Wire) -> list[PortOption]:
         """Ports the wire may still use at ``key``: those no other wire of the machine has
-        taken, whose facing cell is on the grid and free of buildings."""
+        taken and whose facing cell is clear.
+
+        A lane starts on the cell in front of its port and the search only tests the cells it
+        steps *into*, so that cell is checked here: no building, no junction of another tree,
+        and for a belt no pipe junction overhead, which blocks the ground cell (LOG-04).
+        """
         pin = self.pins[key]
         layer = LAYER[pin.kind]
         used = self.taken.get(self._slot(key), set())
         mine = {p.index for p in (wire.source_port, wire.sink_port) if p is not None}
+        tree = {c for w in self._tree(wire.net_id, key) for c in (w.branch, w.join)}
         out = []
         for option in pin.options:
             if option.index in used and option.index not in mine:
                 continue
             if self.grid.is_blocked(layer, option.outside):
+                continue
+            if self.grid.has_unit(layer, option.outside) and option.outside not in tree:
+                continue
+            if layer == GROUND and self.grid.pipe_unit(option.outside):
                 continue
             out.append(option)
         return out

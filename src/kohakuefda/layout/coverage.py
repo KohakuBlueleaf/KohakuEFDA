@@ -1,8 +1,9 @@
 """Power coverage and gas zones as geometry: the greedy pylon cover and zone containment.
 
 A pylon at ``(x, y)`` powers the square its footprint extended by its reach (game-knowledge
-COV-01); a machine counts as powered when its whole footprint lies inside one such square.
-``cover`` picks pylon anchors greedily: the free anchor whose square contains the most still
+COV-01); a machine counts as powered when its footprint *touches* one such square — partial
+coverage powers it, and a single shared cell is enough (COV-02).
+``cover`` picks pylon anchors greedily: the free anchor whose square touches the most still
 uncovered machines, ties to the anchor nearest ``prefer``, until nothing is left to cover or
 no free anchor covers anything. A Gas Dispersing Unit's zone is the 13×13 square centred on
 its 3×3 footprint (ENV-01); an environment recipe runs only with its footprint inside one
@@ -59,12 +60,12 @@ def _valid_anchors(blocked: np.ndarray) -> np.ndarray:
 def _anchor_range(
     pylon: Pylon, rect: Rect, width: int, height: int
 ) -> tuple[int, int, int, int] | None:
-    """Anchors whose square contains ``rect``, as an inclusive ``(px0, py0, px1, py1)``."""
+    """Anchors whose square touches ``rect``, as an inclusive ``(px0, py0, px1, py1)``."""
     x0, y0, x1, y1 = rect
-    px0 = max(0, x1 - PYLON_SIZE - pylon.reach)
-    px1 = min(width - PYLON_SIZE, x0 + pylon.reach)
-    py0 = max(0, y1 - PYLON_SIZE - pylon.reach)
-    py1 = min(height - PYLON_SIZE, y0 + pylon.reach)
+    px0 = max(0, x0 - PYLON_SIZE - pylon.reach + 1)
+    px1 = min(width - PYLON_SIZE, x1 + pylon.reach - 1)
+    py0 = max(0, y0 - PYLON_SIZE - pylon.reach + 1)
+    py1 = min(height - PYLON_SIZE, y1 + pylon.reach - 1)
     if px0 > px1 or py0 > py1:
         return None
     return px0, py0, px1, py1
@@ -101,7 +102,7 @@ def cover(
         pylons.append(anchor)
         square = coverage_rect(pylon, anchor)
         for index in list(remaining):
-            if inside(targets[index], square):
+            if overlaps(targets[index], square):
                 remaining.discard(index)
                 span = ranges[index]
                 if span is not None:
@@ -113,4 +114,4 @@ def cover(
 
 
 def covered(pylon: Pylon, pylons: list[Cell], rect: Rect) -> bool:
-    return any(inside(rect, coverage_rect(pylon, anchor)) for anchor in pylons)
+    return any(overlaps(rect, coverage_rect(pylon, anchor)) for anchor in pylons)

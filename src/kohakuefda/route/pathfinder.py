@@ -477,9 +477,9 @@ def search(
                 others = {k: v for k, v in held.items() if k != wire_id} if held else {}
                 if foreign and not (others and all(o in owners for o in others)):
                     continue
+                if nxt in units:
+                    continue
                 if others:
-                    if nxt in units:
-                        continue
                     if _crossing_ok(others, step_dir) and (
                         ground or grid.ground_free(nxt)
                     ):
