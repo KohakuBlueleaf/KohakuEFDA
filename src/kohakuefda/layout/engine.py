@@ -441,6 +441,7 @@ class Engine:
             cells=len(self.netlist.cells),
             nets=len(self.netlist.nets),
             square=f"{self.board.square[0]}x{self.board.square[1]}",
+            search=str(self.params["search"]),
             seed=int(self.params["seed"]),
         )
         if self.attempt(observe, cancelled):

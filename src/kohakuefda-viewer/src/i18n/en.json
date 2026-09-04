@@ -91,7 +91,8 @@
     "space": "Space",
     "routing": "Routing",
     "other": "Other",
-    "moves": "Moves"
+    "moves": "Moves",
+    "shrink": "Shrinking"
   },
   "params": {
     "seed": "Random seed",
@@ -108,11 +109,17 @@
     "w_wire": "Weight per belt or pipe cell",
     "w_unit": "Weight per splitter or converger",
     "w_pull": "Pull toward the corner",
-    "spread_attempts": "Lattices tried",
+    "spread_attempts": "Search steps",
     "spread_gap": "Extra corridor width",
     "spread_widest": "Widest corridor tried",
     "flow_order": "Walk the flow",
-    "workers": "Searches at once"
+    "workers": "Searches at once",
+    "search": "Search method",
+    "shrink_rounds": "Shrink rounds",
+    "spread_slice": "Steps per core per round",
+    "w_shape": "Penalty for a long thin layout",
+    "w_over": "Penalty past the area side",
+    "w_pylon": "Weight per pylon"
   },
   "choices": {
     "entry_sides": {
@@ -120,6 +127,16 @@
       "N": "north",
       "W": "west",
       "NESW": "any side"
+    },
+    "search": {
+      "mixed": "All three, shared out",
+      "anneal": "Annealing",
+      "evolve": "Evolution",
+      "restart": "Independent draws"
+    },
+    "flow_order": {
+      "bottom-up": "From the raw end",
+      "top-down": "From the product end"
     }
   },
   "picker": {
@@ -414,5 +431,32 @@
     "error": "error",
     "warning": "warning",
     "info": "note"
+  },
+  "paramHelp": {
+    "search": "How the layout is searched for. Mixed runs all three across the cores and keeps the best, which is the default because none of them wins on every factory.",
+    "spread_attempts": "How many complete layouts the search tries before it settles. More steps find smaller layouts and take longer; the work is shared over the cores.",
+    "seed": "Fixes the randomness. The same seed and settings always give the same layout.",
+    "workers": "How many searches run at once. 0 asks the machine how many cores it can spare.",
+    "spread_slice": "How many steps each core takes before the results are compared. Smaller means the searches trade news more often.",
+    "spread_gap": "Extra free cells left around each machine, on top of the one a belt always needs.",
+    "spread_widest": "The widest gap the search will try. It works its way up from the narrowest.",
+    "flow_order": "Which end of the production chain the machines are laid out from.",
+    "candidate_tries": "How many positions are tried for one machine before moving on.",
+    "frame_every": "How often a picture of the layout in progress is sent to this screen.",
+    "shrink_rounds": "How many times the finished layout is squeezed: empty lines deleted, sides pressed in, machines pulled toward what they feed.",
+    "w_wire": "What one belt or pipe cell counts for against floor area.",
+    "w_unit": "What one splitter or converger counts for.",
+    "w_pull": "How strongly the line is pulled into the corner of the area.",
+    "w_shape": "How much a long thin layout is penalised against a square one.",
+    "w_over": "What reaching past the side of the area costs.",
+    "w_pylon": "What each pylon counts for.",
+    "entry_sides": "Which borders of the area outside inputs may enter from.",
+    "pylon": "Which pylon is used to power the line.",
+    "route_iterations": "How many times contested belts are torn up and routed again.",
+    "present_cost": "What sharing a cell costs while belts are being negotiated.",
+    "present_growth": "How fast that sharing cost rises each round.",
+    "turn_cost": "What a corner in a belt or pipe costs, against running straight.",
+    "bridge_cost": "What crossing another lane with a bridge costs.",
+    "history_cost": "How much a cell that has been fought over before is avoided."
   }
 }

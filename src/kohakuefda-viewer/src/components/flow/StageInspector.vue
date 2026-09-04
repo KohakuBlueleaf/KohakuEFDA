@@ -19,6 +19,13 @@ const ready = computed(() => {
 })
 const lines = computed(() => store.log.filter((entry) => entry.stage === stage.value).reverse())
 
+// The label is the short name; the tooltip is what the setting actually does. A key with no
+// help of its own falls back to the label so nothing shows an empty tooltip.
+function help(key) {
+  const text = t(`paramHelp.${key}`)
+  return text === `paramHelp.${key}` ? t(`params.${key}`) : text
+}
+
 function isText(key) {
   return typeof defaults.value[key] === "string"
 }
@@ -71,14 +78,13 @@ const GROUPS = [
   {
     key: "search",
     match:
-      /^(seed|spread_attempts|spread_gap|spread_widest|flow_order|workers|candidate_tries|frame_every)$/,
+      /^(search|spread_attempts|seed|workers|spread_slice|spread_gap|spread_widest|flow_order|candidate_tries|frame_every)$/,
   },
+  { key: "shrink", match: /^shrink_/ },
   {
     key: "space",
-    match:
-      /^(w_wire|w_unit|w_pull|w_shape|w_over|w_pylon|max_gap|enlarge_rounds|enlarge_step|entry_sides|pylon)$/,
+    match: /^(w_wire|w_unit|w_pull|w_shape|w_over|w_pylon|entry_sides|pylon)$/,
   },
-  { key: "moves", match: /^move_/ },
   {
     key: "routing",
     match: /^(route_iterations|present_cost|present_growth|turn_cost|bridge_cost|history_cost)$/,
@@ -86,6 +92,8 @@ const GROUPS = [
 ]
 const CHOICES = {
   entry_sides: ["NW", "N", "W", "NESW"],
+  search: ["mixed", "anneal", "evolve", "restart"],
+  flow_order: ["bottom-up", "top-down"],
 }
 
 const groups = computed(() => {
@@ -140,7 +148,7 @@ function when(entry) {
               :key="key"
               class="flex items-center justify-between gap-2"
             >
-              <span class="text-warm-600 dark:text-warm-300" :title="t(`params.${key}`)">{{
+              <span class="text-warm-600 dark:text-warm-300" :title="help(key)">{{
                 t(`params.${key}`)
               }}</span>
               <select v-if="CHOICES[key]" v-model="params[key]" class="input-number !w-32">
