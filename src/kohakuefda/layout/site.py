@@ -110,6 +110,7 @@ class Site:
             int(params["route_iterations"]),
         )
         self.router.share = False
+        self.router.unit_area = self.area
         self.placed: dict[str, Anchor] = {}
         self.cells_of: dict[str, list[Cell]] = {}
         self.refused: Counter[str] = Counter()

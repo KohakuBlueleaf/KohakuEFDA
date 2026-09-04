@@ -247,6 +247,7 @@ class Router:
         self.failed: list[Wire] = []
         self.findings: list[Finding] = []
         self.recording: dict[str, WireState] | None = None
+        self.unit_area: tuple[int, int, int, int] | None = None
         self.ripped_now: list[Wire] = []
         self.forced: set[str] = set()
         self.share = True
@@ -320,6 +321,28 @@ class Router:
     def _tree(self, net_id: str, key: PinKey) -> list[Wire]:
         return self.trees.setdefault((net_id, key), [])
 
+    def _bridges_outside(self, wire: Wire, path: list[Cell]) -> bool:
+        """Whether this path would put a bridge outside the area.
+
+        A pipe may run out through the ring (LOG-08), but where it crosses another lane a
+        bridge is built, and a bridge is a building: only pumps, extractors and pylons stand
+        outside the area (REG-03). The crossing is chosen inside the search, so it is caught
+        here, on the cells the path shares with a lane already down.
+        """
+        return any(
+            not self._unit_allowed(cell) and self.grid.holders_at(wire.layer, cell)
+            for cell in path
+        )
+
+    def _unit_allowed(self, cell: Cell) -> bool:
+        """Whether a splitter, converger or bridge may stand on cell: a pipe may run out
+        through the ring (LOG-08) but a junction is a building, and only pumps, extractors and
+        pylons stand outside the area (REG-03)."""
+        area = self.unit_area
+        if area is None:
+            return True
+        return area[0] <= cell[0] < area[2] and area[1] <= cell[1] < area[3]
+
     def _straight_cells(self, wires: list[Wire], layer: int) -> dict[Cell, Edge]:
         """Straight cells of routed wires with their travel direction, the cells in front of
         the ports included (a unit there links to the port directly)."""
@@ -338,6 +361,7 @@ class Router:
                 free = (
                     not self.grid.has_unit(layer, cell)
                     and len(self.grid.holders_at(layer, cell)) == 1
+                    and self._unit_allowed(cell)
                 )
                 if layer == SKY and not self.grid.ground_free(cell):
                     free = False
@@ -455,6 +479,8 @@ class Router:
             )
             if path is None:
                 return False
+        if self._bridges_outside(wire, path):
+            return False
         wire.branch = path[0] if path[0] in branch_dirs else None
         wire.join = path[-1] if path[-1] in join_dirs else None
         if wire.branch is None:

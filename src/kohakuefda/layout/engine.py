@@ -24,6 +24,7 @@ from kohakuefda.layout.board import Board, board_of
 from kohakuefda.layout.chunk import chunk
 from kohakuefda.layout.geometry import machine_footprint, unit_footprint
 from kohakuefda.layout.place import Block, catalogue_of
+from kohakuefda.layout.search import MIXED, SEARCHES
 from kohakuefda.layout.shrink import Shrink
 from kohakuefda.layout.site import Site
 from kohakuefda.layout.spread import Spread
@@ -44,6 +45,7 @@ LAYOUT_DEFAULTS: dict[str, int | float | str] = {
     "spread_attempts": 32000,
     "shrink_rounds": 200,
     "spread_slice": 64,
+    "search": "mixed",
     "flow_order": "bottom-up",
     "candidate_tries": 12,
     "w_wire": 1.0,
@@ -63,6 +65,7 @@ LAYOUT_DEFAULTS: dict[str, int | float | str] = {
     "frame_every": 20,
 }
 log = logging.getLogger(__name__)
+DEAL = ("anneal", "evolve", "restart")
 AUTO_WORKERS = 16
 PRIME = 7919
 POLL_SECONDS = 0.2
@@ -144,6 +147,8 @@ class Engine:
                 raise LayoutError(f"{name} cannot be negative")
         if int(params["spread_widest"]) < int(params["spread_gap"]):
             raise LayoutError("spread_widest cannot be below spread_gap")
+        if str(params["search"]) != MIXED and str(params["search"]) not in SEARCHES:
+            raise LayoutError(f"unknown search {params['search']!r}")
         self.random = random.Random(int(params["seed"]))
         self.pylon = dataset.pylons[str(params["pylon"])]
         self.findings: list[Finding] = list(board.findings)
@@ -345,6 +350,8 @@ class Engine:
         self.check(cancelled)
         workers = self.islands()
         if workers <= 1:
+            alone = self.searching(self.params, int(self.params["seed"]) * PRIME)
+            self.spread = Spread(self.site, alone, self.random)
             return self.spread.run(observe, cancelled)
         budget = int(self.params["spread_attempts"])
         slice_size = max(1, int(self.params["spread_slice"]))
@@ -362,7 +369,9 @@ class Engine:
                 ]
                 winner = self.best_of(pool, share, seeds, cancelled)
                 if winner is not None:
-                    self.spread = Spread(self.site, share, random.Random(winner))
+                    self.spread = Spread(
+                        self.site, self.searching(share, winner), random.Random(winner)
+                    )
                     return self.spread.run(observe, cancelled)
         finally:
             pool.shutdown(wait=False, cancel_futures=True)
@@ -375,6 +384,14 @@ class Engine:
             return workers
         return max(1, min(AUTO_WORKERS, os.process_cpu_count() or 1))
 
+    def searching(self, share: dict, seed: int) -> dict:
+        """The parameters one worker gets. Under mixed the searches are dealt out over
+        the workers rather than chosen between: none of them wins on every scenario, and the
+        cores are already there to run all three."""
+        if str(share["search"]) != "mixed":
+            return share
+        return {**share, "search": DEAL[(seed // PRIME) % len(DEAL)]}
+
     def best_of(
         self, pool: ProcessPoolExecutor, share: dict, seeds: list[int], cancelled=None
     ) -> int | None:
@@ -385,7 +402,10 @@ class Engine:
         lane's path depends on what was already down when it was routed.
         """
         futures = {
-            pool.submit(_island, self.dataset, self.netlist, share, s): s for s in seeds
+            pool.submit(
+                _island, self.dataset, self.netlist, self.searching(share, s), s
+            ): s
+            for s in seeds
         }
         pending = set(futures)
         winners: list[int] = []

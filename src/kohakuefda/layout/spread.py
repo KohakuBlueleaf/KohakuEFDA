@@ -16,6 +16,8 @@ import random
 import time
 
 from kohakuefda.layout.depot_via import brick_rotation
+from kohakuefda.layout.genome import Genome, Score
+from kohakuefda.layout.search import SEARCHES
 from kohakuefda.layout.site import Anchor, Site
 from kohakuefda.model.control import CancelledError
 from kohakuefda.model.geometry import Edge, rotated_size
@@ -24,7 +26,6 @@ log = logging.getLogger(__name__)
 ENTRY_ROTATION = {Edge.W: 0, Edge.N: 90, Edge.E: 180, Edge.S: 270}
 ANCHOR_KINDS = ("depot", "zone")
 UNGROUPED = "~"
-Score = tuple[int, int, int, int]
 
 
 class Spread:
@@ -39,6 +40,7 @@ class Spread:
         self.top_down = str(params["flow_order"]) == "top-down"
         self.tries = max(1, int(params["candidate_tries"]))
         self.attempts = max(1, int(params["spread_attempts"]))
+        self.strategy = str(params["search"])
         self.grid_squares: list[tuple[int, int]] = []
         self.next_square = 0
         self.laid: list[str] = []
@@ -360,8 +362,8 @@ class Spread:
 
     # ---- the pass -------------------------------------------------------
 
-    def lay(self, gap: int, shuffle: bool = False) -> list[str]:
-        """One lattice at this gap: every block in a square of its own, placed and wired.
+    def lay(self, order: list[str], gap: int) -> list[str]:
+        """One lattice: every block of ``order`` in a square of its own, placed and wired.
         Returns the blocks that found nowhere."""
         site = self.site
         for block_id in list(site.placed):
@@ -369,7 +371,7 @@ class Spread:
         self.grid_squares = self.squares(gap)
         self.next_square = 0
         missed: list[str] = []
-        self.laid = self.order(shuffle)
+        self.laid = list(order)
         for block_id in self.laid:
             if not self.stand(block_id, gap):
                 missed.append(block_id)
@@ -407,6 +409,26 @@ class Spread:
         if anchors is not None:
             return any(site.place(block_id, *a) for a in anchors)
         return self.settle(block_id, gap)
+
+    def gaps(self) -> range:
+        return range(self.gap, self.widest + 1)
+
+    def sample(self, attempt: int) -> Genome:
+        """The genome the handcrafted search would have drawn on its ``attempt``-th try: the
+        gaps in turn, both directions of the flow, and the order jittered once both have been
+        seen at every gap."""
+        gaps = list(self.gaps())
+        self.top_down = bool((attempt // len(gaps)) % 2)
+        return Genome(
+            tuple(self.order(attempt >= 2 * len(gaps))),
+            gaps[attempt % len(gaps)],
+            self.top_down,
+        )
+
+    def decode(self, genome: Genome) -> "Score":
+        """Lay the lattice this genome asks for and say what it came to."""
+        self.top_down = genome.top_down
+        return self.score(self.lay(list(genome.order), genome.gap))
 
     def score(self, missed: list[str]) -> "Score":
         """How good a lattice is: whole first, then small.
@@ -457,19 +479,24 @@ class Spread:
         kept and named, so what is missing is a machine and not a mystery.
         """
         site = self.site
-        best: tuple[Score, object, list[str], list[str]] | None = None
         started = time.monotonic()
-        gaps = list(range(self.gap, self.widest + 1))
-        for attempt in range(self.attempts):
+        kept: list = [None]
+
+        def decode(genome: Genome) -> Score:
             if cancelled is not None and cancelled():
                 raise CancelledError("layout cancelled")
-            gap = gaps[attempt % len(gaps)]
-            self.top_down = bool((attempt // len(gaps)) % 2)
-            missed = self.lay(gap, shuffle=attempt >= 2 * len(gaps))
+            missed = self.lay(list(genome.order), genome.gap)
+            self.top_down = genome.top_down
             score = self.score(missed)
-            if best is None or score < best[0]:
-                best = (score, site.snapshot(), list(missed), list(self.laid))
-                log.debug("lattice improved", attempt=attempt, gap=gap, score=score)
+            if kept[0] is None or score < kept[0][0]:
+                kept[0] = (score, site.snapshot(), list(missed), list(self.laid))
+                log.debug("lattice improved", score=score, gap=genome.gap)
+            return score
+
+        SEARCHES[self.strategy](
+            decode, self.sample, self.rng, self.attempts, self.gaps()
+        )
+        best = kept[0]
         site.restore(best[1])
         self.failed = best[2]
         self.laid = best[3]
@@ -481,7 +508,8 @@ class Spread:
         whole = not self.failed and not site.unrouted()
         log.info(
             "spread done" if whole else "spread incomplete",
-            attempts=attempt + 1,
+            search=self.strategy,
+            attempts=self.attempts,
             seconds=round(time.monotonic() - started, 2),
             placed=f"{len(site.placed)}/{len(site.blocks)}",
             size=f"{site.bbox()[2] - site.bbox()[0]}x{site.bbox()[3] - site.bbox()[1]}",
