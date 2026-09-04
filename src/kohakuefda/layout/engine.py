@@ -45,6 +45,9 @@ LAYOUT_DEFAULTS: dict[str, int | float | str] = {
     "spread_widest": 6,
     "spread_attempts": 32000,
     "shrink_rounds": 200,
+    "shrink_walk": 600,
+    "shrink_heat": 6.0,
+    "shrink_spin": 0.25,
     "spread_slice": 64,
     "search": "mixed",
     "heuristic": "off",
@@ -90,6 +93,7 @@ LAYOUT_DEFAULTS: dict[str, int | float | str] = {
     "w_crowd": 1.0,
     "w_tight": 4.0,
     "route_slack": 1.5,
+    "route_slacks": "1.1,1.3,1.6,2.0",
     "route_heat": 0.25,
     "route_cool": 0.5,
     "flow_order": "bottom-up",
@@ -138,14 +142,24 @@ def _island(
     Attempts are independent of one another, so a machine with cores to spare runs several
     searches from different seeds and takes the first that finishes whole rather than waiting
     on one; nothing is shared and nothing is merged.
+
+    The score decides which attempt is kept, so it is the layout that would be built that is
+    scored, pylons and all, and the squeeze that produces it is the deterministic one. Ranking
+    on the grid's own extent instead reads a rectangle nobody pays for — it counts pipe that ran
+    out through the ring and no pylon at all — and an attempt that wins on it can lose by a
+    fifth once built; an annealed walk here would rank an attempt by how its walk happened to go
+    rather than by what the attempt is worth. The walk belongs to the winner alone.
     """
     board = board_of(dataset, netlist.scenario)
     site = Site(dataset, netlist, board, params)
     spread = Spread(site, params, random.Random(seed))
     whole = spread.run()
-    if whole:
-        Shrink(site, spread, params).run()
-    return whole, spread.score([]), seed
+    if not whole:
+        return whole, spread.score([]), seed
+    shrink = Shrink(site, spread, {**params, "shrink_walk": 0})
+    shrink.run()
+    area, wires = shrink.measure()
+    return whole, (len(site.unplaced()), len(site.unrouted()), area, wires), seed
 
 
 class LayoutError(RuntimeError):

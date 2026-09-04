@@ -66,14 +66,41 @@ def run(
     cancelled=None,
     given: dict | None = None,
 ) -> bool:
-    """Search for a placement and build it; ``True`` when a whole layout came out.
+    """Search for a placement and build it; True when a whole layout came out.
 
-    A placement that scores well can still be unbuildable: the search prices the room a lane
-    needs to leave a port, not the path it then has to find. So a build that fails says which
-    machines it failed on, those machines ask for another cell of room, and the search runs
-    again knowing it — the placement-level form of negotiated congestion.
+    How much floor to keep back for lanes is the one thing the cost cannot know in advance:
+    reserve too little and the search compresses until nothing routes, too much and it hands
+    back a layout larger than the one it was meant to beat. So the reserve is swept and each
+    setting judged on what it actually built, which is the number being asked for.
     """
-    how = str(params["heuristic"])
+    reserves = [float(part) for part in str(params["route_slacks"]).split(",") if part]
+    best: tuple[tuple[int, int], object] | None = None
+    for reserve in reserves or [float(params["route_slack"])]:
+        if cancelled is not None and cancelled():
+            break
+        if attempt(
+            site, {**params, "route_slack": reserve}, rng, observe, cancelled, given
+        ):
+            x0, y0, x1, y1 = site.bbox()
+            score = ((x1 - x0) * (y1 - y0), site.wire_cells())
+            log.info("heuristic built", reserve=reserve, area=score[0], wires=score[1])
+            if best is None or score < best[0]:
+                best = (score, site.snapshot())
+    if best is None:
+        return False
+    site.restore(best[1])
+    return not site.unrouted() and not site.unplaced()
+
+
+def attempt(
+    site: Site,
+    params: dict,
+    rng: random.Random,
+    observe=None,
+    cancelled=None,
+    given: dict | None = None,
+) -> bool:
+    """One search at one lane reserve, built and repaired; True when it came out whole."""
     rounds = max(1, int(params["route_rounds"]))
     widest = max(0, int(params["route_widest"]))
     state = Placement(site, Weights.of(params))
@@ -85,42 +112,22 @@ def run(
         if str(params["native"]) != "off"
         else None
     )
-    log.info(
-        "heuristic start",
-        search=how,
-        blocks=state.count,
-        area=state.terms.area,
-        native=fast is not None,
-    )
     budget = int(params["sa_moves"])
-    for attempt in range(rounds):
-        settings = {**params, "sa_moves": budget if not attempt else budget // 2}
+    for round_index in range(rounds):
+        settings = {**params, "sa_moves": budget if not round_index else budget // 2}
         search(state, settings, rng, observe, cancelled, fast)
         anchors = state.anchors()
         if materialise(site, spread, anchors, int(params["build_tries"])) or repair(
             site, spread, state, anchors, int(params["repair_tries"])
         ):
-            log.info(
-                "heuristic done",
-                round=attempt + 1,
-                area=state.terms.area,
-                wires=site.wire_cells(),
-            )
             return not site.unrouted()
-        blocked = crowded(site, state)
-        for block in blocked:
+        for block in crowded(site, state):
             state.extra[block] = min(widest, state.extra[block] + 1)
         state.cool(float(params["route_cool"]))
         scorch(site, state, float(params["route_heat"]))
         state.terms = state.recompute()
         if fast is not None:
             fast = native.build(state, Weights.of(params))
-        log.info(
-            "build failed, widening",
-            round=attempt + 1,
-            homeless=len(site.unplaced()),
-            widened=len(blocked),
-        )
     return False
 
 
@@ -129,11 +136,9 @@ def repair(
 ) -> bool:
     """Nudge the machines whose lanes had no path, with the router itself as the judge.
 
-    The search prices the room a lane needs, not the path it finds, so a placement can be
-    good by every term it knows and still leave one lane stranded. Here the true router says
-    whether a change helped, which is affordable because only a handful of machines and a
-    handful of positions are worth trying. Whatever happens the site is left holding the best
-    arrangement tried, not the last one.
+    The search prices the room a lane needs, not the path it finds, so a placement can be good
+    by every term it knows and still leave one lane stranded. Only a handful of machines and a
+    handful of positions are worth trying, and the site is left holding the best of them.
     """
     best = len(site.unrouted()) + len(site.unplaced())
     kept = dict(anchors)
@@ -144,7 +149,7 @@ def repair(
         for block in ends(site, state):
             block_id = state.ids[block]
             home = anchors[block_id]
-            for spot in offers(state, block, home):
+            for spot in offers(home):
                 anchors[block_id] = spot
                 build(site, spread, anchors)
                 count = len(site.unrouted()) + len(site.unplaced())
@@ -164,7 +169,7 @@ def repair(
 
 def ends(site: Site, state: Placement) -> list[int]:
     """The movable machines at either end of a lane that has no path."""
-    out = []
+    out: list[int] = []
     for wire in site.unrouted():
         for key in (wire.source, wire.sink):
             index = state.index[site.owner[key].id]
@@ -173,22 +178,21 @@ def ends(site: Site, state: Placement) -> list[int]:
     return out
 
 
-def offers(state: Placement, block: int, home: tuple) -> list[tuple[int, int, int]]:
+def offers(home: tuple) -> list[tuple[int, int, int]]:
     """Where one machine might go instead: turned where it stands, or a cell or two over."""
-    out = []
-    for rotation in (0, 90, 180, 270):
-        for dx, dy in ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1), (2, 0), (0, 2)):
-            spot = (home[0] + dx, home[1] + dy, rotation)
-            if spot != home:
-                out.append(spot)
-    return out
+    return [
+        (home[0] + dx, home[1] + dy, rotation)
+        for rotation in (0, 90, 180, 270)
+        for dx, dy in ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1), (2, 0), (0, 2))
+        if (home[0] + dx, home[1] + dy, rotation) != home
+    ]
 
 
 def build(site: Site, spread: Spread, anchors: dict) -> None:
     """Put every block down and route the whole netlist, whatever comes of it.
 
     The router reads a pin table that only holds placed machines, so a layout missing one is
-    not offered to it at all: the caller sees the machines that would not stand instead.
+    not offered to it at all.
     """
     for block_id in list(site.placed):
         site.remove(block_id)
@@ -203,20 +207,16 @@ def build(site: Site, spread: Spread, anchors: dict) -> None:
 def scorch(site: Site, state: Placement, amount: float) -> None:
     """Leave heat over the ground every lane without a path wanted.
 
-    The rectangle between a lane's two pins is where it had to run; whatever is standing in
-    it is what stopped it. Heat there is a cost the search can see and move off, which block
-    inflation is not: inflating a machine says "be bigger", heat says "not here".
+    The rectangle between a lane's two pins is where it had to run; whatever stands in it is
+    what stopped it. Heat there is a cost the search can see and move off.
     """
     for wire in site.unrouted():
-        source = site.owner[wire.source]
-        sink = site.owner[wire.sink]
-        a = source.pin_outside(wire.source)
-        b = sink.pin_outside(wire.sink)
+        a = site.owner[wire.source].pin_outside(wire.source)
+        b = site.owner[wire.sink].pin_outside(wire.sink)
         x0, x1 = sorted((a[0], b[0]))
         y0, y1 = sorted((a[1], b[1]))
         state.warm(
-            ((x, y) for y in range(y0, y1 + 1) for x in range(x0, x1 + 1)),
-            amount,
+            ((x, y) for y in range(y0, y1 + 1) for x in range(x0, x1 + 1)), amount
         )
 
 

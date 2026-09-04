@@ -318,7 +318,34 @@ def test_the_line_is_solid_and_cannot_be_pulled_closer_to_the_corner(
     empty_rows = [y for y in range(y0, y1) if not any(c[1] == y for c in used)]
     empty_cols = [x for x in range(x0, x1) if not any(c[0] == x for c in used)]
     assert empty_rows == [] and empty_cols == []
-    assert not Shrink(engine.site, engine.spread, engine.params).run()
+    settled = {**engine.params, "shrink_walk": 0}
+    assert not Shrink(engine.site, engine.spread, settled).run()
+
+
+def test_the_squeeze_measures_the_layout_that_gets_reported(dataset: Dataset) -> None:
+    """What the squeeze calls smaller has to be what the report calls smaller.
+
+    They parted once: the squeeze read the grid's own extent, which counts pipe that ran out
+    through the ring and no pylon at all, so it could take a move that grew the built layout.
+    """
+    engine = _engine(dataset, _furnace_pair(dataset), seed=7)
+    engine.run()
+    area, wires = Shrink(engine.site, engine.spread, engine.params).measure()
+    reported = engine.measure(engine.site)
+    assert (area, wires) == (reported[2], reported[3])
+
+
+def test_the_walk_never_hands_back_a_worse_layout(dataset: Dataset) -> None:
+    """The walk takes worse layouts on the way but keeps the best it saw, so whatever it
+    returns is at worst the layout it was given."""
+    engine = _engine(dataset, _furnace_pair(dataset), seed=7)
+    engine.run()
+    walked = {**engine.params, "shrink_walk": 60, "shrink_heat": 20.0}
+    shrink = Shrink(engine.site, engine.spread, walked)
+    before = shrink.measure()
+    shrink.wander()
+    assert shrink.measure() <= before
+    assert not engine.site.unrouted() and not engine.site.unplaced()
 
 
 def test_cancellation_and_a_budget_that_cannot_run(dataset: Dataset) -> None:

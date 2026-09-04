@@ -12,6 +12,8 @@ can do is fail to find an improvement and stop.
 """
 
 import logging
+import math
+import random
 
 from kohakuefda.layout.site import Site
 from kohakuefda.layout.spread import Spread
@@ -33,16 +35,40 @@ class Shrink:
     def __init__(self, site: Site, spread: Spread, params: dict) -> None:
         self.site = site
         self.spread = spread
+        self.params = params
         self.rounds = max(0, int(params["shrink_rounds"]))
+        self.walk = max(0, int(params["shrink_walk"]))
+        self.heat = max(1e-9, float(params["shrink_heat"]))
+        self.spin = min(1.0, max(0.0, float(params["shrink_spin"])))
+        self.rng = random.Random(int(params["seed"]))
 
     # ---- what counts as smaller -----------------------------------------
 
     def measure(self) -> Size:
-        """The rectangle the layout needs, then its lane cells: area first because that is what
-        the basement charges for, lanes second because two layouts of the same area are not
-        equally good and the shorter belt is the one the player wants."""
-        x0, y0, x1, y1 = self.site.bbox()
-        return ((x1 - x0) * (y1 - y0), self.site.wire_cells())
+        """The rectangle the layout needs with its pylons standing, then its lane cells.
+
+        Area first because that is what the basement charges for, lanes second because two
+        layouts of the same area are not equally good. The pylons are part of it: an
+        arrangement that is tighter until its pylon has to stand further out is not tighter,
+        and a walk judged without them wanders off toward layouts that grow when built.
+        """
+        site = self.site
+        size = site.dataset.machines[site.pylon.machine_id].width
+        cells = set(site.occupied())
+        for spot in site.pylons()[0]:
+            cells.update(
+                (spot[0] + dx, spot[1] + dy) for dy in range(size) for dx in range(size)
+            )
+        x0, y0, x1, y1 = site.area
+        inside = [c for c in cells if x0 <= c[0] < x1 and y0 <= c[1] < y1]
+        if not inside:
+            return (0, 0)
+        xs = [c[0] for c in inside]
+        ys = [c[1] for c in inside]
+        return (
+            (max(xs) - min(xs) + 1) * (max(ys) - min(ys) + 1),
+            site.wire_cells(),
+        )
 
     def apply(self, anchors: dict[str, tuple[int, int, int]], before: Size) -> bool:
         """Rebuild the whole layout at these anchors and keep it only if it still stands whole
@@ -173,10 +199,81 @@ class Shrink:
 
     # ---- the pass --------------------------------------------------------
 
-    def run(self) -> bool:
-        """Carve, press and nudge until none of them makes the layout smaller."""
+    def turn(self, before: Size) -> bool:
+        """One machine turned where it stands, if it leaves the layout smaller."""
         site = self.site
-        started = self.measure()
+        movable = [i for i in site.placed if site.blocks[i].constraint not in PINNED]
+        for block_id in movable:
+            x, y, rotation = site.placed[block_id]
+            for turned in (90, 180, 270):
+                state = site.snapshot()
+                site.remove(block_id)
+                if (
+                    site.place(block_id, x, y, (rotation + turned) % 360)
+                    and not site.unrouted()
+                    and self.measure() < before
+                ):
+                    return True
+                site.restore(state)
+        return False
+
+    def stir(self, movable: list[str]) -> bool:
+        """One machine picked at random, stepped a cell or turned where it stands.
+
+        The squeeze scans in a fixed order and takes the first move that helps, which is what
+        makes it settle; a walk that proposed the same way would offer the same machine every
+        step and go nowhere. Whether the layout still stands is settled by rebuilding it.
+        """
+        site = self.site
+        block_id = self.rng.choice(movable)
+        x, y, rotation = site.placed[block_id]
+        if self.rng.random() < self.spin:
+            spot = (x, y, (rotation + self.rng.choice((90, 180, 270))) % 360)
+        else:
+            dx, dy = self.rng.choice(((1, 0), (-1, 0), (0, 1), (0, -1)))
+            spot = (x + dx, y + dy, rotation)
+        state = site.snapshot()
+        site.remove(block_id)
+        if site.place(block_id, *spot) and not site.unrouted():
+            return True
+        site.restore(state)
+        return False
+
+    def wander(self) -> bool:
+        """Anneal the finished layout: the same kind of move, but a worse one taken now and then.
+
+        Carving, pressing and nudging each take the first improvement they find and stop at the
+        first arrangement none of them improves. Letting the walk accept a slightly larger
+        layout sometimes is what gets it out of that, and every state it passes through is a
+        whole routed layout, so the worst it can do is give back the one it started from.
+        """
+        site = self.site
+        movable = [i for i in site.placed if site.blocks[i].constraint not in PINNED]
+        if not movable:
+            return False
+        current = self.measure()
+        best, kept = current, site.snapshot()
+        moved = False
+        for step in range(self.walk):
+            temperature = self.heat * (1.0 - step / self.walk) + 1e-9
+            state = site.snapshot()
+            before = self.measure()
+            if not self.stir(movable):
+                site.restore(state)
+                continue
+            after = self.measure()
+            delta = (after[0] - before[0]) + 0.25 * (after[1] - before[1])
+            if delta <= 0 or self.rng.random() < math.exp(-delta / temperature):
+                current = after
+                if after < best:
+                    best, kept, moved = after, site.snapshot(), True
+            else:
+                site.restore(state)
+        site.restore(kept)
+        return moved
+
+    def settle(self) -> None:
+        """Carve, press and nudge until none of them makes the layout smaller."""
         for round_index in range(self.rounds):
             before = self.measure()
             if (
@@ -185,9 +282,18 @@ class Shrink:
                     self.press(axis, step, self.measure()) for axis, step in SIDES
                 )
                 and not self.nudge(self.measure())
+                and not self.turn(self.measure())
             ):
                 log.debug("nothing left to take out", rounds=round_index)
-                break
+                return
+
+    def run(self) -> bool:
+        """Settle the layout, walk it out of that corner, then settle whatever the walk found."""
+        site = self.site
+        started = self.measure()
+        self.settle()
+        if self.walk and self.wander():
+            self.settle()
         after = self.measure()
         x0, y0, x1, y1 = site.bbox()
         log.info(

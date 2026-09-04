@@ -50,7 +50,13 @@ The spread is legal but loose. Shrinking takes the room back out and only ever *
 | `press` | Every machine slid as far as it goes toward one wall, nearest the wall first. |
 | `nudge` | One machine moved a cell toward what it is wired to. A press moves everything at once and a dense layout often will not route, so it is rejected whole; one machine only disturbs its own lanes. |
 
-Each proposal is a complete layout, rebuilt and rewired, and it is kept only when it still stands whole and is smaller — area first, lane cells second.
+Each proposal is a complete layout, rebuilt and rewired, and it is kept only when it still stands whole and is smaller — area first, lane cells second. Smaller is measured **with the pylons standing**, over the cells inside the area: the grid's own extent counts pipe that ran out through the ring, and an arrangement that is tighter until its pylon has to stand further out is not tighter.
+
+A fourth move, `turn`, rotates one machine where it stands; a machine whose ports move to another face can let the layout close up around it.
+
+Each move scans in a fixed order and takes the first improvement, which is what makes the squeeze settle — and what stops it at the first arrangement none of the four improves. A further pass, `wander`, walks on from there. It proposes with `stir`: one machine picked **at random**, stepped a cell in a random direction or turned (with probability `shrink_spin`). Proposing the way the squeeze does would offer the same machine every step and go nowhere. A slightly larger layout is accepted with probability `exp(-delta / temperature)`, the temperature falling to nothing over `shrink_walk` steps from `shrink_heat`. Every state it passes through is a whole routed layout and it keeps the best one it saw, so the worst it can do is hand back the layout it started from; what it found is then squeezed again, because a layout reached mid-walk has not had the four moves run to exhaustion on it. `shrink_walk = 0` turns the walk off and leaves the squeeze deterministic.
+
+The walk runs on the winning attempt alone. Inside a scoring attempt it would rank that attempt by how its walk happened to go rather than by what the attempt is worth, and the ranking is what picks the layout that gets built.
 
 ## The search
 
@@ -66,6 +72,8 @@ The order the spread starts from is worth keeping, so mutation disturbs it local
 | `mixed` | All three, dealt out across the cores. The default. |
 
 None of them wins on every factory — annealing takes the small scenarios, evolution the large — and the cores to run all three are already there, so the default deals them out and keeps the best. Against independent draws that is about a sixth of the area off the largest bundled scenario and a quarter to a half of the lane cells everywhere.
+
+An attempt is ranked on **the layout that would be built** — the area inside the basement with the pylons standing, then the lane cells — squeezed deterministically, with no walk. The grid's own extent is the wrong rectangle to rank on: it counts pipe that ran out through the ring and no pylon at all, so an attempt that wins on it can lose by a fifth once built, and every improvement to the squeeze then reshuffles which attempt wins at random with respect to what is being asked for.
 
 Searches are independent, so they run one per core from different seeds in rounds: every worker takes the same slice of the budget, the round is waited out in full, and the best whole layout wins with ties going to the lowest seed. Taking whichever finished first would make the result depend on how loaded the machine was, and a run with a seed has to give the same layout every time.
 
