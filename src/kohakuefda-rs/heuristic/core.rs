@@ -4,6 +4,9 @@
 /// A Gas Dispersing Unit makes a 13x13 zone (game-knowledge ENV-01).
 const ZONE_SIDE: i32 = 13;
 
+/// Side of a congestion bin, in cells.
+const BIN_SIDE: i32 = 4;
+
 /// What each term of the cost is worth.
 #[derive(Clone, Copy)]
 pub struct Weights {
@@ -14,6 +17,7 @@ pub struct Weights {
     pub shut: f64,
     pub crowd: f64,
     pub tight: f64,
+    pub jam: f64,
     pub slack: f64,
 }
 
@@ -26,6 +30,7 @@ pub struct Terms {
     pub group: i64,
     pub shut: i64,
     pub crowd: f64,
+    pub jam: f64,
 }
 
 /// What the terms are measured against, so the cost sits near one whatever the instance.
@@ -61,6 +66,11 @@ pub struct Placement {
     pub unit_of: Vec<i32>,
     pub area_rect: (i32, i32, i32, i32),
     pub heat: Vec<f64>,
+    pub bins_x: i32,
+    pub bins_y: i32,
+    pub bin_cells: Vec<i32>,
+    pub demand: Vec<f64>,
+    pub taken: Vec<i32>,
     pub stride: i32,
     pub floor: i64,
     pub weights: Weights,
@@ -83,6 +93,96 @@ impl Placement {
         let edge = self.margin[block];
         let (x0, y0, x1, y1) = self.area_rect;
         (x0 + edge, y0 + edge, x1 - edge, y1 - edge)
+    }
+
+    /// Lay out the congestion bins over the area; every bin holds the cells it covers.
+    pub fn bins(&mut self) {
+        let (x0, y0, x1, y1) = self.area_rect;
+        self.bins_x = ((x1 - x0) + BIN_SIDE - 1).div_euclid(BIN_SIDE).max(1);
+        self.bins_y = ((y1 - y0) + BIN_SIDE - 1).div_euclid(BIN_SIDE).max(1);
+        let count = (self.bins_x * self.bins_y) as usize;
+        self.bin_cells = vec![0; count];
+        for by in 0..self.bins_y {
+            let high = y1.min(y0 + (by + 1) * BIN_SIDE) - (y0 + by * BIN_SIDE);
+            for bx in 0..self.bins_x {
+                let wide = x1.min(x0 + (bx + 1) * BIN_SIDE) - (x0 + bx * BIN_SIDE);
+                self.bin_cells[(by * self.bins_x + bx) as usize] = wide.max(0) * high.max(0);
+            }
+        }
+        self.demand = vec![0.0; count];
+        self.taken = vec![0; count];
+    }
+
+    /// The rectangle a lane has to cross, from one pin to the other.
+    fn wire_box(&self, wire: usize) -> (i32, i32, i32, i32) {
+        let (source, source_slot) = self.wire_from[wire];
+        let (sink, sink_slot) = self.wire_to[wire];
+        let here = self.offset[source][self.rotation[source]][source_slot];
+        let there = self.offset[sink][self.rotation[sink]][sink_slot];
+        let (ax, ay) = (self.x[source] + here.0, self.y[source] + here.1);
+        let (bx, by) = (self.x[sink] + there.0, self.y[sink] + there.1);
+        (ax.min(bx), ay.min(by), ax.max(bx) + 1, ay.max(by) + 1)
+    }
+
+    /// How much more lane one bin is asked for than it has floor to give.
+    fn excess(&self, index: usize) -> f64 {
+        let spare = (self.bin_cells[index] - self.taken[index]).max(0);
+        (self.demand[index] - spare as f64).max(0.0)
+    }
+
+    /// Add a rectangle's lane demand, or a footprint's claim on the floor, into the bins it
+    /// covers, keeping the excess the cost charges for current as it goes.
+    fn pour(&mut self, box_: (i32, i32, i32, i32), density: f64, room: i32) {
+        let (bx0, by0, bx1, by1) = box_;
+        let (ox, oy, _, _) = self.area_rect;
+        let first_x = (bx0 - ox).div_euclid(BIN_SIDE).clamp(0, self.bins_x - 1);
+        let last_x = (bx1 - 1 - ox)
+            .div_euclid(BIN_SIDE)
+            .clamp(0, self.bins_x - 1);
+        let first_y = (by0 - oy).div_euclid(BIN_SIDE).clamp(0, self.bins_y - 1);
+        let last_y = (by1 - 1 - oy)
+            .div_euclid(BIN_SIDE)
+            .clamp(0, self.bins_y - 1);
+        for by in first_y..=last_y {
+            let low = by0.max(oy + by * BIN_SIDE);
+            let high = by1.min(oy + (by + 1) * BIN_SIDE);
+            if high <= low {
+                continue;
+            }
+            for bx in first_x..=last_x {
+                let left = bx0.max(ox + bx * BIN_SIDE);
+                let right = bx1.min(ox + (bx + 1) * BIN_SIDE);
+                if right <= left {
+                    continue;
+                }
+                let index = (by * self.bins_x + bx) as usize;
+                let cells = (right - left) * (high - low);
+                let before = self.excess(index);
+                self.demand[index] += density * cells as f64;
+                self.taken[index] += room * cells;
+                self.terms.jam += self.excess(index) - before;
+            }
+        }
+    }
+
+    /// Lane cells a net needs per cell of its rectangle: its half-perimeter spread over it.
+    fn density(box_: (i32, i32, i32, i32)) -> f64 {
+        let wide = box_.2 - box_.0;
+        let high = box_.3 - box_.1;
+        if wide == 0 || high == 0 {
+            return 0.0;
+        }
+        (wide + high) as f64 / (wide * high) as f64
+    }
+
+    fn flow(&mut self, wire: usize, sign: f64) {
+        let box_ = self.wire_box(wire);
+        self.pour(box_, sign * Self::density(box_), 0);
+    }
+
+    fn claim(&mut self, block: usize, sign: i32) {
+        let box_ = self.rect(block);
+        self.pour(box_, 0.0, sign);
     }
 
     pub fn overlap(&self, a: usize, b: usize) -> i64 {
@@ -264,6 +364,15 @@ impl Placement {
             terms.crowd += self.crowd_of(block);
         }
         self.terms = terms;
+        self.demand.iter_mut().for_each(|value| *value = 0.0);
+        self.taken.iter_mut().for_each(|value| *value = 0);
+        self.terms.jam = 0.0;
+        for block in 0..self.count {
+            self.claim(block, 1);
+        }
+        for wire in 0..self.wire_from.len() {
+            self.flow(wire, 1.0);
+        }
     }
 
     /// Move one block and fold the change into the running cost.
@@ -280,12 +389,20 @@ impl Placement {
             .iter()
             .map(|&wire| self.length[wire])
             .collect();
+        self.claim(block, -1);
+        for wire in self.incident[block].clone() {
+            self.flow(wire, -1.0);
+        }
         self.x[block] = x;
         self.y[block] = y;
         self.rotation[block] = rotation;
         let (width, height) = self.size[block][rotation];
         self.w[block] = width;
         self.h[block] = height;
+        self.claim(block, 1);
+        for wire in self.incident[block].clone() {
+            self.flow(wire, 1.0);
+        }
         self.terms.overlap += self.overlap_of(block) - before_overlap;
         self.terms.shut += self.shut_of(block) - before_shut;
         self.terms.crowd += self.crowd_of(block) - before_crowd;
@@ -311,7 +428,8 @@ impl Placement {
             + w.overlap * self.terms.overlap as f64 / self.scale.area
             + w.group * self.terms.group as f64 / self.scale.wire
             + w.shut * self.terms.shut as f64
-            + w.crowd * self.terms.crowd;
+            + w.crowd * self.terms.crowd
+            + w.jam * self.terms.jam / self.scale.wire;
         let needed = self.terms.wire as f64 * w.slack;
         let spare = self.terms.area as f64 - self.floor as f64 - needed;
         if spare < 0.0 {

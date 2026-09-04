@@ -30,16 +30,20 @@ def materialise(site: Site, spread: Spread, anchors: dict, tries: int) -> bool:
     which strands the lanes that come after it. The geometry goes down first — the search has
     already made it overlap-free — and the whole netlist is then routed together with rip-up
     and negotiated congestion, which is what that router is for.
+
+    Every machine is offered whatever the others did, because stopping at the first one the
+    site turns down throws away the thirty that would have stood: the cost knows nothing about
+    a footprint standing in front of somebody's port, so it takes a repair pass to find the one
+    machine at fault, and a repair pass needs the rest of the layout to be there.
     """
     for block_id in list(site.placed):
         site.remove(block_id)
     for block_id in spread.order():
         anchor = anchors.get(block_id)
-        if anchor is None:
-            return False
-        if not site.place(block_id, *anchor, route=False):
-            return False
-    site.router.route(strict=False)
+        if anchor is not None:
+            site.place(block_id, *anchor, route=False)
+    if not site.unplaced():
+        site.router.route(strict=False)
     return not site.unplaced() and not site.unrouted()
 
 
@@ -183,13 +187,23 @@ def repair(
 
 
 def ends(site: Site, state: Placement) -> list[int]:
-    """The movable machines at either end of a lane that has no path."""
+    """The movable machines a build got stuck on: one that would not stand and whatever it is
+    wired to, then either end of a lane that has no path."""
     out: list[int] = []
+
+    def offer(block_id: str) -> None:
+        index = state.index[block_id]
+        if not state.frozen[index] and index not in out:
+            out.append(index)
+
+    for block_id in site.unplaced():
+        offer(block_id)
+        for wire in site.touching[block_id]:
+            for key in (wire.source, wire.sink):
+                offer(site.owner[key].id)
     for wire in site.unrouted():
         for key in (wire.source, wire.sink):
-            index = state.index[site.owner[key].id]
-            if not state.frozen[index] and index not in out:
-                out.append(index)
+            offer(site.owner[key].id)
     return out
 
 

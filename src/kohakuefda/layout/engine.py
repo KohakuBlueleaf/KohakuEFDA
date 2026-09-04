@@ -92,6 +92,7 @@ LAYOUT_DEFAULTS: dict[str, int | float | str] = {
     "w_shut": 8.0,
     "w_crowd": 1.0,
     "w_tight": 4.0,
+    "w_jam": 0.0,
     "route_slack": 1.5,
     "route_slacks": "1.1",
     "route_heat": 0.25,
@@ -480,8 +481,8 @@ class Engine:
         theirs = self.measure(other)
         log.info(
             "heuristic contended",
-            built=f"{mine[0]}/{mine[1]}",
-            heuristic=f"{theirs[0]}/{theirs[1]}",
+            built=f"{mine[2]}/{mine[3]}",
+            heuristic=f"{theirs[2]}/{theirs[3]}",
             kept="heuristic" if theirs < mine else "built",
         )
         if theirs < mine:

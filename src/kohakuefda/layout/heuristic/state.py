@@ -26,6 +26,7 @@ from kohakuefda.model.sinks import ZONE_SIDE
 
 log = logging.getLogger(__name__)
 FROZEN = ("slot", "edge")
+BIN_SIDE = 4
 
 
 @dataclass(frozen=True)
@@ -39,6 +40,7 @@ class Weights:
     shut: float = 8.0
     crowd: float = 1.0
     tight: float = 4.0
+    jam: float = 0.0
     slack: float = 1.5
 
     @classmethod
@@ -51,6 +53,7 @@ class Weights:
             shut=float(params["w_shut"]),
             crowd=float(params["w_crowd"]),
             tight=float(params["w_tight"]),
+            jam=float(params["w_jam"]),
             slack=float(params["route_slack"]),
         )
 
@@ -81,6 +84,7 @@ class Terms:
     group: int = 0
     shut: int = 0
     crowd: float = 0.0
+    jam: float = 0.0
 
     def total(self, weights: Weights, scale: "Scale") -> float:
         return (
@@ -90,6 +94,7 @@ class Terms:
             + weights.group * self.group / scale.wire
             + weights.shut * self.shut
             + weights.crowd * self.crowd
+            + weights.jam * self.jam / scale.wire
         )
 
 
@@ -118,8 +123,26 @@ class Placement:
         )
         self.stride = site.width
         self.heat = [0.0] * (site.width * site.height)
+        self._bins()
         self.terms = Terms()
         self.scale = Scale()
+
+    def _bins(self) -> None:
+        """The congestion grid: coarse squares over the area, each with the cells it holds."""
+        x0, y0, x1, y1 = self.area_rect
+        self.bin_side = BIN_SIDE
+        self.bins_x = max(1, -(-(x1 - x0) // self.bin_side))
+        self.bins_y = max(1, -(-(y1 - y0) // self.bin_side))
+        self.bin_cells = [0] * (self.bins_x * self.bins_y)
+        for by in range(self.bins_y):
+            high = min(y1, y0 + (by + 1) * self.bin_side) - (y0 + by * self.bin_side)
+            for bx in range(self.bins_x):
+                wide = min(x1, x0 + (bx + 1) * self.bin_side) - (
+                    x0 + bx * self.bin_side
+                )
+                self.bin_cells[by * self.bins_x + bx] = max(0, wide) * max(0, high)
+        self.demand = [0.0] * (self.bins_x * self.bins_y)
+        self.taken = [0] * (self.bins_x * self.bins_y)
 
     # ---- what never changes ---------------------------------------------
 
@@ -275,6 +298,15 @@ class Placement:
             for b in range(a + 1, self.count)
         )
         terms.crowd = sum(self._crowd_of(b) for b in range(self.count))
+        keep, self.terms = self.terms, terms
+        self.demand = [0.0] * len(self.demand)
+        self.taken = [0] * len(self.taken)
+        terms.jam = 0.0
+        for block in range(self.count):
+            self._claim(block, 1)
+        for wire in range(len(self.wire_from)):
+            self._flow(wire, 1)
+        self.terms = keep
         return terms
 
     def _area(self) -> int:
@@ -288,6 +320,66 @@ class Placement:
         across = (self.x[source] + here[0]) - (self.x[sink] + there[0])
         down = (self.y[source] + here[1]) - (self.y[sink] + there[1])
         return abs(across) + abs(down)
+
+    def _wire_box(self, wire: int) -> tuple[int, int, int, int]:
+        """The rectangle a lane has to cross, from one pin to the other."""
+        source, source_slot = self.wire_from[wire]
+        sink, sink_slot = self.wire_to[wire]
+        here = self.offset[source][self.rotation[source] // 90][source_slot]
+        there = self.offset[sink][self.rotation[sink] // 90][sink_slot]
+        ax, ay = self.x[source] + here[0], self.y[source] + here[1]
+        bx, by = self.x[sink] + there[0], self.y[sink] + there[1]
+        return (min(ax, bx), min(ay, by), max(ax, bx) + 1, max(ay, by) + 1)
+
+    def _pour(self, box: tuple[int, int, int, int], density: float, room: int) -> None:
+        """Add a rectangle's demand, or a footprint's claim on the floor, into the bins it
+        covers, keeping the excess that the cost charges for current as it goes."""
+        x0, y0, x1, y1 = box
+        ox, oy = self.area_rect[0], self.area_rect[1]
+        side = self.bin_side
+        first_x = min(max((x0 - ox) // side, 0), self.bins_x - 1)
+        last_x = min(max((x1 - 1 - ox) // side, 0), self.bins_x - 1)
+        first_y = min(max((y0 - oy) // side, 0), self.bins_y - 1)
+        last_y = min(max((y1 - 1 - oy) // side, 0), self.bins_y - 1)
+        for by in range(first_y, last_y + 1):
+            low = max(y0, oy + by * side)
+            high = min(y1, oy + (by + 1) * side)
+            if high <= low:
+                continue
+            for bx in range(first_x, last_x + 1):
+                left = max(x0, ox + bx * side)
+                right = min(x1, ox + (bx + 1) * side)
+                if right <= left:
+                    continue
+                index = by * self.bins_x + bx
+                cells = (right - left) * (high - low)
+                before = self._excess(index)
+                self.demand[index] += density * cells
+                self.taken[index] += room * cells
+                self.terms.jam += self._excess(index) - before
+
+    def _excess(self, index: int) -> float:
+        """How much more lane one bin is asked for than it has floor to give."""
+        spare = self.bin_cells[index] - self.taken[index]
+        return max(0.0, self.demand[index] - max(0, spare))
+
+    def _density(self, box: tuple[int, int, int, int]) -> float:
+        """Lane cells a net needs per cell of its rectangle: its half-perimeter spread over it.
+
+        A net crossing a w by h box takes about w + h cells whatever path it finds, so that is
+        what it asks of the floor it crosses, in the measure Rent-style congestion estimates
+        use.
+        """
+        wide = box[2] - box[0]
+        high = box[3] - box[1]
+        return (wide + high) / float(wide * high) if wide and high else 0.0
+
+    def _flow(self, wire: int, sign: int) -> None:
+        box = self._wire_box(wire)
+        self._pour(box, sign * self._density(box), 0)
+
+    def _claim(self, block: int, sign: int) -> None:
+        self._pour(self.rect(block), 0.0, sign)
 
     def _overlap(self, a: int, b: int) -> int:
         ax0, ay0, ax1, ay1 = self.rect(a)
@@ -487,10 +579,16 @@ class Placement:
         if members is not None:
             before_fault += self._group_fault(members)
         was = [length[wire] for wire in incident]
+        self._claim(block, -1)
+        for wire in incident:
+            self._flow(wire, -1)
         self.x[block] = x
         self.y[block] = y
         self.rotation[block] = rotation
         self.w[block], self.h[block] = self.size[block][rotation // 90]
+        self._claim(block, 1)
+        for wire in incident:
+            self._flow(wire, 1)
         terms.overlap += self._overlap_of(block) - before_overlap
         terms.shut += self._shut_of(block) - before_shut
         terms.crowd += self._crowd_of(block) - before_crowd

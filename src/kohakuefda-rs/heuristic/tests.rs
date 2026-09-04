@@ -9,7 +9,7 @@ fn two_blocks() -> Placement {
         [vec![(0, 0)], vec![(0, 0)], vec![(0, 0)], vec![(0, 0)]],
         [vec![(0, 0)], vec![(0, 0)], vec![(0, 0)], vec![(0, 0)]],
     ];
-    Placement {
+    let mut state = Placement {
         count: 2,
         x: vec![0, 10],
         y: vec![0, 0],
@@ -31,6 +31,11 @@ fn two_blocks() -> Placement {
         unit_of: vec![],
         area_rect: (0, 0, 40, 40),
         heat: vec![0.0; 40 * 40],
+        bins_x: 0,
+        bins_y: 0,
+        bin_cells: Vec::new(),
+        demand: Vec::new(),
+        taken: Vec::new(),
         stride: 40,
         floor: 18,
         weights: Weights {
@@ -41,11 +46,14 @@ fn two_blocks() -> Placement {
             shut: 8.0,
             crowd: 1.0,
             tight: 4.0,
+            jam: 8.0,
             slack: 1.5,
         },
         scale: Scale { area: 1.0, wire: 1.0 },
         terms: Terms::default(),
-    }
+    };
+    state.bins();
+    state
 }
 
 #[test]

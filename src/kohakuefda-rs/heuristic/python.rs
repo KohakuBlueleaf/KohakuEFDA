@@ -65,45 +65,51 @@ impl _Placement {
             .map(|b| (size[b][0].0 as i64) * (size[b][0].1 as i64))
             .sum();
         let wires = wire_from.len();
-        Ok(_Placement {
-            inner: Placement {
-                count,
-                x: vec![0; count],
-                y: vec![0; count],
-                rotation: vec![0; count],
-                w: (0..count).map(|b| size[b][0].0).collect(),
-                h: (0..count).map(|b| size[b][0].1).collect(),
-                size,
-                offset,
-                pad,
-                margin,
-                extra: vec![0; count],
-                frozen,
-                wire_from,
-                wire_to,
-                incident,
-                length: vec![0; wires],
-                groups,
-                group_of,
-                unit_of,
-                area_rect,
-                heat: vec![0.0; (grid.0 * grid.1) as usize],
-                stride: grid.0,
-                floor,
-                weights: Weights {
-                    area: 1.0,
-                    wire: 1.0,
-                    overlap: 8.0,
-                    group: 8.0,
-                    shut: 8.0,
-                    crowd: 1.0,
-                    tight: 4.0,
-                    slack: 1.5,
-                },
-                scale: Scale { area: 1.0, wire: 1.0 },
-                terms: Terms::default(),
+        let mut placement = Placement {
+            count,
+            x: vec![0; count],
+            y: vec![0; count],
+            rotation: vec![0; count],
+            w: (0..count).map(|b| size[b][0].0).collect(),
+            h: (0..count).map(|b| size[b][0].1).collect(),
+            size,
+            offset,
+            pad,
+            margin,
+            extra: vec![0; count],
+            frozen,
+            wire_from,
+            wire_to,
+            incident,
+            length: vec![0; wires],
+            groups,
+            group_of,
+            unit_of,
+            area_rect,
+            heat: vec![0.0; (grid.0 * grid.1) as usize],
+            bins_x: 0,
+            bins_y: 0,
+            bin_cells: Vec::new(),
+            demand: Vec::new(),
+            taken: Vec::new(),
+            stride: grid.0,
+            floor,
+            weights: Weights {
+                area: 1.0,
+                wire: 1.0,
+                overlap: 8.0,
+                group: 8.0,
+                shut: 8.0,
+                crowd: 1.0,
+                tight: 4.0,
+                jam: 8.0,
+                slack: 1.5,
             },
-        })
+            scale: Scale { area: 1.0, wire: 1.0 },
+            terms: Terms::default(),
+        };
+        placement.bins();
+        Ok(_Placement { inner: placement })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -116,9 +122,10 @@ impl _Placement {
         shut: f64,
         crowd: f64,
         tight: f64,
+        jam: f64,
         slack: f64,
     ) {
-        self.inner.weights = Weights { area, wire, overlap, group, shut, crowd, tight, slack };
+        self.inner.weights = Weights { area, wire, overlap, group, shut, crowd, tight, jam, slack };
     }
 
     fn adopt(&mut self, anchors: Vec<(i32, i32, usize)>) {
@@ -162,10 +169,18 @@ impl _Placement {
     }
 
     /// Every term rebuilt from the anchors, for the test that holds this to the Python one.
-    fn terms(&mut self) -> (i64, i64, i64, i64, i64, f64) {
+    fn terms(&mut self) -> (i64, i64, i64, i64, i64, f64, f64) {
         self.inner.recompute();
         let terms = self.inner.terms;
-        (terms.area, terms.wire, terms.overlap, terms.group, terms.shut, terms.crowd)
+        (
+            terms.area,
+            terms.wire,
+            terms.overlap,
+            terms.group,
+            terms.shut,
+            terms.crowd,
+            terms.jam,
+        )
     }
 
     fn cost(&self) -> f64 {

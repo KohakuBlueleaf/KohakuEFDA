@@ -6,7 +6,7 @@ faster there, and a budget that was minutes becomes a moment.
 
 ``NATIVE`` is False when the extension is not built and every caller falls back to the Python
 search, which stays the reference implementation. ``tests/test_heuristic.py`` holds the two to
-identical costs for identical placements.
+identical costs for identical placements, term by term.
 """
 
 import logging
@@ -51,6 +51,7 @@ def build(state: Placement, weights: Weights) -> object | None:
         weights.shut,
         weights.crowd,
         weights.tight,
+        weights.jam,
         weights.slack,
     )
     return native

@@ -122,7 +122,8 @@
     "spread_slice": "Steps per core per round",
     "w_shape": "Penalty for a long thin layout",
     "w_over": "Penalty past the area side",
-    "w_pylon": "Weight per pylon"
+    "w_pylon": "Weight per pylon",
+    "w_jam": "Congestion weight"
   },
   "choices": {
     "entry_sides": {
@@ -456,6 +457,7 @@
     "w_shape": "How much a long thin layout is penalised against a square one.",
     "w_over": "What reaching past the side of the area costs.",
     "w_pylon": "What each pylon counts for.",
+    "w_jam": "What a crowded patch of floor costs the search: lane demand a bin has no free floor for. Off by default, because buying room for lanes this way costs more area than it saves on the bundled factories; raise it for a line the router cannot serve.",
     "entry_sides": "Which borders of the area outside inputs may enter from.",
     "pylon": "Which pylon is used to power the line.",
     "route_iterations": "How many times contested belts are torn up and routed again.",
