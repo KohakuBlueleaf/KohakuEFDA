@@ -23,6 +23,7 @@ from kohakuefda.layout.assemble import assemble
 from kohakuefda.layout.board import Board, board_of
 from kohakuefda.layout.chunk import chunk
 from kohakuefda.layout.geometry import machine_footprint, unit_footprint
+from kohakuefda.layout.heuristic import engine as heuristic
 from kohakuefda.layout.place import Block, catalogue_of
 from kohakuefda.layout.search import MIXED, SEARCHES
 from kohakuefda.layout.shrink import Shrink
@@ -48,8 +49,8 @@ LAYOUT_DEFAULTS: dict[str, int | float | str] = {
     "search": "mixed",
     "heuristic": "off",
     "native": "on",
-    "start": "construct",
-    "seed_attempts": 64,
+    "start": "scatter",
+    "seed_attempts": 1500,
     "seed_draws": 8,
     "build_tries": 8,
     "route_rounds": 6,
@@ -437,6 +438,68 @@ class Engine:
             return share
         return {**share, "search": DEAL[(seed // PRIME) % len(DEAL)]}
 
+    def contend(self, cancelled: Cancelled | None) -> None:
+        """Let the heuristic placer try the same netlist and keep whichever did better.
+
+        The two search different things — one arranges a lattice, the other walks placements —
+        and neither wins everywhere, so they run beside each other and the smaller answer is
+        the one returned. A heuristic layout that is not whole never counts, so this can only
+        improve on what the constructive pass built.
+        """
+        if str(self.params["heuristic"]) == "off":
+            return
+        mine = self.measure(self.site)
+        other = Site(self.dataset, self.netlist, self.board, self.params)
+        try:
+            whole = heuristic.run(
+                other, self.params, self.random, None, cancelled, dict(self.site.placed)
+            )
+        except CancelledError:
+            raise
+        except (RuntimeError, ValueError, KeyError) as error:
+            log.warning("the heuristic placer did not finish", error=str(error))
+            return
+        if not whole:
+            log.info("heuristic layout was not whole, keeping the built one")
+            return
+        Shrink(other, Spread(other, self.params, self.random), self.params).run()
+        theirs = self.measure(other)
+        log.info(
+            "heuristic contended",
+            built=f"{mine[0]}/{mine[1]}",
+            heuristic=f"{theirs[0]}/{theirs[1]}",
+            kept="heuristic" if theirs < mine else "built",
+        )
+        if theirs < mine:
+            self.site = other
+
+    def measure(self, site: Site) -> tuple[int, int, int, int]:
+        """How good a finished layout is: whole first, then small.
+
+        The rectangle is measured the way the report measures it: over the cells inside the
+        area, **with the pylons standing**. The grid's own extent counts pipe that ran out
+        through the ring, and a layout without its pylons is not the layout that gets built —
+        a tighter arrangement whose pylon has to stand further out is not the smaller one.
+        """
+        x0, y0, x1, y1 = site.area
+        size = self.dataset.machines[self.pylon.machine_id].width
+        cells = set(site.occupied())
+        for spot in site.pylons()[0]:
+            cells.update(
+                (spot[0] + dx, spot[1] + dy) for dy in range(size) for dx in range(size)
+            )
+        inside = [c for c in cells if x0 <= c[0] < x1 and y0 <= c[1] < y1]
+        if not inside:
+            return (len(site.blocks), 0, 0, 0)
+        xs = [c[0] for c in inside]
+        ys = [c[1] for c in inside]
+        return (
+            len(site.unplaced()),
+            len(site.unrouted()),
+            (max(xs) - min(xs) + 1) * (max(ys) - min(ys) + 1),
+            site.wire_cells(),
+        )
+
     def best_of(
         self, pool: ProcessPoolExecutor, share: dict, seeds: list[int], cancelled=None
     ) -> int | None:
@@ -493,6 +556,7 @@ class Engine:
             Shrink(self.site, self.spread, self.params).run()
             if observe is not None:
                 observe(self.spread.frame("build"))
+        self.contend(cancelled)
         if not self.site.placed:
             raise LayoutError("no layout could be produced")
         pylons, uncovered = self.site.pylons()

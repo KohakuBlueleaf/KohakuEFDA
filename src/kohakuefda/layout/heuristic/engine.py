@@ -64,6 +64,7 @@ def run(
     rng: random.Random,
     observe=None,
     cancelled=None,
+    given: dict | None = None,
 ) -> bool:
     """Search for a placement and build it; ``True`` when a whole layout came out.
 
@@ -77,7 +78,7 @@ def run(
     widest = max(0, int(params["route_widest"]))
     state = Placement(site, Weights.of(params))
     spread = Spread(site, params, rng)
-    anchors = start(site, state, params, rng)
+    anchors = start(site, state, params, rng, given)
     state.adopt(anchors)
     fast = (
         native.build(state, Weights.of(params))

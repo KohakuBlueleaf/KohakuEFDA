@@ -1,6 +1,9 @@
 //! The placement a search walks over, and what it costs: a mirror of
 //! `kohakuefda.layout.heuristic.state`, held to it by a differential test.
 
+/// A Gas Dispersing Unit makes a 13x13 zone (game-knowledge ENV-01).
+const ZONE_SIDE: i32 = 13;
+
 /// What each term of the cost is worth.
 #[derive(Clone, Copy)]
 pub struct Weights {
@@ -54,6 +57,8 @@ pub struct Placement {
     pub length: Vec<i64>,
     pub groups: Vec<Vec<usize>>,
     pub group_of: Vec<i32>,
+    /// The gas unit of each group, or -1 when the group is a bus cluster.
+    pub unit_of: Vec<i32>,
     pub area_rect: (i32, i32, i32, i32),
     pub heat: Vec<f64>,
     pub stride: i32,
@@ -168,9 +173,30 @@ impl Placement {
         (wide + high) as i64
     }
 
+    /// Cells of a machine that fall outside its gas unit's zone (ENV-02).
+    fn loose(&self, block: usize, unit: usize) -> i64 {
+        let half = ZONE_SIDE / 2;
+        let cx = self.x[unit] + self.w[unit] / 2;
+        let cy = self.y[unit] + self.h[unit] / 2;
+        let (zx0, zy0) = (cx - half, cy - half);
+        let (zx1, zy1) = (cx + half + 1, cy + half + 1);
+        let (x0, y0, x1, y1) = self.rect(block);
+        let over = (zx0 - x0).max(0) + (x1 - zx1).max(0);
+        let down = (zy0 - y0).max(0) + (y1 - zy1).max(0);
+        (over as i64) * ((y1 - y0) as i64) + (down as i64) * ((x1 - x0) as i64)
+    }
+
     fn group_fault(&self, members: &[usize]) -> i64 {
         if members.len() < 2 {
             return 0;
+        }
+        let unit = self.unit_of[self.group_of[members[0]] as usize];
+        if unit >= 0 {
+            return members
+                .iter()
+                .filter(|&&m| m != unit as usize)
+                .map(|&m| self.loose(m, unit as usize))
+                .sum();
         }
         let mut spread = 0;
         for (i, &first) in members.iter().enumerate() {
@@ -289,10 +315,10 @@ impl Placement {
             + w.group * self.terms.group as f64 / self.scale.wire
             + w.shut * self.terms.shut as f64
             + w.crowd * self.terms.crowd;
-        let needed = (self.terms.wire as f64 * w.slack) as i64;
-        let spare = self.terms.area - self.floor - needed;
-        if spare < 0 {
-            total -= w.tight * spare as f64 / self.scale.wire;
+        let needed = self.terms.wire as f64 * w.slack;
+        let spare = self.terms.area as f64 - self.floor as f64 - needed;
+        if spare < 0.0 {
+            total -= w.tight * spare / self.scale.wire;
         }
         total
     }

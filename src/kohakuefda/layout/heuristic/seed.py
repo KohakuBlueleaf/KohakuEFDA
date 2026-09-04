@@ -16,9 +16,10 @@ import random
 from kohakuefda.layout.heuristic.state import Placement
 from kohakuefda.layout.site import Site
 from kohakuefda.layout.spread import Spread
+from kohakuefda.model.cells import BUS_GROUP
 
 log = logging.getLogger(__name__)
-STARTS = ("construct", "scatter", "best-of")
+STARTS = ("construct", "scatter", "best-of", "refine")
 PINNED = ("slot", "edge")
 Anchors = dict[str, tuple[int, int, int]]
 
@@ -38,7 +39,7 @@ def held(site: Site, block_id: str) -> bool:
     search arranges everything else around them.
     """
     block = site.blocks[block_id]
-    return block.constraint in PINNED or bool(block.group)
+    return block.constraint in PINNED or block.group == BUS_GROUP
 
 
 def pinned(site: Site, params: dict, rng: random.Random) -> Anchors:
@@ -75,13 +76,23 @@ def scatter(state: Placement, base: Anchors, rng: random.Random) -> Anchors:
     return out
 
 
-def start(site: Site, state: Placement, params: dict, rng: random.Random) -> Anchors:
+def start(
+    site: Site,
+    state: Placement,
+    params: dict,
+    rng: random.Random,
+    given: Anchors | None = None,
+) -> Anchors:
     """The placement a search begins from, by the ``start`` setting.
 
-    Whatever the setting, every block comes back with a position: a search that inherits a
-    block still sitting at the origin will never move it and can never be built.
+    refine starts from a layout somebody else already built and only ever improves on it,
+    which is what makes the pair of engines worth running together. Whatever the setting,
+    every block comes back with a position: a search that inherits a block still at the origin
+    will never move it and can never be built.
     """
     how = str(params["start"])
+    if how == "refine" and given:
+        return dict(given)
     base = pinned(site, params, rng)
     if how == "construct":
         return scatter(state, {**base, **dict(site.placed)}, rng)

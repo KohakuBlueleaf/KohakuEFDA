@@ -28,6 +28,7 @@ fn two_blocks() -> Placement {
         length: vec![0],
         groups: vec![],
         group_of: vec![-1, -1],
+        unit_of: vec![],
         area_rect: (0, 0, 40, 40),
         heat: vec![0.0; 40 * 40],
         stride: 40,

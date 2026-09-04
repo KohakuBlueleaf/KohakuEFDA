@@ -14,6 +14,7 @@ import logging
 from dataclasses import dataclass
 
 from kohakuefda.layout.site import Site
+from kohakuefda.model.cells import BUS_GROUP
 from kohakuefda.model.geometry import (
     ROTATIONS,
     Edge,
@@ -21,6 +22,7 @@ from kohakuefda.model.geometry import (
     rotate_edge,
     rotated_size,
 )
+from kohakuefda.model.sinks import ZONE_SIDE
 
 log = logging.getLogger(__name__)
 FROZEN = ("slot", "edge")
@@ -164,8 +166,8 @@ class Placement:
             self.size.append(sizes)
             self.offset.append(offsets)
             self.pad.append(pads)
-            self.frozen[self.index[block_id]] = block.constraint in FROZEN or bool(
-                block.group
+            self.frozen[self.index[block_id]] = (
+                block.constraint in FROZEN or block.group == BUS_GROUP
             )
             self.powered[self.index[block_id]] = block.powered
             self.margin[self.index[block_id]] = site._group_room(block)
@@ -187,16 +189,27 @@ class Placement:
                 self.incident[sink].append(here)
 
     def _groups(self) -> None:
-        """The blocks the game binds together, as indices."""
+        """The blocks the game binds together, and which of them is a gas unit.
+
+        A zone group is a containment: every member inside the unit's 13x13 (ENV-01, ENV-02),
+        which a cost can say exactly, so those machines are free to move. A bus group is an
+        adjacency — a brick flush on a part by its back face (DEP-06) — which it cannot, so
+        those stay where the constructive pass seated them.
+        """
         self.group_of = [-1] * self.count
         self.groups: list[list[int]] = []
+        self.unit_of: list[int] = []
         for name in sorted(self.site.groups):
             members = [
                 self.index[b.id] for b in self.site.groups[name] if b.id in self.index
             ]
+            unit = next(
+                (m for m in members if self.site.blocks[self.ids[m]].kind == "zone"), -1
+            )
             for member in members:
                 self.group_of[member] = len(self.groups)
             self.groups.append(members)
+            self.unit_of.append(unit)
 
     # ---- reading the state ----------------------------------------------
 
@@ -306,9 +319,13 @@ class Placement:
         return total
 
     def _group_fault(self, members: list[int]) -> int:
-        """A group's members must sit together; count the cells they are apart by."""
+        """How far a group is from what the game asks: a zone's members outside its square,
+        or a bus cluster's members apart from each other."""
         if len(members) < 2:
             return 0
+        unit = self.unit_of[self.group_of[members[0]]]
+        if unit >= 0:
+            return sum(self._loose(m, unit) for m in members if m != unit)
         spread = 0
         for i, first in enumerate(members):
             best = min(
@@ -316,6 +333,18 @@ class Placement:
             )
             spread += best
         return spread
+
+    def _loose(self, block: int, unit: int) -> int:
+        """Cells of a machine that fall outside its gas unit's zone (ENV-02)."""
+        half = ZONE_SIDE // 2
+        cx = self.x[unit] + self.w[unit] // 2
+        cy = self.y[unit] + self.h[unit] // 2
+        zx0, zy0 = cx - half, cy - half
+        zx1, zy1 = cx + half + 1, cy + half + 1
+        x0, y0, x1, y1 = self.rect(block)
+        over = max(0, zx0 - x0) + max(0, x1 - zx1)
+        down = max(0, zy0 - y0) + max(0, y1 - zy1)
+        return over * (y1 - y0) + down * (x1 - x0)
 
     def _gap(self, a: int, b: int) -> int:
         ax0, ay0, ax1, ay1 = self.rect(a)

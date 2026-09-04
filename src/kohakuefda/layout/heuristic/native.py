@@ -39,6 +39,7 @@ def build(state: Placement, weights: Weights) -> object | None:
         list(state.wire_from),
         list(state.wire_to),
         [list(group) for group in state.groups],
+        list(state.unit_of),
         tuple(state.area_rect),
         grid,
     )

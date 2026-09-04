@@ -38,6 +38,7 @@ impl _Placement {
         wire_from: Vec<(usize, usize)>,
         wire_to: Vec<(usize, usize)>,
         groups: Vec<Vec<usize>>,
+        unit_of: Vec<i32>,
         area_rect: (i32, i32, i32, i32),
         grid: (i32, i32),
     ) -> PyResult<Self> {
@@ -84,6 +85,7 @@ impl _Placement {
                 length: vec![0; wires],
                 groups,
                 group_of,
+                unit_of,
                 area_rect,
                 heat: vec![0.0; (grid.0 * grid.1) as usize],
                 stride: grid.0,
