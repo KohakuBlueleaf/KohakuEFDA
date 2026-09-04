@@ -50,7 +50,7 @@ LAYOUT_DEFAULTS: dict[str, int | float | str] = {
     "shrink_spin": 0.25,
     "spread_slice": 64,
     "search": "mixed",
-    "heuristic": "anneal",
+    "heuristic": "off",
     "native": "on",
     "start": "scatter",
     "seed_attempts": 1500,
