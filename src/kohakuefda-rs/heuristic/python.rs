@@ -187,9 +187,14 @@ impl _Placement {
         self.inner.cost()
     }
 
+    /// Run the walk. `watch` is called every `watch_every` moves with the step, the temperature,
+    /// the running cost and every anchor; without it nothing crosses the boundary per move.
     #[allow(clippy::too_many_arguments)]
+    #[pyo3(signature = (seed, moves, window, warmup, accept_initial, end, range_start,
+        range_floor, weights, polish, polish_overlap, watch=None, watch_every=0))]
     fn anneal(
         &mut self,
+        py: Python<'_>,
         seed: u64,
         moves: usize,
         window: usize,
@@ -201,8 +206,11 @@ impl _Placement {
         weights: (f64, f64, f64, f64),
         polish: usize,
         polish_overlap: f64,
+        watch: Option<PyObject>,
+        watch_every: usize,
     ) -> (usize, usize, f64) {
         let settings = Settings {
+            watch_every: if watch.is_some() { watch_every } else { 0 },
             moves,
             window: window.max(1),
             warmup,
@@ -214,7 +222,16 @@ impl _Placement {
             polish,
             polish_overlap,
         };
-        let trace = anneal(&mut self.inner, &settings, seed);
+        let trace = match watch {
+            None => anneal(&mut self.inner, &settings, seed, None),
+            Some(callable) => {
+                let mut draw =
+                    |step: usize, temperature: f64, cost: f64, anchors: Vec<(i32, i32, usize)>| {
+                        let _ = callable.call1(py, (step, temperature, cost, anchors));
+                    };
+                anneal(&mut self.inner, &settings, seed, Some(&mut draw))
+            }
+        };
         (trace.steps, trace.accepted, trace.best)
     }
 }

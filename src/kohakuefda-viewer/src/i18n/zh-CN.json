@@ -92,7 +92,11 @@
     "routing": "布线",
     "other": "其他",
     "moves": "动作",
-    "shrink": "收缩"
+    "shrink": "收缩",
+    "placement": "布局搜索",
+    "anneal": "退火",
+    "evolve": "进化",
+    "weights": "搜索的代价权重"
   },
   "params": {
     "seed": "随机种子",
@@ -123,7 +127,53 @@
     "w_shape": "细长布局的惩罚",
     "w_over": "超出区域边界的惩罚",
     "w_pylon": "每根供电桩的权重",
-    "w_jam": "拥堵权重"
+    "w_jam": "拥堵权重",
+    "heuristic": "布局搜索算法",
+    "native": "使用 Rust 引擎",
+    "start": "搜索起点",
+    "seed_attempts": "起点抽样次数",
+    "seed_draws": "保留的起点数",
+    "build_tries": "尝试的放置顺序数",
+    "route_rounds": "搜索与建造轮数",
+    "repair_tries": "修补遍数",
+    "route_widest": "最大额外间隙",
+    "route_slack": "为线路预留的地面",
+    "route_slacks": "依次尝试的预留倍数",
+    "route_heat": "每条断路的热度",
+    "route_cool": "轮间保留的热度",
+    "sa_moves": "每轮移动次数",
+    "sa_schedule": "降温方案",
+    "sa_start_temperature": "初始温度（0 表示实测）",
+    "sa_end_temperature": "终止温度",
+    "sa_accept_initial": "初期接受劣解的比例",
+    "sa_target_accept": "目标接受率",
+    "sa_range_start": "单步移动的最大距离",
+    "sa_range_floor": "单步移动的最小距离",
+    "sa_warmup": "用于实测初温的移动次数",
+    "sa_window": "两次降温之间的移动数",
+    "sa_polish": "收尾时只接受改进的移动数",
+    "sa_polish_overlap": "收尾时重叠的代价",
+    "sa_reheat": "允许的重加热次数",
+    "sa_reheat_after": "多少步无进展后重加热",
+    "sa_fast_c": "Fast-SA 常数",
+    "sa_fast_k": "Fast-SA 指数",
+    "ga_population": "种群规模",
+    "ga_generations": "代数",
+    "ga_crossover": "交叉率",
+    "ga_mutation": "变异率",
+    "ga_tournament": "锦标赛规模",
+    "ga_elitism": "保留的精英数",
+    "ga_local_moves": "每个子代的局部搜索步数",
+    "move_displace": "比例：移动一台机器",
+    "move_swap": "比例：交换两台机器",
+    "move_rotate": "比例：旋转一台机器",
+    "move_shift": "比例：整体平移一侧",
+    "w_area": "矩形每格的权重",
+    "w_overlap": "每格重叠的罚分",
+    "w_group": "每条未满足的成组规则的罚分",
+    "w_shut": "每格被堵住的通道的罚分",
+    "w_crowd": "线路已失败处的权重",
+    "w_tight": "为线路预留地面的权重"
   },
   "choices": {
     "entry_sides": {
@@ -141,6 +191,26 @@
     "flow_order": {
       "bottom-up": "由原料端起",
       "top-down": "由成品端起"
+    },
+    "heuristic": {
+      "anneal": "退火",
+      "evolve": "进化",
+      "off": "关闭（仅格点布局）"
+    },
+    "native": {
+      "on": "开",
+      "off": "关"
+    },
+    "start": {
+      "scatter": "随机散布",
+      "construct": "构造式布局",
+      "best-of": "多次抽样取最优",
+      "refine": "在已建成布局上优化"
+    },
+    "sa_schedule": {
+      "adaptive": "自适应",
+      "geometric": "几何",
+      "fast-sa": "Fast-SA"
     }
   },
   "picker": {
@@ -465,6 +535,12 @@
     "present_growth": "该代价每轮上升的速度。",
     "turn_cost": "传送带或管线转一个弯的代价，相对于直走。",
     "bridge_cost": "以桥跨过另一条线路的代价。",
-    "history_cost": "曾被争用过的格子会被避开多少。"
+    "history_cost": "曾被争用过的格子会被避开多少。",
+    "heuristic": "在构造式格点布局之外，直接搜索机器摆放的算法。两者取更小的结果，因此只会更好，代价是时间而非质量。",
+    "native": "在编译好的 Rust 引擎中运行搜索，约为 Python 参考实现的一百倍速。关闭则使用参考实现。",
+    "start": "搜索从哪里开始：随机散布、构造式布局、若干抽样中最好的一个，或在已建成的布局上继续优化。",
+    "sa_moves": "每轮尝试多少种摆放。步数越多搜索越充分、耗时越长；这是主要的算力开关。",
+    "sa_schedule": "温度如何下降：自适应按接受率调整，几何按固定曲线，Fast-SA 按论文方案。",
+    "route_slacks": "为传送带和管道预留的地面，按直线线长的倍数依次尝试。每个取值都要跑一次完整搜索，保留能建成的最好结果。"
   }
 }

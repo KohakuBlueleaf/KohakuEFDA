@@ -82,6 +82,18 @@ const GROUPS = [
   },
   { key: "shrink", match: /^shrink_/ },
   {
+    key: "placement",
+    match:
+      /^(heuristic|native|start|seed_attempts|seed_draws|build_tries|route_rounds|repair_tries|route_widest|route_slack|route_slacks|route_heat|route_cool)$/,
+  },
+  { key: "anneal", match: /^sa_/ },
+  { key: "evolve", match: /^ga_/ },
+  { key: "moves", match: /^move_/ },
+  {
+    key: "weights",
+    match: /^(w_area|w_overlap|w_group|w_shut|w_crowd|w_tight|w_jam)$/,
+  },
+  {
     key: "space",
     match: /^(w_wire|w_unit|w_pull|w_shape|w_over|w_pylon|entry_sides|pylon)$/,
   },
@@ -94,6 +106,10 @@ const CHOICES = {
   entry_sides: ["NW", "N", "W", "NESW"],
   search: ["mixed", "anneal", "evolve", "restart"],
   flow_order: ["bottom-up", "top-down"],
+  heuristic: ["anneal", "evolve", "off"],
+  native: ["on", "off"],
+  start: ["scatter", "construct", "best-of", "refine"],
+  sa_schedule: ["adaptive", "geometric", "fast-sa"],
 }
 
 const groups = computed(() => {

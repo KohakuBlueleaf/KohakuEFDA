@@ -105,6 +105,7 @@ fn annealing_pulls_two_blocks_together() {
     state.recompute();
     let before = state.terms.wire;
     let settings = Settings {
+        watch_every: 0,
         moves: 4000,
         window: 100,
         warmup: 50,
@@ -116,7 +117,7 @@ fn annealing_pulls_two_blocks_together() {
         polish: 500,
         polish_overlap: 128.0,
     };
-    anneal(&mut state, &settings, 5);
+    anneal(&mut state, &settings, 5, None);
     state.recompute();
     assert!(state.terms.wire < before);
     assert_eq!(state.terms.overlap, 0);

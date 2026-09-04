@@ -51,13 +51,13 @@ def search(state: Placement, params: dict, rng, observe, cancelled, fast=None) -
     """Run whichever search is asked for over the placement.
 
     The native walk takes the whole state over once and runs about a hundred times faster, so
-    it is used whenever the extension is built and a watcher does not need to see the walk;
-    the Python search is the reference and stands in otherwise.
+    it is used whenever the extension is built, watcher or not: a watcher is handed down to it
+    as a callback. The Python search is the reference and stands in when there is no extension.
     """
     if str(params["heuristic"]) == "evolve":
         Evolver(state, params, rng).run(state.anchors(), observe, cancelled)
-    elif fast is not None and observe is None:
-        native.anneal(fast, state, params, rng.randrange(1 << 32))
+    elif fast is not None:
+        native.anneal(fast, state, params, rng.randrange(1 << 32), observe)
     else:
         Annealer(state, params, rng).run(observe, cancelled)
 

@@ -190,7 +190,12 @@ fn first_temperature(uphill: &[f64], accept: f64) -> f64 {
     (average / -chance.ln()).max(1e-6)
 }
 
+/// Called every `watch_every` moves with the step, the temperature, the running cost and where
+/// every block stands, so a watcher can draw the walk without it leaving the native side.
+pub type Watcher<'a> = &'a mut dyn FnMut(usize, f64, f64, Vec<(i32, i32, usize)>);
+
 pub struct Settings {
+    pub watch_every: usize,
     pub moves: usize,
     pub window: usize,
     pub warmup: usize,
@@ -204,7 +209,12 @@ pub struct Settings {
 }
 
 /// Anneal a placement in place and leave it at the best arrangement seen.
-pub fn anneal(state: &mut Placement, settings: &Settings, seed: u64) -> Trace {
+pub fn anneal(
+    state: &mut Placement,
+    settings: &Settings,
+    seed: u64,
+    mut watch: Option<Watcher>,
+) -> Trace {
     let mut rng = Rng::new(seed);
     let mut moves = Moves::new(state, settings.weights, settings.range_start, settings.range_floor);
     state.rescale();
@@ -253,6 +263,14 @@ pub fn anneal(state: &mut Placement, settings: &Settings, seed: u64) -> Trace {
             let share = step as f64 / settings.moves as f64;
             temperature = first * settings.end.powf(share);
             moves.narrow(temperature / first.max(1e-9));
+        }
+        if let Some(draw) = watch.as_deref_mut() {
+            if settings.watch_every > 0 && step % settings.watch_every == 0 {
+                let anchors = (0..state.count)
+                    .map(|b| (state.x[b], state.y[b], state.rotation[b]))
+                    .collect();
+                draw(step, temperature, current, anchors);
+            }
         }
     }
     for block in 0..state.count {

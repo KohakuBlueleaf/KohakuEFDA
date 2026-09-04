@@ -50,7 +50,7 @@ LAYOUT_DEFAULTS: dict[str, int | float | str] = {
     "shrink_spin": 0.25,
     "spread_slice": 64,
     "search": "mixed",
-    "heuristic": "off",
+    "heuristic": "anneal",
     "native": "on",
     "start": "scatter",
     "seed_attempts": 1500,
@@ -453,7 +453,7 @@ class Engine:
             return share
         return {**share, "search": DEAL[(seed // PRIME) % len(DEAL)]}
 
-    def contend(self, cancelled: Cancelled | None) -> None:
+    def contend(self, observe: Observe | None, cancelled: Cancelled | None) -> None:
         """Let the heuristic placer try the same netlist and keep whichever did better.
 
         The two search different things — one arranges a lattice, the other walks placements —
@@ -467,7 +467,12 @@ class Engine:
         other = Site(self.dataset, self.netlist, self.board, self.params)
         try:
             whole = heuristic.run(
-                other, self.params, self.random, None, cancelled, dict(self.site.placed)
+                other,
+                self.params,
+                self.random,
+                observe,
+                cancelled,
+                dict(self.site.placed),
             )
         except CancelledError:
             raise
@@ -571,7 +576,7 @@ class Engine:
             Shrink(self.site, self.spread, self.params).run()
             if observe is not None:
                 observe(self.spread.frame("build"))
-        self.contend(cancelled)
+        self.contend(observe, cancelled)
         if not self.site.placed:
             raise LayoutError("no layout could be produced")
         pylons, uncovered = self.site.pylons()

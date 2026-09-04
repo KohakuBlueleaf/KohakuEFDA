@@ -23,6 +23,8 @@ except ImportError:  # the Python search below stands in
 
 log = logging.getLogger(__name__)
 TURNS = (0, 90, 180, 270)
+# One frame per this many spread frames: a walk is a hundred thousand moves, not a few hundred.
+WATCH_SLICE = 100
 
 
 def build(state: Placement, weights: Weights) -> object | None:
@@ -74,9 +76,25 @@ def receive(native: object, state: Placement) -> None:
     )
 
 
-def anneal(native: object, state: Placement, params: dict, seed: int) -> tuple:
-    """Run the native walk over the placement and bring the answer back."""
+def anneal(
+    native: object, state: Placement, params: dict, seed: int, observe=None
+) -> tuple:
+    """Run the native walk over the placement and bring the answer back.
+
+    A watcher is handed down as a callback rather than by running the walk in slices, because a
+    slice would restart the cooling schedule; the walk stays on the native side and only the
+    frames cross back.
+    """
     send(native, state)
+    watch = None
+    every = max(1, int(params["frame_every"])) * WATCH_SLICE
+    if observe is not None:
+
+        def watch(step: int, temperature: float, cost: float, anchors: list) -> None:
+            observe(
+                frame(state, step, temperature, cost, anchors, int(params["sa_moves"]))
+            )
+
     trace = native.anneal(
         seed & 0xFFFFFFFF,
         max(1, int(params["sa_moves"])),
@@ -94,6 +112,28 @@ def anneal(native: object, state: Placement, params: dict, seed: int) -> tuple:
         ),
         max(0, int(params["sa_polish"])),
         float(params["sa_polish_overlap"]),
+        watch,
+        every,
     )
     receive(native, state)
     return trace
+
+
+def frame(
+    state: Placement, step: int, temperature: float, cost: float, anchors, budget: int
+) -> dict:
+    """One step of the native walk, in the shape a watcher draws."""
+    return {
+        "kind": "improve",
+        "step": step,
+        "of": budget,
+        "temperature": round(temperature, 3),
+        "cost": round(cost, 1),
+        "best": round(cost, 1),
+        "range": 0,
+        "terms": vars(state.terms),
+        "blocks": [
+            [state.ids[i], x, y, TURNS[rotation]]
+            for i, (x, y, rotation) in enumerate(anchors)
+        ],
+    }
