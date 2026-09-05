@@ -124,6 +124,10 @@
     "spread_slice": "Attempts per worker slice"
   },
   "choices": {
+    "solver": {
+      "baseline": "Spread + shrink",
+      "regional": "Regional reconstruction"
+    },
     "entry_sides": {
       "NW": "north and west",
       "N": "north",

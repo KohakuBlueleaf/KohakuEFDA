@@ -72,6 +72,11 @@ def test_meta_examples_and_params(base_url: str) -> None:
     assert params["layout"]["spread_attempts"] == LAYOUT_DEFAULTS["spread_attempts"]
     assert params["layout"]["workers"] == LAYOUT_DEFAULTS["workers"]
     assert "bridge_cost" in params["layout"]
+    status, solvers = _request(f"{base_url}/api/solvers")
+    assert status == 200
+    by_name = {entry["name"]: entry for entry in solvers}
+    assert {"baseline", "regional"} <= by_name.keys()
+    assert by_name["regional"]["defaults"]["attempts"] == 128
 
 
 def test_scenario_toml_round_trip(base_url: str) -> None:

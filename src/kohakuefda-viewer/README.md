@@ -32,7 +32,9 @@ only. `npm run build` writes into `../kohakuefda/web_dist/`, which
 
 The stage inspector reads registered solver names from `/api/solvers` and
 backend/budget settings from `/api/params`. Extra solver settings use the
-`solver_options` JSON field. Labels exist in all three supported locales.
+`solver_options` JSON field. Baseline and regional reconstruction choices have
+labels in all three supported locales. Regional runs are serial; baseline-only
+spread settings do not configure the regional policy.
 
 ## Commands
 

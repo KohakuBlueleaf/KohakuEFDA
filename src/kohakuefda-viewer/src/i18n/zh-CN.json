@@ -124,6 +124,10 @@
     "spread_slice": "每个工作进程的尝试数"
   },
   "choices": {
+    "solver": {
+      "baseline": "展开与压缩",
+      "regional": "区域重建"
+    },
     "entry_sides": {
       "NW": "北与西",
       "N": "北",

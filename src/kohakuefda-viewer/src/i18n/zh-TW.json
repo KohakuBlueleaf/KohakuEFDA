@@ -124,6 +124,10 @@
     "spread_slice": "每個工作程序的嘗試數"
   },
   "choices": {
+    "solver": {
+      "baseline": "展開與壓縮",
+      "regional": "區域重建"
+    },
     "entry_sides": {
       "NW": "北與西",
       "N": "北",
