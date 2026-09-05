@@ -16,7 +16,7 @@ two broken layouts still compare and the search can climb out of one.
 
 import logging
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
 from kohakuefda.layout.assemble import world_pins
 from kohakuefda.layout.board import Board
@@ -64,7 +64,12 @@ class Site:
         netlist: Netlist,
         board: Board,
         params: dict,
+        check: Callable[[], None] | None = None,
+        native: bool = True,
     ) -> None:
+        self.check = check
+        self.route_service = None
+        self.cover_service = None
         self.dataset = dataset
         self.netlist = netlist
         self.board = board
@@ -99,6 +104,7 @@ class Site:
             float(params["turn_cost"]),
             float(params["bridge_cost"]),
             float(params["history_cost"]),
+            native=native,
         )
         self.router = Router(
             dataset,
@@ -109,6 +115,7 @@ class Site:
             float(params["present_growth"]),
             int(params["route_iterations"]),
         )
+        self.router.check = check
         self.router.share = False
         self.router.unit_area = self.area
         self.placed: dict[str, Anchor] = {}
@@ -150,20 +157,27 @@ class Site:
             self.refused["no room"] += 1
             return False
         state = self.snapshot()
-        self.router.forced = set()
-        covered = [
-            w for w in self.wires if w.cells and not set(w.cells).isdisjoint(cells)
-        ]
-        required = {w.id for w in self.touching[block_id]}
-        for wire in covered:
-            required.update(w.id for w in self.router.rip(wire))
-        self._occupy(block, cells, x, y, rotation)
-        reason = self._refusal(block, set(cells), required, route)
-        if reason is None:
-            return True
-        self.refused[reason] += 1
-        self.restore(state)
-        return False
+        accepted = False
+        try:
+            self.router.forced = set()
+            covered = [
+                w for w in self.wires if w.cells and not set(w.cells).isdisjoint(cells)
+            ]
+            required = {w.id for w in self.touching[block_id]}
+            for wire in covered:
+                required.update(w.id for w in self.router.rip(wire))
+            self._occupy(block, cells, x, y, rotation)
+            reason = self._refusal(block, set(cells), required, route)
+            if self.check is not None:
+                self.check()
+            if reason is None:
+                accepted = True
+                return True
+            self.refused[reason] += 1
+            return False
+        finally:
+            if not accepted:
+                self.restore(state)
 
     def _refusal(
         self, block: Block, cells: set[Cell], required: set[str], route: bool = True
@@ -171,7 +185,13 @@ class Site:
         """Why this placement cannot stand, or ``None`` when it may."""
         if self.closes_a_port(block, cells):
             return "port shut"
-        if route and not self.wire_up(required):
+        if route and not (
+            self.route_service(self, required)
+            if self.route_service
+            else self.wire_up(required)
+        ):
+            return "no path"
+        if route and self.unrouted():
             return "no path"
         if self.faults():
             return "group rule"
@@ -212,6 +232,8 @@ class Site:
         wants every lane it can get and a list of the ones it did not.
         """
         for _ in range(ROUTE_ROUNDS):
+            if self.check is not None:
+                self.check()
             self.router.ripped_now = []
             todo = [
                 w
@@ -287,7 +309,7 @@ class Site:
         return (
             dict(self.placed),
             {k: list(v) for k, v in self.cells_of.items()},
-            {i: (b.x, b.y, b.rotation) for i, b in self.blocks.items()},
+            {i: b.state() for i, b in self.blocks.items()},
             self.grid.python_state(),
             {k: set(v) for k, v in self.router.taken.items()},
             {k: list(v) for k, v in self.router.trees.items()},
@@ -297,14 +319,24 @@ class Site:
             },
             dict(self.router.pins),
             self.grid.save(),
+            (
+                set(self.router.forced),
+                list(self.router.ripped_now),
+                list(self.router.failed),
+                list(self.router.findings),
+            ),
         )
 
     def restore(self, state: Snapshot) -> None:
         self.placed = dict(state[0])
         self.cells_of = {k: list(v) for k, v in state[1].items()}
-        for block_id, (x, y, rotation) in state[2].items():
-            block = self.blocks[block_id]
-            block.x, block.y, block.rotation = x, y, rotation
+        for block_id, block_state in state[2].items():
+            self.blocks[block_id].restore(block_state)
+        forced, ripped, failed, findings = state[9]
+        self.router.forced = set(forced)
+        self.router.ripped_now = list(ripped)
+        self.router.failed = list(failed)
+        self.router.findings = list(findings)
         self.grid.restore_python(state[3])
         self.grid.load(state[8])
         self.router.taken = {k: set(v) for k, v in state[4].items()}
@@ -369,6 +401,14 @@ class Site:
     def pylons(self, used: set[Cell] | None = None) -> tuple[list[Cell], list[str]]:
         """Where the pylons go and which machines none of them reaches; the same sweep the
         cost is measured with, so what is paid for is what gets built."""
+        if self.cover_service is not None:
+            return self.cover_service(self)
+        return self.default_pylons(used)
+
+    def default_pylons(
+        self, used: set[Cell] | None = None
+    ) -> tuple[list[Cell], list[str]]:
+        """Construct the default cover on the current occupied grid."""
         if used is None:
             used = set() if self.grid.native is not None else self.occupied()
         size = self.dataset.machines[self.pylon.machine_id].width

@@ -97,7 +97,7 @@ def lane_pins(
         raise ValueError(
             f"{machine.id} needs {split.ports} {direction} ports for {item_id}, has {len(candidates)}"
         )
-    alternatives = [_ref(p) for p in candidates]
+    alternatives = [_ref(_port(machine, direction, i)) for i in ports]
     pins: list[Pin] = []
     for n in range(split.ports):
         default = candidates[n]

@@ -6,7 +6,8 @@ whole machines and crafts with explicit sinks, sources and zones per
 environment, degrade-on-infeasible targets, exact balance rebuild, the power
 draw reported, nets and cells; then the plan into one cell per machine with
 its groups and a netlist, and the other plans a rival recipe or a ban would
-give.
+give. Lane defaults reserve distinct initial ports, while each lane retains its
+full compatible port domain independently of ingredient order (JCT-08/JCT-09).
 
 ## Files
 

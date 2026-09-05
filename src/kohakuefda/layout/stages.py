@@ -12,7 +12,7 @@ import logging
 from kohakuefda.flow.evaluate import Evaluation, evaluate
 from kohakuefda.layout.board import Board, board_of
 from kohakuefda.layout.engine import LAYOUT_DEFAULTS, Engine
-from kohakuefda.layout.place import Block, placement_of
+from kohakuefda.layout.place import Block
 from kohakuefda.model.cells import Netlist
 from kohakuefda.model.control import Cancelled, Observe
 from kohakuefda.model.dataset import Dataset
@@ -101,22 +101,9 @@ def layout_stage(
     layout = result.layout
     layout.notes = (
         f"{scenario.basement.basement_id} level {scenario.basement.level}, "
-        f"seed {settings['seed']}, {settings['restarts']} restarts"
+        f"seed {settings['seed']}, spread budget {settings['spread_attempts']}"
     )
-    placement = placement_of(
-        result.blocks,
-        result.pylons,
-        result.entries,
-        dataset.version.id,
-        board.square,
-        (layout.width, layout.height),
-        layout.area_rect,
-        0,
-        result.cost,
-        result.terms,
-        result.findings,
-    )
-    return placement, layout
+    return result.placement, layout
 
 
 def verify_stage(

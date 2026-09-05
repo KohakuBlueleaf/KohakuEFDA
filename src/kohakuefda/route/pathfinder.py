@@ -53,6 +53,7 @@ class RouteGrid:
         turn_cost: float = TURN_COST,
         bridge_cost: float = BRIDGE_COST,
         history_cost: float = HISTORY_COST,
+        native: bool = True,
     ) -> None:
         self.width = width
         self.height = height
@@ -69,7 +70,7 @@ class RouteGrid:
         self._names: dict[int, str] = {}
         self.native = (
             _Grid(width, height, turn_cost, bridge_cost, history_cost)
-            if _Grid is not None
+            if native and _Grid is not None
             else None
         )
         for layer, cells in enumerate(blocked):
@@ -93,16 +94,16 @@ class RouteGrid:
             getattr(self.native, call)(layer, cell[0], cell[1], *args)
 
     def python_state(self) -> tuple | None:
-        """The occupancy Python still keeps, for a snapshot; ``None`` when the native grid
-        holds it all and :meth:`save` covers it."""
-        if self.native is not None:
-            return None
+        """Copy Python occupancy, history and wire identities alongside native state."""
         return (
             [{c: dict(h) for c, h in layer.items()} for layer in self.holders],
             [set(layer) for layer in self.units],
             [set(layer) for layer in self.blocked],
             [set(layer) for layer in self.owned],
             [{c: set(o) for c, o in layer.items()} for layer in self.reserved],
+            [dict(layer) for layer in self.history],
+            dict(self._wires),
+            dict(self._names),
         )
 
     def restore_python(self, state: tuple | None) -> None:
@@ -114,6 +115,8 @@ class RouteGrid:
         self.blocked = [set(layer) for layer in state[2]]
         self.owned = [set(layer) for layer in state[3]]
         self.reserved = [{c: set(o) for c, o in layer.items()} for layer in state[4]]
+        self.history = [dict(layer) for layer in state[5]]
+        self._wires, self._names = dict(state[6]), dict(state[7])
 
     def save(self) -> object | None:
         """The native occupancy put by, to come back to with :meth:`load`."""

@@ -4,7 +4,9 @@ The local web application behind `kohakuefda serve` (alias `view`): the built
 Studio, the artifact files of a directory, the dataset, the icons, and a JSON
 API that runs a scenario stage by stage (plan, netlist, layout, verify) with
 checkpoints, tunable parameters, recorded frames, a live event stream that
-resumes after the last sequence seen, requirements and outcomes.
+resumes after the last sequence seen, requirements and outcomes. `/api/solvers`
+exposes the application solver catalog (`kohakuefda.solvers`); the server never
+loads arbitrary Python code from HTTP settings.
 
 ## Files
 

@@ -134,7 +134,7 @@ def test_a_layout_run_routes_the_same_either_way(dataset: Dataset) -> None:
     scenario = Scenario.from_toml(
         root / "tests" / "fixtures" / "scenario_gas_xiranite.toml"
     )
-    params = {"restarts": 1, "seed": 3, "frame_every": 100000, "workers": 1}
+    params = {"seed": 3, "frame_every": 100000, "workers": 1}
     with_native = layout_scenario(dataset, scenario, params).layout
     grid_class = pathfinder._Grid
     pathfinder._Grid = None

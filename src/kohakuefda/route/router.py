@@ -251,6 +251,7 @@ class Router:
         self.ripped_now: list[Wire] = []
         self.forced: set[str] = set()
         self.share = True
+        self.check = None
         self.detour = DETOUR
         self.slack = SLACK
 
@@ -441,6 +442,8 @@ class Router:
     def _route_wire(self, wire: Wire, present_cost: float) -> bool:
         """Route one wire; a join or branch that the trunk's other attachments leave no
         room for rips them first (they queue for rerouting) and tries again."""
+        if self.check is not None:
+            self.check()
         self._record(wire)
         starts, branch_dirs = self._ends(wire, wire.source)
         goals, join_dirs = self._ends(wire, wire.sink)

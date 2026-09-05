@@ -38,8 +38,8 @@ def netlist(dataset: Dataset):
 
 def test_stage_order_and_parameter_defaults() -> None:
     assert STAGES == ("plan", "netlist", "layout", "verify")
-    params = params_of("layout", {"restarts": "2", "seed": 3})
-    assert params["restarts"] == 2 and params["seed"] == 3
+    params = params_of("layout", {"workers": "2", "seed": 3})
+    assert params["workers"] == 2 and params["seed"] == 3
     assert params["spread_gap"] == 0 and params["w_wire"] == 1.0
     assert params["pylon"] == "power_diffuser_1" and params["entry_sides"] == "NW"
     with pytest.raises(StageError):
@@ -56,7 +56,7 @@ def test_layout_stage_records_frames_and_a_checkpoint(
     placement, layout = layout_stage(
         dataset,
         built,
-        {"restarts": 1, "frame_every": 10},
+        {"workers": 1, "frame_every": 10},
         frames.append,
     )
     catalogue = frames[0]
@@ -88,7 +88,7 @@ def test_layout_stage_records_frames_and_a_checkpoint(
 
 def test_layout_is_reproducible_for_a_seed(dataset: Dataset, netlist) -> None:
     _, built = netlist
-    settings = {"restarts": 1, "seed": 5}
+    settings = {"workers": 1, "seed": 5}
     first = layout_stage(dataset, built, settings)[1]
     again = layout_stage(dataset, built, settings)[1]
     assert first.model_dump() == again.model_dump()
@@ -97,4 +97,4 @@ def test_layout_is_reproducible_for_a_seed(dataset: Dataset, netlist) -> None:
 def test_cancellation_stops_the_layout(dataset: Dataset, netlist) -> None:
     _, built = netlist
     with pytest.raises(CancelledError):
-        layout_stage(dataset, built, {"restarts": 1}, None, lambda: True)
+        layout_stage(dataset, built, {"workers": 1}, None, lambda: True)

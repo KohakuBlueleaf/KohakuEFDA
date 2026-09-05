@@ -4,6 +4,7 @@ machines, the parked core inside the area, cancellation, and the rules on hand-b
 layouts."""
 
 from fractions import Fraction
+from itertools import pairwise
 from pathlib import Path
 
 import numpy as np
@@ -14,7 +15,6 @@ from kohakuefda.layout.board import board_of
 from kohakuefda.layout.coverage import cover, covered, inside, zone_rect
 from kohakuefda.layout.depot_via import BUS_PORT, BUS_SECTION, io_budget
 from kohakuefda.layout.engine import Engine, LayoutError
-from kohakuefda.layout.shrink import Shrink
 from kohakuefda.layout.stages import params_of
 from kohakuefda.model.basement import Region
 from kohakuefda.model.cells import CellInstance, Netlist, NetSpec, PinRef
@@ -33,6 +33,7 @@ from kohakuefda.plan.machines import (
     zone_cell,
 )
 from kohakuefda.route.router import PinKey
+from kohakuefda.solvers.baseline.shrink import Shrink
 from kohakuefda.verify.rules.geometry import check_layout
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -48,7 +49,7 @@ NUGGET = "item_copper_nugget"
 WATER = "item_liquid_water"
 SEWAGE = "item_liquid_sewage"
 GAS = "item_gas_inert"
-FAST = {"restarts": 1, "frame_every": 1000}
+FAST = {"workers": 1, "frame_every": 1000}
 
 
 @pytest.fixture(scope="module")
@@ -318,8 +319,10 @@ def test_the_line_is_solid_and_cannot_be_pulled_closer_to_the_corner(
     empty_rows = [y for y in range(y0, y1) if not any(c[1] == y for c in used)]
     empty_cols = [x for x in range(x0, x1) if not any(c[0] == x for c in used)]
     assert empty_rows == [] and empty_cols == []
-    settled = {**engine.params, "shrink_walk": 0}
-    assert not Shrink(engine.site, engine.spread, settled).run()
+    ctx = engine.runner.context
+    before = ctx.current.id
+    Shrink(ctx, tuple(i for i, _ in ctx.view.anchors), 200).run()
+    assert ctx.current.id == before
 
 
 def test_the_squeeze_measures_the_layout_that_gets_reported(dataset: Dataset) -> None:
@@ -330,28 +333,34 @@ def test_the_squeeze_measures_the_layout_that_gets_reported(dataset: Dataset) ->
     """
     engine = _engine(dataset, _furnace_pair(dataset), seed=7)
     engine.run()
-    area, wires = Shrink(engine.site, engine.spread, engine.params).measure()
+    area, wires = engine.runner.context.objective.key(
+        engine.runner.context.current.assessment
+    )
     reported = engine.measure(engine.site)
     assert (area, wires) == (reported[2], reported[3])
 
 
-def test_the_walk_never_hands_back_a_worse_layout(dataset: Dataset) -> None:
-    """The walk takes worse layouts on the way but keeps the best it saw, so whatever it
-    returns is at worst the layout it was given."""
-    engine = _engine(dataset, _furnace_pair(dataset), seed=7)
+def test_every_greedy_improvement_is_whole_and_smaller(dataset: Dataset) -> None:
+    engine = _engine(dataset, _furnace_pair(dataset), seed=7, shrink_rounds=0)
     engine.run()
-    walked = {**engine.params, "shrink_walk": 60, "shrink_heat": 20.0}
-    shrink = Shrink(engine.site, engine.spread, walked)
-    before = shrink.measure()
-    shrink.wander()
-    assert shrink.measure() <= before
-    assert not engine.site.unrouted() and not engine.site.unplaced()
+    ctx = engine.runner.context
+    sizes = [ctx.objective.key(ctx.current.assessment)]
+
+    def observe(event) -> None:
+        if event.kind == "accepted":
+            assert not ctx.view.missing and not ctx.view.unrouted
+            sizes.append(ctx.objective.key(ctx.current.assessment))
+
+    ctx.observe = observe
+    Shrink(ctx, tuple(i for i, _ in ctx.view.anchors), 200).run()
+    assert len(sizes) > 1
+    assert all(after < before for before, after in pairwise(sizes))
 
 
 def test_cancellation_and_a_budget_that_cannot_run(dataset: Dataset) -> None:
     netlist = _furnace_pair(dataset)
     with pytest.raises(CancelledError):
-        _engine(dataset, netlist, restarts=1).run(None, lambda: True)
+        _engine(dataset, netlist, workers=1).run(None, lambda: True)
     with pytest.raises(LayoutError):
         _engine(dataset, netlist, spread_gap=-1)
     with pytest.raises(LayoutError):

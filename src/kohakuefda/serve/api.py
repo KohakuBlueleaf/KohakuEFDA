@@ -26,6 +26,7 @@ from kohakuefda.model.scenario import PlanMode, Scenario
 from kohakuefda.plan.alternatives import alternatives, bannable
 from kohakuefda.plan.outcomes import outcomes, requirements
 from kohakuefda.serve.runs import RunError, RunManager
+from kohakuefda.solvers import SOLVERS
 
 log = logging.getLogger(__name__)
 Response = tuple[int, dict | list]
@@ -112,6 +113,8 @@ class Api:
             return 200, self.dataset.model_dump(mode="json")
         if path == "/api/examples":
             return 200, example_scenarios()
+        if path == "/api/solvers":
+            return 200, SOLVERS.describe()
         if path == "/api/params":
             return 200, DEFAULTS
         if path == "/api/icons":

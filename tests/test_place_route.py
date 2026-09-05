@@ -105,7 +105,7 @@ def test_benchmark_lays_out_clean_and_at_rate(
     dataset: Dataset, fixtures_dir: Path, name: str
 ) -> None:
     scenario = Scenario.from_toml(fixtures_dir / name)
-    result = layout_scenario(dataset, scenario, {"restarts": 1})
+    result = layout_scenario(dataset, scenario, {"workers": 1})
     assert result.layout is not None, result.report.findings
     laid = [
         f
@@ -155,7 +155,7 @@ def test_layout_cli_writes_artifacts(fixtures_dir: Path, tmp_path: Path) -> None
             str(fixtures_dir / "scenario_valley_battery.toml"),
             "-o",
             str(tmp_path),
-            "--restarts",
+            "--workers",
             "1",
         ],
         capture_output=True,

@@ -29,6 +29,8 @@ and saving its own files.
 | `placement.py` | `Placement` (grid, area, gap, pylons, entries, cost terms), `PlacedBlock` (with chosen `ports`): the layout stage's checkpoint |
 | `control.py`   | `Observe` and `Cancelled` callables for long loops, `CancelledError`        |
 
+| `solver.py` | Immutable Problem, Snapshot, Action, Scope, Assessment, Candidate and SolveEvent/SolveResult records |
+
 ## Dependencies
 
 - External: `pydantic`

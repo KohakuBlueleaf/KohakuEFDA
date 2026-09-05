@@ -2,13 +2,15 @@
 
 use pyo3::prelude::*;
 
-use super::core::{Cells, Ends, Grid, Search, AXIS_H, AXIS_NONE, AXIS_T, AXIS_V, LAYERS};
+use crate::route::core::{Cells, Ends, Grid, Search, AXIS_H, AXIS_NONE, AXIS_T, AXIS_V, LAYERS};
 
 /// A grid's occupancy put by, so a search that is undone costs a copy instead of a rebuild.
 /// Rust frees it with the Python object, so a caller may hold as many as it has snapshots.
 #[pyclass(name = "_State")]
 pub struct PyState {
     layers: [Cells; LAYERS],
+    width: usize,
+    height: usize,
 }
 
 /// The two-layer routing grid; `kohakuefda.route.pathfinder.RouteGrid` is the proxy over it.
@@ -344,12 +346,20 @@ impl PyGrid {
 
     /// Put the whole occupancy by, to come back to with `load_state`.
     fn save(&self) -> PyState {
-        PyState { layers: self.inner.layers.clone() }
+        PyState {
+            layers: self.inner.layers.clone(),
+            width: self.inner.width,
+            height: self.inner.height,
+        }
     }
 
     /// Come back to a saved occupancy.
-    fn load_state(&mut self, state: &PyState) {
+    fn load_state(&mut self, state: &PyState) -> PyResult<()> {
+        if (state.width, state.height) != (self.inner.width, self.inner.height) {
+            return Err(pyo3::exceptions::PyValueError::new_err("grid snapshot dimensions differ"));
+        }
         self.inner.layers = state.layers.clone();
+        Ok(())
     }
 
     /// Refill one layer in one call: the cells it blocks, the units on it, the wires holding
@@ -366,7 +376,7 @@ impl PyGrid {
         history: Vec<(i32, i32, f32)>,
     ) {
         let size = self.inner.width * self.inner.height;
-        self.inner.layers[layer] = super::core::Cells::new(size);
+        self.inner.layers[layer] = Cells::new(size);
         for (x, y) in blocked {
             if let Some(index) = self.inner.index(x, y) {
                 self.inner.layers[layer].blocked[index] = true;

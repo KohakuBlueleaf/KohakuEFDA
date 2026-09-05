@@ -1,0 +1,23 @@
+mode = "machines"
+mixed_lanes = true
+gas = true
+liquids = true
+events = false
+natural_default = "plenty"
+gas_default = "none"
+activation = "built"
+depot = "bus"
+core = false
+
+[supply]
+item_iron_ore = "unlimited"
+item_originium_ore = "unlimited"
+
+[targets]
+item_proc_battery_3 = "min"
+
+[basement]
+region = "valley4"
+basement_id = "the_hub"
+level = 3
+depot_level = 6

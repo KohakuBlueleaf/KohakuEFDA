@@ -69,7 +69,7 @@ def test_meta_examples_and_params(base_url: str) -> None:
         "gas_xiranite",
     }
     status, params = _request(f"{base_url}/api/params")
-    assert params["layout"]["restarts"] == LAYOUT_DEFAULTS["restarts"]
+    assert params["layout"]["spread_attempts"] == LAYOUT_DEFAULTS["spread_attempts"]
     assert params["layout"]["workers"] == LAYOUT_DEFAULTS["workers"]
     assert "bridge_cost" in params["layout"]
 
@@ -108,11 +108,11 @@ def test_run_stage_by_stage_with_checkpoints(base_url: str, workspace: Path) -> 
 
     status, queued = _request(
         f"{base_url}/api/runs/{run_id}/stages/layout",
-        {"params": {"restarts": 1, "frame_every": 20}, "through": "verify"},
+        {"params": {"workers": 1, "frame_every": 20}, "through": "verify"},
     )
     assert status == 202
     summary = _wait(base_url, run_id, "verify")
-    assert summary["stages"]["layout"]["params"]["restarts"] == 1
+    assert summary["stages"]["layout"]["params"]["workers"] == 1
     assert summary["stages"]["layout"]["status"] == "done"
     assert summary["stages"]["verify"]["status"] == "done"
     assert summary["frames"]["layout"] >= 11
@@ -173,7 +173,7 @@ def test_cancel_stops_a_running_layout(base_url: str) -> None:
     _request(
         f"{base_url}/api/runs/{run_id}/stages/layout",
         {
-            "params": {"restarts": 1, "frame_every": 1000},
+            "params": {"workers": 1, "frame_every": 1000},
             "through": "verify",
         },
     )

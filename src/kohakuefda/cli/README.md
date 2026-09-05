@@ -12,7 +12,7 @@ per subcommand group; `__main__.py` holds the command tree.
 | `diff.py`        | `data diff <old> <new>`                                                     |
 | `glossary.py`    | `glossary [machines|logistics|items|all] [--missing]`                       |
 | `plan.py`        | `plan scenario.toml [-o plan.json] [--lang]`                                |
-| `layout_cmds.py` | `layout scenario.toml [-o out/] [--seed] [--iterations] [--optimizer] [--png] [--frames]` (writes plan, netlist, placement, layout, evaluation, report, frames), `check layout.json [-o report.json] [--no-rates]`, `render layout.json [--png out.png]`; IndustrialPlanner blueprints are detected and imported |
+| `layout_cmds.py` | `layout scenario.toml [-o out/] [--seed] [--attempts] [--workers] [--png] [--frames]` (writes plan, netlist, placement, layout, evaluation, report, frames), `check layout.json [-o report.json] [--no-rates]`, `render layout.json [--png out.png]`; IndustrialPlanner blueprints are detected and imported |
 | `cells.py`       | `netlist scenario.toml [-o netlist.json] [--lang]`                          |
 | `view.py`        | `serve <dir> [--host] [--port] [--open] [--workers] [--no-api]` (alias `view`): the web app from `kohakuefda.serve` over the directory, runs under `<dir>/runs/` |
 

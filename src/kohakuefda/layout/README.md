@@ -1,61 +1,30 @@
 # layout/
 
-Geometry of a solution in world cells: footprints and world ports of placed
-things, which port each belt or pipe segment leaves from and arrives at,
-fragment moves, depot access and bus arithmetic, the pylon cover, blocks, the
-board, the group rules, the live site where machines and their wires share one
-grid, the spread that lays a whole layout out at once, the engine, assembly,
-chunking, the four stages and the scenario → layout pipeline.
-
-Placing and routing are one operation. `Site.place` is the only way a machine
-enters a layout: it rips the wires its footprint would cover, puts the machine
-down, routes every wire whose two ends are now placed, and undoes all of it if
-any of them has no path — so a position that cannot be wired never exists.
-
-`Spread` uses nothing else, and it does not search. Machines go into the squares
-of a lattice whose step is the widest of them plus the cell a lane leaves by; they
-are taken in the order the flow visits them and the squares in a serpentine, and
-each one's lanes are routed the moment it stands — easy, because the room around
-it is still empty. One machine is one step: it stands, it is wired, a watcher is
-told, the cancel is answered.
-
-Room is given rather than looked for. If a pass leaves a machine homeless the
-corridor widens, the flow is walked from the other end, and the machine that found
-nowhere is seated first next time; the first pass that comes out whole is the one
-kept. Nothing is ever moved aside to make room.
-
-The variance worth exploiting is in the walk that follows, not here: the same
-factory finishes a fifth apart depending on where the walk starts. `Engine.luckiest`
-runs `restarts` of them at once on separate cores, sharing this one deterministic
-spread, and keeps the best.
-
-`Shrink` then takes the room back out. It only ever *removes* space — a line nothing
-stands on, a whole side pressed to a wall, one machine pulled a cell toward what it
-feeds — and keeps a proposal only when the layout still stands whole and is smaller.
-So it cannot strand a machine or a lane: the worst it does is find nothing and stop.
+Physical geometry, groups, occupancy-facing placement, assembly and stage adapters.
+Search strategies live in `solvers/`; safe solver services live in `framework/`.
+The baseline constructs a routed spread and greedily compacts it through Context.
 
 ## Files
 
-| File           | Description                                                        |
-| -------------- | ------------------------------------------------------------------ |
-| `geometry.py`  | `footprint`, `machine_footprint`, `unit_footprint`, `WorldPort`, `machine_ports`, `unit_ports` |
-| `connect.py`   | `Connectivity`: segment → source OUT port and target IN port, direction-aware, direct links, outside inputs |
-| `fragments.py` | `translate`, `rotate` (whole fragment, machines and pins), `fragment_layout`, `place` |
-| `depot_via.py` | `Slot`, `fixed_slots` (Valley IV brick slots in square coordinates), `brick_rotation`, `chain_capacity` and `sections_needed` (bricks a chain of parts seats), `laid_limits`, `io_budget`, `via_depot_ok`, `BUS_PORT`, `BUS_SECTION` |
-| `coverage.py`  | `cover` (greedy pylon cover over free anchors, numpy), `coverage_rect`, `covered`, `zone_rect`, `inside`, `overlaps` |
-| `place.py`     | `Block` (a cell at an anchor and rotation with a chosen port per pin, its group, world pins, footprint cells, machine rects), `touching`, `apply_positions`, `placement_of`, `catalogue_of` |
-| `board.py`     | `Board` and `board_of`: square, ring, fixed bus cells and brick slots in grid coordinates |
-| `groups.py`    | `back_cells`, `bus_faults`, `zone_faults`, `zone_of`, `faults`: what the game binds together and how far a placement is from obeying it |
-| `site.py`      | `Site`: blocks, one routing grid and the router over it; `place` and `remove`, `wire_up`, `closes_a_port`, `snapshot`/`restore`, `occupied`, `bbox`, `faults`, `power` and `pylons`, `cost`, and the candidate anchors — `facing_anchors` (a port within reach of a partner's), `group_anchors`, `frontier_anchors`, `every_anchor` |
-| `spread.py`    | `Spread`: `rank` and `order` (the flow walked chain by chain, each group whole), `clearance` and `envelope` (free cells derived per edge from where the wired ports are), `pitch` and `squares` (the lattice, in a serpentine), `settle`, `stand`, `seat` (the homeless placed and the netlist routed as a whole), `rebuild`, `frame`, `pass_at` (one lay at one corridor width), `standing`, and `run` |
-| `shrink.py`    | `Shrink`: `measure` (area with the pylons standing, then lane cells), `carve` (delete a line nothing stands on), `press` (slide a whole side to a wall), `nudge` (one machine one cell toward what it is wired to), `turn` (one machine rotated where it stands), `apply`, `settle` (those to exhaustion), `wander` (an annealed walk on from there), `run` |
-| `engine.py`    | `LAYOUT_DEFAULTS`, `Engine` (`attempt` the one constructive spread, `luckiest` the parallel restarts, `contend`, `measure`, `run`, `build_layout`, `terms_of`, `fits`, `shortfalls`, frames), `_restart` (one walk per process), `EngineResult`, `LayoutError` |
-| `assemble.py`  | `assemble` placed blocks and pylons into a `Layout` with its area, `world_pins`, `WorldPin` |
-| `chunk.py`     | `chunk`: blueprint-sized modules with a build order                |
-| `stages.py`    | `STAGES`, `DEFAULTS`, `params_of`, `blocks_of`, and the stage functions `plan_stage`, `netlist_stage`, `layout_stage`, `verify_stage` |
-| `pipeline.py`  | `layout_scenario`: every stage in one call; `LayoutResult` with the recorded frames |
+| File | Description |
+|---|---|
+| `geometry.py` | Footprints and world ports |
+| `connect.py` | Directed connectivity of emitted layouts |
+| `fragments.py` | Translate, rotate and place fragments |
+| `depot_via.py` | Bus slots, attachment and depot capacity arithmetic |
+| `coverage.py` | Pylon coverage and zone geometry |
+| `place.py` | Mutable backend blocks and placement artifact conversion |
+| `board.py` | Basement, ring, fixed cells and slots |
+| `groups.py` | Mandatory group constraints |
+| `site.py` | Backend-owned placement/routing state and complete snapshots |
+| `engine.py` | Compatibility/composition adapter to framework Runner and solver catalog |
+| `assemble.py` | Blocks/support to emitted layout and routing pins |
+| `chunk.py` | Blueprint module partitioning |
+| `stages.py` | Four stage APIs and parameter validation |
+| `pipeline.py` | Scenario-to-artifacts orchestration and recorded frames |
 
 ## Dependencies
 
-- `kohakuefda.model`, `kohakuefda.flow`, `kohakuefda.verify`, `kohakuefda.route`, `kohakuefda.plan`
-- External: `numpy`
+- Physical modules: `model`, `route`, existing geometry collaborators.
+- Stage adapters: `framework`, `solvers`, `plan`, `flow`, `verify`.
+- External: `numpy`.

@@ -123,15 +123,23 @@ def layout_cmd(
         help="Directory for plan, netlist, layout and report.",
     ),
     seed: int = typer.Option(0, "--seed", help="Search seed."),
-    restarts: int = typer.Option(
-        int(LAYOUT_DEFAULTS["restarts"]),
-        "--restarts",
-        help="Placement walks to run at once from different seeds; the best is kept.",
+    solver: str = typer.Option("baseline", "--solver", help="Registered solver name."),
+    solver_options: str = typer.Option(
+        "{}", "--solver-options", help="Solver settings as a JSON object."
     ),
-    algorithm: str = typer.Option(
-        str(LAYOUT_DEFAULTS["heuristic"]),
-        "--algorithm",
-        help="Placement search: anneal, evolve, or off for the constructive layout alone.",
+    backend: str = typer.Option(
+        "auto", "--backend", help="Grid backend: auto, python, native."
+    ),
+    seconds: float = typer.Option(
+        0.0, "--seconds", help="Cooperative time budget; 0 is unlimited."
+    ),
+    max_actions: int = typer.Option(
+        0, "--max-actions", help="Action budget; 0 is unlimited."
+    ),
+    attempts: int = typer.Option(
+        int(LAYOUT_DEFAULTS["spread_attempts"]),
+        "--attempts",
+        help="Maximum spread attempts; stop at the first fully placed and routed result.",
     ),
     workers: int = typer.Option(
         int(LAYOUT_DEFAULTS["workers"]),
@@ -153,16 +161,19 @@ def layout_cmd(
     scenario = Scenario.from_toml(scenario_file)
     params: dict = {
         "seed": seed,
-        "restarts": restarts,
-        "heuristic": algorithm,
+        "solver": solver,
+        "solver_options": solver_options,
+        "backend": backend,
+        "seconds": seconds,
+        "max_actions": max_actions,
+        "spread_attempts": attempts,
         "workers": workers,
     }
     log.info(
         "laying out a scenario",
         scenario=str(scenario_file),
         seed=seed,
-        restarts=restarts,
-        algorithm=algorithm,
+        attempts=attempts,
         workers=workers or "auto",
         dataset=dataset.version.id,
     )
