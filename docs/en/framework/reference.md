@@ -69,12 +69,9 @@ and `/api/solvers`. Regional execution is serial; select `regional` in Studio
 and use `solver_options` JSON for overrides. A time limit can end compaction
 with a valid best result: inspect `best_routed`, not just the stop status.
 
-Material allocation and required balancing topology belong to planning/netlist
-construction. Layout acceptance is complete legal physical realization, not a
-starvation score. Optional evaluator findings are separate diagnostics, not proof
-that routing caused starvation. Existing `router.wires_of` still derives wire
-assignments from nets; moving that logical decision into planning is follow-up,
-not something the regional search changes.
+Regional preserves the input netlist and the backend's logical connections.
+Its acceptance criteria are complete placement, legal routing, and passing geometry
+checks. Rate evaluation is optional and separate from layout acceptance.
 
 ## State records (`model.solver`)
 
