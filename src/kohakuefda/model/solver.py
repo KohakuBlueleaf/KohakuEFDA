@@ -1,5 +1,6 @@
 """Immutable values exchanged by layout solvers and the execution framework."""
 
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Literal
 
@@ -7,6 +8,7 @@ Anchor = tuple[int, int, int]
 Cell = tuple[int, int]
 Rect = tuple[int, int, int, int]
 Verdict = Literal["pass", "fail", "not_checked"]
+Screen = Callable[[Mapping[str, float]], bool]
 
 
 @dataclass(frozen=True)

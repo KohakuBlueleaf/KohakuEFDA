@@ -14,7 +14,7 @@ Manual and contracts: `docs/en/framework/`.
 | `control.py` | Work/time budgets, cancellation and errors |
 | `actions.py` | Workspace/handler protocols and relocate/rebuild/reroute handlers |
 | `backend.py` | Site adapter, immutable queries, routing/coverage injection and snapshot codec |
-| `assessment.py` | Common materialization, actual metrics and separate rate evidence |
+| `assessment.py` | Materialization, optional metric-only rejection, mandatory candidate checks and separate rate evidence |
 | `context.py` | Builder, scoped scratch actions, revision-safe publication and best archives |
 | `execution.py` | Isolated batch workers and cleanup; no winner-selection policy |
 | `runtime.py` | Solver protocol, Runner and solve lifecycle |

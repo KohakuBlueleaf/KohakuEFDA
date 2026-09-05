@@ -19,6 +19,7 @@ from kohakuefda.model.solver import (
     AttemptResult,
     Candidate,
     Scope,
+    Screen,
     Snapshot,
     SolveEvent,
 )
@@ -169,6 +170,10 @@ class Context:
         self.workers = 1
 
     @property
+    def repeatable_edits(self) -> bool:
+        return self._backend.repeatable_edits and self.actions == default_actions()
+
+    @property
     def current(self) -> Snapshot | None:
         return self._current
 
@@ -241,7 +246,11 @@ class Context:
             self.emit(kind, {**self._backend.frame(kind), **fields})
 
     def attempt(
-        self, action: Action, base_revision: int | None = None
+        self,
+        action: Action,
+        base_revision: int | None = None,
+        *,
+        screen: Screen | None = None,
     ) -> AttemptResult:
         """Try an action without changing current; publication requires accept()."""
         self.budget.charge("actions")
@@ -278,7 +287,7 @@ class Context:
                     required_routes=tuple(sorted(route_changes - scope.routes)),
                 )
             else:
-                snapshot = self._backend.capture()
+                snapshot = self._backend.capture(screen=screen)
                 self.budget.check()
                 if (
                     not scope.support

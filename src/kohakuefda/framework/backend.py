@@ -21,6 +21,7 @@ from kohakuefda.model.solver import (
     Link,
     PortChoice,
     Problem,
+    Screen,
     Snapshot,
     WorldView,
 )
@@ -102,6 +103,10 @@ class SiteBackend:
             for w in self.site.wires
         )
         self.empty = self.mark()
+
+    @property
+    def repeatable_edits(self) -> bool:
+        return type(self.routing) is SiteRouting and type(self.coverage) is SiteCoverage
 
     def path_check(self) -> None:
         self.budget.charge("route_calls")
@@ -320,8 +325,8 @@ class SiteBackend:
         }
         return json.dumps(raw, separators=(",", ":"))
 
-    def capture(self, rates: bool = False) -> Snapshot:
-        layout, placement, evidence = assess(self.site, self.plan, rates)
+    def capture(self, rates: bool = False, screen: Screen | None = None) -> Snapshot:
+        layout, placement, evidence = assess(self.site, self.plan, rates, screen)
         payload = self.payload()
         layout_json, placement_json = (
             layout.model_dump_json(),

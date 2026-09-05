@@ -1,6 +1,10 @@
 """Common materialization, measurement and evidence independent of solver policy."""
 
+from collections.abc import Mapping
+from types import MappingProxyType
+
 from kohakuefda.flow.evaluate import evaluate
+from kohakuefda.framework.control import Rejected
 from kohakuefda.layout.assemble import assemble
 from kohakuefda.layout.chunk import chunk
 from kohakuefda.layout.geometry import machine_footprint, unit_footprint
@@ -9,7 +13,7 @@ from kohakuefda.layout.site import Site
 from kohakuefda.model.geometry import rotate_edge
 from kohakuefda.model.layout import Entry, Layout
 from kohakuefda.model.plan import Finding, Plan
-from kohakuefda.model.solver import Assessment, Issue
+from kohakuefda.model.solver import Assessment, Issue, Screen
 from kohakuefda.verify.rules.geometry import check_layout
 from kohakuefda.verify.rules.rates import rate_findings
 
@@ -20,7 +24,9 @@ class AreaWire:
     name = "area-wire-v1"
 
     def key(self, assessment: Assessment) -> tuple[float, float]:
-        metrics = dict(assessment.metrics)
+        return self.key_metrics(dict(assessment.metrics))
+
+    def key_metrics(self, metrics: Mapping[str, float]) -> tuple[float, float]:
         return metrics["area"], metrics["wire_path_cells"]
 
 
@@ -103,9 +109,19 @@ def metrics_of(site: Site, layout: Layout, pylons: list) -> dict[str, float]:
     }
 
 
-def assess(site: Site, plan: Plan | None = None, rates: bool = False) -> tuple:
+def assess(
+    site: Site,
+    plan: Plan | None = None,
+    rates: bool = False,
+    screen: Screen | None = None,
+) -> tuple:
     """Materialize and check; rates remain not_checked without an explicit plan check."""
     layout, pylons, uncovered = materialize(site)
+    metrics = metrics_of(site, layout, pylons)
+    if screen is not None and not screen(MappingProxyType(metrics)):
+        raise Rejected(
+            "solver screened out measured candidate before validation", "screened"
+        )
     findings = list(site.board.findings) + list(site.netlist.findings)
     for block_id in site.unplaced():
         findings.append(
@@ -153,7 +169,6 @@ def assess(site: Site, plan: Plan | None = None, rates: bool = False) -> tuple:
             "fail" if any(f.severity == "error" for f in rate_errors) else "pass"
         )
         findings += rate_errors
-    metrics = metrics_of(site, layout, pylons)
     assessment = Assessment(
         not site.unplaced(),
         geometry,

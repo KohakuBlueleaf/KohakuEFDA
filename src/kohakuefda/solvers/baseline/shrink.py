@@ -5,15 +5,35 @@ from kohakuefda.model.solver import Action, Scope
 
 PINNED = ("slot", "edge")
 SIDES = ((0, -1), (1, -1), (0, 1), (1, 1))
+SCREEN_CANDIDATES = True
+DEDUPLICATE = True
 
 
 class Shrink:
-    def __init__(self, context: Context, order: tuple[str, ...], rounds: int) -> None:
+    def __init__(
+        self,
+        context: Context,
+        order: tuple[str, ...],
+        rounds: int,
+        screen_candidates: bool = SCREEN_CANDIDATES,
+        deduplicate: bool = DEDUPLICATE,
+    ) -> None:
         self.ctx, self.order, self.rounds = context, order, rounds
+        self.screen_candidates = screen_candidates
+        self.deduplicate = deduplicate
+        self.seen = set()
 
     def take(self, action: Action) -> bool:
         ctx = self.ctx
-        candidate = ctx.attempt(action).candidate
+        key_metrics = getattr(ctx.objective, "key_metrics", None)
+        screen = None
+        if self.screen_candidates and key_metrics is not None:
+            threshold = ctx.objective.key(ctx.current.assessment)
+
+            def screen(metrics):
+                return key_metrics(metrics) < threshold
+
+        candidate = ctx.attempt(action, screen=screen).candidate
         if candidate is None:
             return False
         if ctx.objective.key(candidate.snapshot.assessment) < ctx.objective.key(
@@ -25,6 +45,12 @@ class Shrink:
         return False
 
     def rebuild(self, anchors: dict) -> bool:
+        key = self.ctx.revision, tuple(sorted(anchors.items()))
+        if self.deduplicate and self.ctx.repeatable_edits:
+            if key in self.seen:
+                self.ctx.budget.charge("duplicate_rebuilds")
+                return False
+            self.seen.add(key)
         return self.take(
             Action(
                 "rebuild",
@@ -112,6 +138,7 @@ class Shrink:
 
     def run(self) -> None:
         for step in range(self.rounds):
+            self.seen.clear()
             self.ctx.budget.check()
             if (
                 not self.carve()
