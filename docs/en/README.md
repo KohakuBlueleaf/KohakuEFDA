@@ -26,6 +26,11 @@ The work happens in stages, each writing a JSON artifact the next one reads: a *
 
 ## Documentation structure
 
+### Solver framework
+
+[Overview](framework/README.md), [manual](framework/manual.md),
+[API reference](framework/reference.md), [Python/Rust boundary](framework/backends.md).
+
 ### Tutorials
 
 Guided walks that end with something on your screen.

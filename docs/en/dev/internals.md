@@ -18,7 +18,9 @@ Read with `src/kohakuefda/` open. Concept pages explain why; this page says wher
 | `data/` | The manifest client, table fetch with a SHA manifest, the mirror, wiki names, the normalisers that build `Dataset`, the update classifier, the IndustrialPlanner importer. |
 | `flow/` | Lane sizing, plan nets, stability findings, the steady-state evaluator. |
 | `plan/` | Recipe graph, the HiGHS model, the planner, outcomes, alternatives, zone membership, one cell per machine, the netlist. |
-| `layout/` | World geometry and connectivity, fragments, depot access and bus arithmetic, the pylon cover, blocks, the board, the group rules, the live site where machines and their wires share one grid, the spread that lays a whole layout at once, the shrink that squeezes it, the genome and the searches over it, the engine, assembly, chunking, the stages, the pipeline. |
+| `layout/` | World geometry and connectivity, fragments, depot access and bus arithmetic, the pylon cover, blocks, the board, the group rules, the live site where machines and their wires share one grid, the stage engine adapter, assembly, chunking, the stages, the pipeline. |
+| `framework/` | Immutable queries, transactions, snapshots, assessment, budgets and isolated execution; imports no concrete solver. |
+| `solvers/` | Registered strategies; baseline owns seeded spread retries and greedy shrink policy. |
 | `route/` | The occupancy grid, the A* pathfinder, the router. |
 | `verify/` | Geometry rules, rate rules, the report. |
 | `render/` | Rich tables, the text grid, the PNG. |
@@ -38,7 +40,7 @@ Read with `src/kohakuefda/` open. Concept pages explain why; this page says wher
 
 ### Layout
 
-`layout/stages.py` reads the basement's geometry (`layout/board.py`: square, ring, fixed bus cells, slots) and runs `layout/engine.py`. `layout/place.py` holds `Block` (anchor, rotation, chosen ports, group, world pins, footprint cells). `layout/floorplan.py` holds the genome, the envelope packing (`Floorplan.pack`), the gaps and margins with their channels (`channel_at`, `channels_around`, `widen`), the group faults (`bus_faults`, `zone_faults`), the moves (`Moves`) and the seed (`seed`, `bus_seed`, `zone_seed`). `layout/search.py` holds the optimisers (`anneal`, `lns`, `genetic`, `greedy`) over one `evaluate`. `Engine.run` searches and details the kept genomes; `Engine.detail` packs, seats bricks (`place_bricks`) and outside inputs (`place_entries`), covers with pylons (`layout/coverage.py`), assembles (`layout/assemble.py`), routes (`route/router.py`), widens, and `Engine.finish` emits the wires, compacts (`layout/compact.py`), chunks (`layout/chunk.py`), measures and checks.
+`layout/stages.py` builds the basement board and runs `layout/engine.py`. `layout/place.py` holds blocks and world pins; `layout/site.py` owns their shared routing grid and transactional placement. `solvers/baseline/spread.py` retries seeded flow orders and lattice gaps until a complete spread is found. `solvers/baseline/parallel.py` defines attempt slices and selects a worker snapshot; framework execution launches and cleans up the jobs. `solvers/baseline/shrink.py` proposes carve/press/nudge actions. Context owns rollback/publication, while framework assessment assembles, emits, measures and checks candidates. See the [framework reference](../framework/reference.md).
 
 ### Routing
 

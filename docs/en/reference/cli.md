@@ -95,7 +95,7 @@ kohakuefda layout SCENARIO.toml [-o DIR] [--seed N] [--attempts N] [-j WORKERS] 
 
 Run the whole pipeline. Writes `plan.json`, `netlist.json`, `placement.json`, `layout.json`, `evaluation.json` and `report.json` (and `layout.png` with `--png`, which needs matplotlib) into `DIR` (default `out`). `--frames` also writes `frames/layout.json`, the recorded catalogue, build and final frames. Prints the grid, the modules, the utilisation table and the findings.
 
-`--seed` fixes the search; the same seed and settings give the same layout, whatever the machine load. `--attempts` is how many complete layouts the search tries before it settles (default 32000), shared out over the workers. `-j`/`--workers` is how many searches run at once; 0, the default, asks the machine how many cores it can spare. There is no time budget: a run is bounded by its steps, which is reproducible, where a clock is not.
+`--seed` makes work-bounded runs repeatable for fixed settings/backend. `--attempts` caps construction attempts (default 32000); the baseline stops at its first complete spread. `-j`/`--workers` selects concurrency; 0 auto-selects up to 16 cores. `--solver` chooses an installed catalog entry (default `baseline`), `--solver-options` is a JSON settings object, and `--backend` selects `auto`, `python` or `native`. `--max-actions` and `--seconds` optionally cap work or elapsed time (0 means unlimited). Timed results depend on machine load. See the [framework reference](../framework/reference.md).
 
 The area is what the basement gives and is never enlarged to make a layout fit. A line the square cannot hold is reported with `layout.too_big` and the size it needed. Exit 1 on any error finding.
 

@@ -33,9 +33,9 @@ Everything on this page is either an assumption about the game that the tool rel
 
 ## Known limits
 
-- **The first search cannot see routing room.** The search prices a genome by its packed rectangle and half-perimeter wire length; the detailed pass then widens gaps until every wire routes, so a first-pass result is larger than its packing by whatever the wiring needed. The refinement round hands the widened gaps back to the search, which is what brings the 15/min Hetonite line from 37×42 to 40×36 in its 40×40 square; a line whose wiring needs more room than one round reveals still ends larger than its packing suggests.
-- **Group faults are priced, not prevented.** A brick off its bus or a machine outside its zone costs the search a large penalty; a candidate that still carries one is reported with `layout.group_faults` rather than hidden.
-- **Speed.** The router is pure Python; a full run with the default 4000 moves and three detailed candidates takes tens of seconds on a 40×40 square. The Rust hot path under `src/kohakuefda-rs/` is the escape hatch when a scenario needs more.
+- **Local compaction.** The first complete routed spread is greedily shrunk; this does not prove minimum area or infeasibility when construction exhausts its budget.
+- **Construction cost.** Routing and coverage checks run during placement. The optional Rust grid accelerates routing, while snapshots and whole-layout compaction proposals still cost time.
+- **Recycle loops.** The evaluator starts with empty flows and can settle a seed/plant recycle loop at zero. A complete geometric layout is not a certificate that rate verification will pass.
 - **Depot via.** A solid could travel through the depot (loader in, unloader out) instead of a belt; the netlist marks such nets but the router always lays a belt.
 - **Reactor Crucible channels.** A crucible running two chained recipes in IndustrialPlanner is imported with one.
 - **Time.** Only the steady state is modelled; buffers, startup and the game's item-level timing are not.

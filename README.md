@@ -104,7 +104,7 @@ kohakuefda glossary items                  # the trilingual name table
 ```
 
 `kohakuefda layout --help` lists the search settings; the useful ones are
-`--attempts` (how many complete layouts to try) and `--workers`.
+`--attempts` (the maximum construction attempts) and `--workers`.
 
 ## How it works
 
@@ -122,23 +122,20 @@ every machine standing, every lane routed. Placing a machine and routing its
 belts are one operation — a position that cannot be wired never exists — so the
 search never passes through a broken layout.
 
-- **Spread.** Machines go into the squares of a lattice whose step is derived,
-  not tuned: the widest machine plus the one cell a connection always costs
-  (LOG-11). Clearance is per edge — one free cell where a wired port sits, none
-  where no port does, because machines may share edges (PLC-01). They are laid in
-  the order the flow visits them, each chain walked to its end, and the squares
-  in a serpentine, so a machine lands beside the one that feeds it.
+- **Spread.** Machines are placed and routed along the flow on a serpentine
+  lattice with a pylon-width corridor. Attempts cycle through gaps and flow
+  directions, then retry seeded flow-order variations. Construction stops at
+  the first fully placed and routed spread.
 - **Shrink.** The room comes back out: lines nothing stands on deleted, sides
-  pressed to a wall, machines pulled toward what they feed. Every step only
-  *removes* space, so it can never strand a machine or a lane.
-- **Search.** The spread is deterministic once three choices are fixed — the
-  laying order, the corridor width, the direction of the walk — so those are a
-  genome and the spread is its decoder. Three searches run over that space
-  (annealing, evolution, independent draws); none wins on every factory, so by
-  default they are dealt out across the cores and the best result is kept.
+  pressed to a wall, machines pulled toward what they feed. Every accepted step
+  improves area/wire cost and passes routing and geometry checks; failed edits
+  roll back. Duplicate rebuilds and non-improving candidate checks are skipped.
+- **Parallel construction.** Workers run seeded spread slices in rounds. The
+  lowest successful seed in the first successful round is imported and shrunk
+  once. Set `--workers 1` for serial construction.
 
-Runs are reproducible: the same seed and settings give the same layout, whatever
-the machine load.
+Work-bounded runs are reproducible for the same seed, backend and settings.
+Optional elapsed-time limits can stop at different steps under different load.
 
 ## Repository
 
@@ -152,6 +149,9 @@ the machine load.
 | `tests/` | the pytest suite and its fixtures |
 
 ## Documentation
+
+The [solver framework manual](docs/en/framework/README.md) describes the public
+solver/action API, contracts, checkpoints and Python/Rust organization.
 
 `docs/en/README.md` is the home. Tutorials and guides for getting a first plan
 out; concepts for the factory model, planning, cells and netlists, placement and

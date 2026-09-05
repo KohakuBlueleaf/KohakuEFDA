@@ -35,7 +35,7 @@ The examples menu loads a bundled line; the arrows import and download `scenario
 
 ## The flow
 
-Four stages with checkpoints run across the top: Plan, Cells, Layout, Check. A stage card shows its status and duration and has run, run-to-the-end and stop buttons; a stage can run once every earlier stage is done, and running a stage clears every later one. The settings panel on the right holds the selected stage's parameters in three groups (search: seed, method, moves, restarts, candidates, refinement rounds, wire length weight; space: gap, margin, widening rounds, border sides, pylon type; routing: passes and penalties), its error text and its history. What you type stays typed until you press reset, and every number may take any value from its minimum up. Changing a parameter and rerunning from the middle is the normal way to work: rerun Layout with another seed or a wider gap on the same cells.
+Four stages with checkpoints run across the top: Plan, Cells, Layout, Check. A stage card shows its status and duration and has run, run-to-the-end and stop buttons; a stage can run once every earlier stage is done, and running a stage clears every later one. The settings panel on the right holds the selected stage's parameters for spread construction (attempt budget, workers, seed, gaps and flow direction), greedy shrink, spatial diagnostics and routing penalties, its error text and its history. What you type stays typed until you press reset, and every number may take any value from its minimum up. Changing a parameter and rerunning from the middle is the normal way to work: rerun Layout with another seed or a wider gap on the same cells.
 
 Clicking a stage card shows its view:
 

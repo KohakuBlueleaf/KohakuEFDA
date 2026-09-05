@@ -57,6 +57,12 @@ const sidebarStructure = {
     "reference/rules.md",
     "reference/dataset.md",
   ],
+  framework: [
+    "framework/README.md",
+    "framework/manual.md",
+    "framework/reference.md",
+    "framework/backends.md",
+  ],
   dev: [
     "dev/README.md",
     "dev/internals.md",
@@ -86,6 +92,7 @@ function sidebar(labels) {
       ],
     },
     { text: labels.reference, items: sidebarStructure.reference },
+    { text: labels.framework, items: sidebarStructure.framework },
     { text: labels.dev, items: sidebarStructure.dev },
   ]
 }
@@ -101,6 +108,7 @@ const enLabels = {
   layout: "Placement and routing",
   verification: "Verification",
   reference: "Reference",
+  framework: "Solver framework",
   dev: "Development",
 }
 
@@ -115,6 +123,7 @@ const zhTWLabels = {
   layout: "擺放與佈線",
   verification: "驗證",
   reference: "參考",
+  framework: "求解器框架",
   dev: "開發",
 }
 
@@ -129,6 +138,7 @@ const zhCNLabels = {
   layout: "摆放与布线",
   verification: "验证",
   reference: "参考",
+  framework: "求解器框架",
   dev: "开发",
 }
 
