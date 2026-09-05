@@ -123,10 +123,15 @@ def layout_cmd(
         help="Directory for plan, netlist, layout and report.",
     ),
     seed: int = typer.Option(0, "--seed", help="Search seed."),
-    attempts: int = typer.Option(
-        int(LAYOUT_DEFAULTS["spread_attempts"]),
-        "--attempts",
-        help="Lattices to try before giving up, shared out over the workers.",
+    restarts: int = typer.Option(
+        int(LAYOUT_DEFAULTS["restarts"]),
+        "--restarts",
+        help="Placement walks to run at once from different seeds; the best is kept.",
+    ),
+    algorithm: str = typer.Option(
+        str(LAYOUT_DEFAULTS["heuristic"]),
+        "--algorithm",
+        help="Placement search: anneal, evolve, or off for the constructive layout alone.",
     ),
     workers: int = typer.Option(
         int(LAYOUT_DEFAULTS["workers"]),
@@ -146,12 +151,18 @@ def layout_cmd(
     """Plan, lay out and verify a scenario; write the artifacts and print the checks."""
     dataset = load_dataset(root, version)
     scenario = Scenario.from_toml(scenario_file)
-    params: dict = {"seed": seed, "spread_attempts": attempts, "workers": workers}
+    params: dict = {
+        "seed": seed,
+        "restarts": restarts,
+        "heuristic": algorithm,
+        "workers": workers,
+    }
     log.info(
         "laying out a scenario",
         scenario=str(scenario_file),
         seed=seed,
-        attempts=attempts,
+        restarts=restarts,
+        algorithm=algorithm,
         workers=workers or "auto",
         dataset=dataset.version.id,
     )

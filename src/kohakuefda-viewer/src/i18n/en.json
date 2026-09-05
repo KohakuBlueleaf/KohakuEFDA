@@ -87,7 +87,6 @@
     "junctions": "Splitters and convergers"
   },
   "paramGroup": {
-    "search": "Search",
     "space": "Space",
     "routing": "Routing",
     "other": "Other",
@@ -96,10 +95,11 @@
     "placement": "Placement search",
     "anneal": "Annealing",
     "evolve": "Evolution",
-    "weights": "What the search pays for"
+    "weights": "What the search pays for",
+    "spread": "Laying out"
   },
   "params": {
-    "seed": "Random seed",
+    "seed": "Seed",
     "frame_every": "Frame every N moves",
     "entry_sides": "Border sides for outside inputs",
     "pylon": "Pylon type",
@@ -113,17 +113,14 @@
     "w_wire": "Weight per belt or pipe cell",
     "w_unit": "Weight per splitter or converger",
     "w_pull": "Pull toward the corner",
-    "spread_attempts": "Search steps",
     "spread_gap": "Extra corridor width",
     "spread_widest": "Widest corridor tried",
     "flow_order": "Walk the flow",
     "workers": "Searches at once",
-    "search": "Search method",
     "shrink_rounds": "Shrink rounds",
     "shrink_walk": "Shrink walk steps",
     "shrink_heat": "Shrink walk boldness",
     "shrink_spin": "Shrink walk turn share",
-    "spread_slice": "Steps per core per round",
     "w_shape": "Penalty for a long thin layout",
     "w_over": "Penalty past the area side",
     "w_pylon": "Weight per pylon",
@@ -141,7 +138,7 @@
     "route_slacks": "Lane reserves tried",
     "route_heat": "Heat per stranded lane",
     "route_cool": "Heat kept between rounds",
-    "sa_moves": "Moves per round",
+    "sa_moves": "Search effort (moves per try)",
     "sa_schedule": "Cooling schedule",
     "sa_start_temperature": "First temperature (0 measures it)",
     "sa_end_temperature": "Last temperature",
@@ -173,7 +170,8 @@
     "w_group": "Penalty per group rule unmet",
     "w_shut": "Penalty per blocked corridor cell",
     "w_crowd": "Weight on where lanes already failed",
-    "w_tight": "Weight on keeping floor back for lanes"
+    "w_tight": "Weight on keeping floor back for lanes",
+    "restarts": "Parallel tries"
   },
   "choices": {
     "entry_sides": {
@@ -182,20 +180,14 @@
       "W": "west",
       "NESW": "any side"
     },
-    "search": {
-      "mixed": "All three, shared out",
-      "anneal": "Annealing",
-      "evolve": "Evolution",
-      "restart": "Independent draws"
-    },
     "flow_order": {
       "bottom-up": "From the raw end",
       "top-down": "From the product end"
     },
     "heuristic": {
-      "anneal": "Annealing",
+      "anneal": "Annealing (default)",
       "evolve": "Evolution",
-      "off": "Off (lattice only)"
+      "off": "Baseline only, no search"
     },
     "native": {
       "on": "On",
@@ -443,7 +435,12 @@
   "phase": {
     "1": "solid",
     "2": "liquid",
-    "4": "gas"
+    "4": "gas",
+    "spread": "Laying the machines out",
+    "improve": "Improving the layout",
+    "build": "Laying the machines out",
+    "catalogue": "Preparing",
+    "final": "Finishing"
   },
   "columns": {
     "id": "Id",
@@ -507,11 +504,8 @@
     "info": "note"
   },
   "paramHelp": {
-    "search": "How the layout is searched for. Mixed runs all three across the cores and keeps the best, which is the default because none of them wins on every factory.",
-    "spread_attempts": "How many complete layouts the search tries before it settles. More steps find smaller layouts and take longer; the work is shared over the cores.",
-    "seed": "Fixes the randomness. The same seed and settings always give the same layout.",
+    "seed": "The same seed gives the same layout every time. Change it to get a different one.",
     "workers": "How many searches run at once. 0 asks the machine how many cores it can spare.",
-    "spread_slice": "How many steps each core takes before the results are compared. Smaller means the searches trade news more often.",
     "spread_gap": "Extra free cells left around each machine, on top of the one a belt always needs.",
     "spread_widest": "The widest gap the search will try. It works its way up from the narrowest.",
     "flow_order": "Which end of the production chain the machines are laid out from.",
@@ -539,8 +533,9 @@
     "heuristic": "Which search walks the placement itself, beside the lattice the constructive pass builds. Whichever answer is smaller is the one you get, so this can only improve on the lattice — it costs time, not quality.",
     "native": "Run the walk in the compiled Rust engine, about a hundred times faster than the Python reference. Turn it off to use the reference.",
     "start": "Where the walk starts: scattered at random, from the constructive layout, the best of several draws, or refining the layout already built.",
-    "sa_moves": "How many placements the walk tries per round. More moves search harder and take longer; this is the main effort knob.",
+    "sa_moves": "How many placements each walk tries. More is a longer, more thorough search.",
     "sa_schedule": "How the temperature falls: adaptive aims at an acceptance rate, geometric follows a fixed curve, fast-SA follows the paper's.",
-    "route_slacks": "Floor kept back for belts and pipes, as a multiple of the straight-line wire length, tried in turn. Each one costs a whole search and the best that builds is kept."
+    "route_slacks": "Floor kept back for belts and pipes, as a multiple of the straight-line wire length, tried in turn. Each one costs a whole search and the best that builds is kept.",
+    "restarts": "How many placement walks run at once, each from a different start; the best layout wins. They run on separate cores, so more tries cost little extra time until you run out of cores."
   }
 }

@@ -22,7 +22,7 @@ FIXTURES = ROOT / "tests" / "fixtures"
 CORE = "sp_hub_1"
 PYLON = "power_diffuser_1"
 CORE_REACH = 0
-LAYOUT = {"spread_attempts": 2000, "frame_every": 100000}
+LAYOUT = {"restarts": 1, "frame_every": 100000}
 
 
 @pytest.fixture(scope="module")
@@ -130,7 +130,7 @@ def test_fluids_come_from_outside_and_everything_stays_inside(
 
 def test_hetonite_15_per_minute_fits_its_square(dataset: Dataset) -> None:
     scenario = Scenario.from_toml(FIXTURES / "scenario_basic.toml")
-    result = layout_scenario(dataset, scenario, {"spread_attempts": 2000})
+    result = layout_scenario(dataset, scenario, {"restarts": 1})
     assert result.layout is not None, result.report.findings
     laid = [
         f

@@ -48,7 +48,7 @@ NUGGET = "item_copper_nugget"
 WATER = "item_liquid_water"
 SEWAGE = "item_liquid_sewage"
 GAS = "item_gas_inert"
-FAST = {"spread_attempts": 2000, "frame_every": 1000}
+FAST = {"restarts": 1, "frame_every": 1000}
 
 
 @pytest.fixture(scope="module")
@@ -351,7 +351,7 @@ def test_the_walk_never_hands_back_a_worse_layout(dataset: Dataset) -> None:
 def test_cancellation_and_a_budget_that_cannot_run(dataset: Dataset) -> None:
     netlist = _furnace_pair(dataset)
     with pytest.raises(CancelledError):
-        _engine(dataset, netlist, spread_attempts=2000).run(None, lambda: True)
+        _engine(dataset, netlist, restarts=1).run(None, lambda: True)
     with pytest.raises(LayoutError):
         _engine(dataset, netlist, spread_gap=-1)
     with pytest.raises(LayoutError):

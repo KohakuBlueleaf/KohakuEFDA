@@ -6,9 +6,11 @@ taken in the order the flow visits them, each chain walked to its end, and the s
 serpentine, so a machine lands beside the one that feeds it and the walk turns back on itself
 rather than jumping home.
 
-Nothing is ever moved out of the way to make room: a lattice either comes out whole or is thrown
-away and laid again from a different order, and one costs a few hundredths of a second. What
-comes out is legal, not small.
+Nothing here is searched. One machine is one step -- it stands, its lanes are routed where it
+stands, a watcher is told and the cancel is answered -- and room is given rather than looked
+for: the corridor widens and the flow is walked from either end until a pass comes out whole,
+and a machine the lattice could not seat is seated first on the next pass. What comes out is
+legal, not small; the placement walk that follows is what makes it small.
 """
 
 import logging
@@ -16,7 +18,6 @@ import random
 import time
 
 from kohakuefda.layout.depot_via import brick_rotation
-from kohakuefda.layout.genome import Genome, Score
 from kohakuefda.layout.site import Anchor, Site
 from kohakuefda.model.control import CancelledError
 from kohakuefda.model.geometry import Edge, rotated_size
@@ -41,8 +42,6 @@ class Spread:
         self.widest = max(self.gap, int(params["spread_widest"]))
         self.top_down = str(params["flow_order"]) == "top-down"
         self.tries = max(1, int(params["candidate_tries"]))
-        self.attempts = max(1, int(params["spread_attempts"]))
-        self.strategy = str(params["search"])
         self.grid_squares: list[tuple[int, int]] = []
         self.next_square = 0
         self.laid: list[str] = []
@@ -414,39 +413,6 @@ class Spread:
 
     def gaps(self) -> range:
         return range(self.gap, self.widest + 1)
-
-    def sample(self, attempt: int) -> Genome:
-        """The genome the handcrafted search would have drawn on its ``attempt``-th try: the
-        gaps in turn, both directions of the flow, and the order jittered once both have been
-        seen at every gap."""
-        gaps = list(self.gaps())
-        self.top_down = bool((attempt // len(gaps)) % 2)
-        return Genome(
-            tuple(self.order(attempt >= 2 * len(gaps))),
-            gaps[attempt % len(gaps)],
-            self.top_down,
-        )
-
-    def decode(self, genome: Genome) -> "Score":
-        """Lay the lattice this genome asks for and say what it came to."""
-        self.top_down = genome.top_down
-        return self.score(self.lay(list(genome.order), genome.gap))
-
-    def score(self, missed: list[str]) -> "Score":
-        """How good a lattice is: whole first, then small.
-
-        Stopping at the first lattice that comes out whole answers the wrong question — every
-        whole lattice is legal and they differ by a third in area, so the search reads the
-        whole slice and keeps the smallest rather than the earliest.
-        """
-        site = self.site
-        x0, y0, x1, y1 = site.bbox()
-        return (
-            len(missed),
-            len(site.unrouted()),
-            (x1 - x0) * (y1 - y0),
-            site.wire_cells(),
-        )
 
     def frame(self, kind: str) -> dict:
         """The layout as it stands, for a watcher to draw."""

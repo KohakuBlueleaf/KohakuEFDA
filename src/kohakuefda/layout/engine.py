@@ -16,7 +16,7 @@ import logging
 import os
 import random
 import time
-from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, as_completed, wait
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from concurrent.futures.process import BrokenProcessPool
 
 from kohakuefda.layout.assemble import assemble
@@ -25,7 +25,6 @@ from kohakuefda.layout.chunk import chunk
 from kohakuefda.layout.geometry import machine_footprint, unit_footprint
 from kohakuefda.layout.heuristic import engine as heuristic
 from kohakuefda.layout.place import Block, catalogue_of
-from kohakuefda.layout.search import MIXED, SEARCHES
 from kohakuefda.layout.shrink import Shrink
 from kohakuefda.layout.site import Site
 from kohakuefda.layout.spread import Spread
@@ -45,13 +44,10 @@ LAYOUT_DEFAULTS: dict[str, int | float | str] = {
     "restarts": 8,
     "spread_gap": 0,
     "spread_widest": 6,
-    "spread_attempts": 32000,
     "shrink_rounds": 200,
     "shrink_walk": 600,
     "shrink_heat": 6.0,
     "shrink_spin": 0.25,
-    "spread_slice": 64,
-    "search": "mixed",
     "heuristic": "anneal",
     "native": "on",
     "start": "scatter",
@@ -118,7 +114,6 @@ LAYOUT_DEFAULTS: dict[str, int | float | str] = {
     "frame_every": 20,
 }
 log = logging.getLogger(__name__)
-DEAL = ("anneal", "evolve", "restart")
 AUTO_WORKERS = 16
 PRIME = 7919
 POLL_SECONDS = 0.2
@@ -162,38 +157,6 @@ def _restart(
         (x1 - x0) * (y1 - y0),
         site.wire_cells(),
     ), seed
-
-
-def _island(
-    dataset: Dataset,
-    netlist: Netlist,
-    params: dict,
-    seed: int,
-) -> tuple[bool, tuple[int, int, int, int], int]:
-    """One run of the restart search in its own process: whether it came out whole, how good
-    it was, and where everything ended up.
-
-    Attempts are independent of one another, so a machine with cores to spare runs several
-    searches from different seeds and takes the first that finishes whole rather than waiting
-    on one; nothing is shared and nothing is merged.
-
-    The score decides which attempt is kept, so it is the layout that would be built that is
-    scored, pylons and all, and the squeeze that produces it is the deterministic one. Ranking
-    on the grid's own extent instead reads a rectangle nobody pays for — it counts pipe that ran
-    out through the ring and no pylon at all — and an attempt that wins on it can lose by a
-    fifth once built; an annealed walk here would rank an attempt by how its walk happened to go
-    rather than by what the attempt is worth. The walk belongs to the winner alone.
-    """
-    board = board_of(dataset, netlist.scenario)
-    site = Site(dataset, netlist, board, params)
-    spread = Spread(site, params, random.Random(seed))
-    whole = spread.run()
-    if not whole:
-        return whole, spread.score([]), seed
-    shrink = Shrink(site, spread, {**params, "shrink_walk": 0})
-    shrink.run()
-    area, wires = shrink.measure()
-    return whole, (len(site.unplaced()), len(site.unrouted()), area, wires), seed
 
 
 class LayoutError(RuntimeError):
@@ -241,8 +204,6 @@ class Engine:
                 raise LayoutError(f"{name} cannot be negative")
         if int(params["spread_widest"]) < int(params["spread_gap"]):
             raise LayoutError("spread_widest cannot be below spread_gap")
-        if str(params["search"]) != MIXED and str(params["search"]) not in SEARCHES:
-            raise LayoutError(f"unknown search {params['search']!r}")
         self.random = random.Random(int(params["seed"]))
         self.pylon = dataset.pylons[str(params["pylon"])]
         self.findings: list[Finding] = list(board.findings)
@@ -494,14 +455,6 @@ class Engine:
             return workers
         return max(1, min(AUTO_WORKERS, os.process_cpu_count() or 1))
 
-    def searching(self, share: dict, seed: int) -> dict:
-        """The parameters one worker gets. Under mixed the searches are dealt out over
-        the workers rather than chosen between: none of them wins on every scenario, and the
-        cores are already there to run all three."""
-        if str(share["search"]) != "mixed":
-            return share
-        return {**share, "search": DEAL[(seed // PRIME) % len(DEAL)]}
-
     def contend(self, observe: Observe | None, cancelled: Cancelled | None) -> None:
         """Let the heuristic placer try the same netlist and keep whichever did better.
 
@@ -575,38 +528,6 @@ class Engine:
             site.wire_cells(),
         )
 
-    def best_of(
-        self, pool: ProcessPoolExecutor, share: dict, seeds: list[int], cancelled=None
-    ) -> int | None:
-        """Run one search per seed and give back the lowest seed that came out whole.
-
-        A search is a pure function of its seed and its parameters, so the seed is the whole
-        result and the parent repeats it: replaying the positions would not do, because a
-        lane's path depends on what was already down when it was routed.
-        """
-        futures = {
-            pool.submit(
-                _island, self.dataset, self.netlist, self.searching(share, s), s
-            ): s
-            for s in seeds
-        }
-        pending = set(futures)
-        winners: list[int] = []
-        while pending:
-            self.check(cancelled)
-            done, pending = wait(
-                pending, timeout=POLL_SECONDS, return_when=FIRST_COMPLETED
-            )
-            for future in done:
-                try:
-                    whole, rank, seed = future.result()
-                except (BrokenProcessPool, OSError, ValueError, RuntimeError) as error:
-                    log.warning("a search did not finish", error=str(error))
-                    continue
-                if whole:
-                    winners.append((rank, seed))
-        return min(winners)[1] if winners else None
-
     def run(
         self, observe: Observe | None = None, cancelled: Cancelled | None = None
     ) -> EngineResult:
@@ -624,7 +545,6 @@ class Engine:
             cells=len(self.netlist.cells),
             nets=len(self.netlist.nets),
             square=f"{self.board.square[0]}x{self.board.square[1]}",
-            search=str(self.params["search"]),
             seed=int(self.params["seed"]),
         )
         if self.attempt(observe, cancelled):

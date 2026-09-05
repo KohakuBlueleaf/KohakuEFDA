@@ -76,9 +76,8 @@ function clamp(key) {
 
 const GROUPS = [
   {
-    key: "search",
-    match:
-      /^(search|spread_attempts|seed|workers|spread_slice|spread_gap|spread_widest|flow_order|candidate_tries|frame_every)$/,
+    key: "spread",
+    match: /^(workers|spread_gap|spread_widest|flow_order|candidate_tries|frame_every)$/,
   },
   { key: "shrink", match: /^shrink_/ },
   {
@@ -104,7 +103,6 @@ const GROUPS = [
 ]
 const CHOICES = {
   entry_sides: ["NW", "N", "W", "NESW"],
-  search: ["mixed", "anneal", "evolve", "restart"],
   flow_order: ["bottom-up", "top-down"],
   heuristic: ["anneal", "evolve", "off"],
   native: ["on", "off"],
@@ -112,8 +110,17 @@ const CHOICES = {
   sa_schedule: ["adaptive", "geometric", "fast-sa"],
 }
 
+// The settings that decide what a run does and how long it takes. They sit above the fold,
+// always open: burying the choice of algorithm among forty tuning knobs hides it completely.
+const PRIMARY = {
+  layout: ["heuristic", "restarts", "sa_moves", "seed"],
+}
+
+const headline = computed(() => (PRIMARY[stage.value] ?? []).filter((key) => key in defaults.value))
+
 const groups = computed(() => {
-  const keys = Object.keys(defaults.value)
+  const shown = new Set(headline.value)
+  const keys = Object.keys(defaults.value).filter((key) => !shown.has(key))
   const out = []
   for (const group of GROUPS) {
     const members = keys.filter((key) => group.match.test(key))
@@ -127,6 +134,22 @@ const groups = computed(() => {
     out.push({ key: "other", members: rest })
   }
   return out
+})
+
+// What the run is doing now, read off the frames it has sent.
+const progress = computed(() => {
+  const frames = store.run?.frames?.[stage.value] ?? []
+  const last = frames[frames.length - 1]
+  if (!active.value || !last) {
+    return null
+  }
+  if (last.kind === "build") {
+    return { phase: "spread", done: last.placed ?? 0, total: last.total ?? 0 }
+  }
+  if (last.kind === "improve") {
+    return { phase: "improve", done: last.step ?? 0, total: last.of ?? 0 }
+  }
+  return { phase: last.kind, done: 0, total: 0 }
 })
 
 function when(entry) {
@@ -146,6 +169,25 @@ function when(entry) {
     <div class="flex-1 overflow-y-auto p-3 flex flex-col gap-3 text-xs">
       <p class="text-secondary">{{ t(`stageHelp.${stage}`) }}</p>
       <LayoutCost v-if="stage === 'layout'" />
+      <div v-if="progress" class="flex flex-col gap-1 rounded bg-warm-100 dark:bg-warm-800 p-2">
+        <div class="flex items-center gap-2">
+          <span class="font-medium">{{ t(`phase.${progress.phase}`) }}</span>
+          <span class="flex-1" />
+          <span v-if="progress.total" class="text-secondary tabular-nums">
+            {{ progress.done }} / {{ progress.total }}
+          </span>
+        </div>
+        <div class="h-1 rounded bg-warm-300 dark:bg-warm-700 overflow-hidden">
+          <div
+            class="h-full bg-sky transition-all"
+            :style="{
+              width: progress.total
+                ? `${Math.min(100, (100 * progress.done) / progress.total)}%`
+                : '100%',
+            }"
+          />
+        </div>
+      </div>
       <div v-if="Object.keys(defaults).length" class="flex flex-col gap-1.5">
         <div class="flex items-center gap-2">
           <span class="section-title">{{ t("flow.params") }}</span>
@@ -153,6 +195,29 @@ function when(entry) {
           <button class="btn-secondary !text-[10px] !py-0.5" @click="store.resetDraft(stage)">
             {{ t("flow.reset") }}
           </button>
+        </div>
+        <div v-if="headline.length" class="flex flex-col gap-1.5 pb-1">
+          <label v-for="key in headline" :key="key" class="flex items-center justify-between gap-2">
+            <span class="font-medium text-warm-700 dark:text-warm-200" :title="help(key)">
+              {{ t(`params.${key}`) }}
+            </span>
+            <select v-if="CHOICES[key]" v-model="params[key]" class="input-number !w-40">
+              <option v-for="choice in CHOICES[key]" :key="choice" :value="choice">
+                {{ t(`choices.${key}.${choice}`) }}
+              </option>
+            </select>
+            <input
+              v-else
+              v-model="params[key]"
+              type="number"
+              :min="boundsOf(key).min"
+              :max="boundsOf(key).max"
+              :step="boundsOf(key).step"
+              class="input-number !w-40"
+              @change="clamp(key)"
+            />
+          </label>
+          <p class="text-secondary leading-snug">{{ help(headline[0]) }}</p>
         </div>
         <details v-for="group in groups" :key="group.key" :open="group.key === 'search'">
           <summary class="text-[10px] uppercase tracking-wide text-warm-500 cursor-pointer">

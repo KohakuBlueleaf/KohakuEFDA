@@ -101,7 +101,7 @@ def layout_stage(
     layout = result.layout
     layout.notes = (
         f"{scenario.basement.basement_id} level {scenario.basement.level}, "
-        f"seed {settings['seed']}, {settings['spread_attempts']} attempts"
+        f"seed {settings['seed']}, {settings['restarts']} restarts"
     )
     placement = placement_of(
         result.blocks,

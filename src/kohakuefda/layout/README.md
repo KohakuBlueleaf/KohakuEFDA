@@ -12,18 +12,22 @@ enters a layout: it rips the wires its footprint would cover, puts the machine
 down, routes every wire whose two ends are now placed, and undoes all of it if
 any of them has no path — so a position that cannot be wired never exists.
 
-`Spread` uses nothing else. Machines go into the squares of a lattice whose step
-is the widest of them plus the cell a lane leaves by; they are taken in the order
-the flow visits them and the squares in a serpentine. A lattice either comes out
-whole — every machine standing, every lane running — or it is thrown away and laid
-again from a different order, which costs a few hundredths of a second. Nothing is
-ever moved aside to make room, so there is no arrangement the search can wreck to
-reach another.
+`Spread` uses nothing else, and it does not search. Machines go into the squares
+of a lattice whose step is the widest of them plus the cell a lane leaves by; they
+are taken in the order the flow visits them and the squares in a serpentine, and
+each one's lanes are routed the moment it stands — easy, because the room around
+it is still empty. One machine is one step: it stands, it is wired, a watcher is
+told, the cancel is answered.
 
-The spread is deterministic once its three choices are fixed — the laying order,
-the corridor width, the direction of the walk — so those are a `Genome` and the
-spread is its decoder. `search.py` holds three searches over that space; none wins
-on every scenario, so the engine deals them out across the workers.
+Room is given rather than looked for. If a pass leaves a machine homeless the
+corridor widens, the flow is walked from the other end, and the machine that found
+nowhere is seated first next time; the first pass that comes out whole is the one
+kept. Nothing is ever moved aside to make room.
+
+The variance worth exploiting is in the walk that follows, not here: the same
+factory finishes a fifth apart depending on where the walk starts. `Engine.luckiest`
+runs `restarts` of them at once on separate cores, sharing this one deterministic
+spread, and keeps the best.
 
 `Shrink` then takes the room back out. It only ever *removes* space — a line nothing
 stands on, a whole side pressed to a wall, one machine pulled a cell toward what it
@@ -43,11 +47,9 @@ So it cannot strand a machine or a lane: the worst it does is find nothing and s
 | `board.py`     | `Board` and `board_of`: square, ring, fixed bus cells and brick slots in grid coordinates |
 | `groups.py`    | `back_cells`, `bus_faults`, `zone_faults`, `zone_of`, `faults`: what the game binds together and how far a placement is from obeying it |
 | `site.py`      | `Site`: blocks, one routing grid and the router over it; `place` and `remove`, `wire_up`, `closes_a_port`, `snapshot`/`restore`, `occupied`, `bbox`, `faults`, `power` and `pylons`, `cost`, and the candidate anchors — `facing_anchors` (a port within reach of a partner's), `group_anchors`, `frontier_anchors`, `every_anchor` |
-| `spread.py`    | `Spread`: `rank` and `order` (the flow walked chain by chain, each group whole), `clearance` and `envelope` (free cells derived per edge from where the wired ports are), `pitch` and `squares` (the lattice, in a serpentine), `settle`, `stand`, `lay`, `rebuild`, `frame`, `sample` and `decode` (a genome in, a score out), and `run` |
+| `spread.py`    | `Spread`: `rank` and `order` (the flow walked chain by chain, each group whole), `clearance` and `envelope` (free cells derived per edge from where the wired ports are), `pitch` and `squares` (the lattice, in a serpentine), `settle`, `stand`, `seat` (the homeless placed and the netlist routed as a whole), `rebuild`, `frame`, `pass_at` (one lay at one corridor width), `standing`, and `run` |
 | `shrink.py`    | `Shrink`: `measure` (area with the pylons standing, then lane cells), `carve` (delete a line nothing stands on), `press` (slide a whole side to a wall), `nudge` (one machine one cell toward what it is wired to), `turn` (one machine rotated where it stands), `apply`, `settle` (those to exhaustion), `wander` (an annealed walk on from there), `run` |
-| `genome.py`    | `Genome` (laying order, corridor width, flow direction), `mutate` (local order moves), `cross` (order crossover), `Score` |
-| `search.py`    | `SEARCHES`: `restart` (independent draws), `anneal` (neighbour walk), `evolve` (population); `value` prices a broken layout past every whole one |
-| `engine.py`    | `LAYOUT_DEFAULTS`, `Engine` (`attempt` and its rounds of searches, `islands`, `best_of`, `run`, `rank`, `build_layout`, `terms_of`, `fits`, `shortfalls`, frames), `_island` (one search per process), `EngineResult`, `LayoutError` |
+| `engine.py`    | `LAYOUT_DEFAULTS`, `Engine` (`attempt` the one constructive spread, `luckiest` the parallel restarts, `contend`, `measure`, `run`, `build_layout`, `terms_of`, `fits`, `shortfalls`, frames), `_restart` (one walk per process), `EngineResult`, `LayoutError` |
 | `assemble.py`  | `assemble` placed blocks and pylons into a `Layout` with its area, `world_pins`, `WorldPin` |
 | `chunk.py`     | `chunk`: blueprint-sized modules with a build order                |
 | `stages.py`    | `STAGES`, `DEFAULTS`, `params_of`, `blocks_of`, and the stage functions `plan_stage`, `netlist_stage`, `layout_stage`, `verify_stage` |
