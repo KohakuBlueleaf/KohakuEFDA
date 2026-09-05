@@ -24,7 +24,7 @@ Do not use `Runner.backend.site` in a solver: it is an adapter implementation.
 |---|---|---|
 | `seed` | 0 | Strategy seed; namespace RNGs are available from Context |
 | `workers` | 1 | Baseline construction concurrency; 0 auto-selects up to 16 cores |
-| `max_actions` | 0 | Maximum builder placement attempts plus improvement attempts; 0 unlimited |
+| `max_actions` | 0 | Maximum builder placement/withdrawal attempts plus improvement attempts; 0 unlimited |
 | `seconds` | 0.0 | Cooperative elapsed-time limit; 0 unlimited |
 | `backend` | `auto` | `auto`, `python`, `native`; explicitly requesting unavailable native fails |
 | `check_rates` | true | Assess final current rates when a plan is supplied |
@@ -54,12 +54,35 @@ Custom routing/coverage instances or a deterministic action cap select the seria
 baseline path, so these do not silently vanish in child processes. Batch jobs
 are opt-in services; other solvers need not follow baseline's batch policy.
 
+## Regional settings
+
+`Regional(**settings)` constructs without a spread seed. It places and routes
+one machine at a time, retains best partial checkpoints, and withdraws spatial
+neighborhoods of missing machines for reconstruction. After `finish()` succeeds,
+optional greedy shrink operates only on complete routed states.
+
+Core defaults: `attempts=128`, `candidates=150`, `gap=2`, `gap_cycle=2`,
+`refill_rounds=1`, `restart_cycle=4`, `repair_threshold=0.85`, `radius=7`,
+`radius_cycle=14`, `neighbor_cycle=3`, `expand_cycle=5`, `shrink_rounds=200`.
+All scoring and pressure defaults are exposed in `solvers.regional.DEFAULTS`
+and `/api/solvers`. Regional execution is serial; select `regional` in Studio
+and use `solver_options` JSON for overrides. A time limit can end compaction
+with a valid best result: inspect `best_routed`, not just the stop status.
+
+Material allocation and required balancing topology belong to planning/netlist
+construction. Layout acceptance is complete legal physical realization, not a
+starvation score. Optional evaluator findings are separate diagnostics, not proof
+that routing caused starvation. Existing `router.wires_of` still derives wire
+assignments from nets; moving that logical decision into planning is follow-up,
+not something the regional search changes.
+
 ## State records (`model.solver`)
 
 | Record | Contents |
 |---|---|
 | `Problem` | ID, dataset/netlist/optional plan JSON, rules identity |
 | `BlockInfo` / `Lane` / `PortChoice` | Immutable geometry and compatible local endpoint domains |
+| `ConnectionTarget` | Link ID, local lane ID, immutable opposite-end port/tree cells |
 | `WorldView` | Revision, board, anchors, footprint tuples, occupied cells, missing/ready-unrouted sets |
 | `Snapshot` | Problem ID, state ID, backend payload, exact layout and placement JSON, Assessment |
 | `Assessment` | Completeness, geometry/routing/rates verdicts, issues, metrics |
@@ -81,6 +104,7 @@ snapshot; callers must not substitute a proxy score for this evidence.
 |---|---|
 | `view`, `blocks`, `links` | Read-only physical queries; no solver-owned aliases into Site |
 | `slot_anchors`, `border_anchors`, `group_anchors` | Legal-domain candidate queries |
+| `connection_targets(block_id)` | Opposite-end cells for connections to placed blocks; no physical-state mutation |
 | `rng(namespace)` | Persistent per-namespace deterministic Random instance |
 | `builder()` | Construct only while no complete current exists |
 | `attempt(action, base_revision=None, *, screen=None)` | Execute in scratch; optional metric-only rejection before checks; always restore base |
@@ -99,6 +123,18 @@ context is released. Importing a snapshot changes revision; old candidates canno
 be committed over it. Runtime errors propagate with `strict=True` after rollback;
 `strict=False` returns `error` with the last published result.
 
+## Construction withdrawal
+
+`builder.withdraw(tuple_of_block_ids)` removes those blocks and reroutes affected
+connections whose endpoints remain placed. It charges one action and returns
+`removed` only when all remaining ready routes exist. Failure, exception,
+cancellation or budget exhaustion restores the exact previous prefix. This is
+construction-only; it cannot remove machines from a published current state.
+Use `mark/restore/release` to retain a prefix while exploring a refill.
+
+`builder.finish()` emits `constructed` after geometry-checked publication;
+observers can record time to first routed state at this boundary.
+
 ## Builtin actions
 
 - `Action("relocate", anchors=((id, (x, y, rotation)), ...))`: remove named
@@ -116,7 +152,7 @@ unless `scope.support=False`. Scope rejects unauthorized resulting route changes
 and reports required IDs; it does not guarantee the repair algorithm is complete.
 
 Ordinary outcomes: `candidate`, `not_found`, `hard_conflict`, `scope_required`,
-`unsupported`, `stale`, `screened`. Builder adds `placed`. Budget/cancellation exceptions stop
+`unsupported`, `stale`, `screened`. Builder adds `placed` and `removed`. Budget/cancellation exceptions stop
 the enclosing runtime as `budget_exhausted`/`cancelled`; neither publishes scratch.
 An action's failure means no replacement found under the attempted choices,
 not a global impossibility proof.

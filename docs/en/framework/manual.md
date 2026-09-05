@@ -43,6 +43,20 @@ Passing a plan enables rate verification. `completed` means the strategy stopped
 normally; inspect `best_verified`, `best_routed`, and the issues rather than
 interpreting the stop reason as production success.
 
+## Run regional construction
+
+For dense plans, replace `Baseline()` with `Regional()` from
+`kohakuefda.solvers.regional` and use runtime settings such as
+`{"seed": 0, "seconds": 60, "backend": "native", "check_rates": False}`.
+Read `result.best_routed` for the physical-layout result. Use
+`Regional(shrink_rounds=0)` to stop at the first complete construction.
+No spread seed is required; construction and repair both keep ready routes legal.
+
+In Studio choose `regional` and set a time budget. Policy overrides go in the
+`solver_options` JSON field, for example `{"attempts": 256, "shrink_rounds": 0}`.
+Balancing belongs to planning; rate evaluation is optional diagnostics rather
+than a regional acceptance penalty.
+
 ## Write a strategy
 
 A strategy needs `name`, `capabilities` and `solve(context) -> str`. It can be a
@@ -88,6 +102,12 @@ manage in-session partial checkpoints. `finish()` requires all machines and
 routes plus passing geometry before publishing current. The baseline's
 `solvers/baseline/spread.py` is a complete example using only these public calls
 and immutable queries.
+
+`builder.withdraw((id, ...))` atomically removes a construction region and repairs
+remaining ready connections. Restore a saved mark when a refill does not help.
+`ctx.connection_targets(id)` exposes read-only opposite port/tree cells for
+scoring proposals. Neither operation changes logical source–sink allocation.
+The regional solver is a second example using only the public framework surface.
 
 A BuildState is not an improvement incumbent. Once current exists, a new builder
 cannot clear it; use transactional actions or a separate run.

@@ -22,6 +22,11 @@ For people working on the tool itself.
 - [Frontend](frontend.md): the web app's architecture, the run API, the event stream and the canvas renderers.
 - [Assumptions](assumptions.md): game mechanics the tool assumes and has not verified in play, data gaps, and known limits.
 
+## Solver benchmarks
+
+- [Regional constructive baseline](regional-benchmarks.md): initial equal-time and
+  equal-action results, reproduction commands, and known reliability limits.
+
 ## Code-near docs
 
 Every subpackage under `src/kohakuefda/` has a `README.md` with a Files table and a Dependencies list. They are the most accurate description of what lives where; this section explains how the pieces fit.

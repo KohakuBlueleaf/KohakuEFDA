@@ -15,7 +15,7 @@ cli / serve / scripts
 layout stages / pipeline / engine (application composition)
        |                       |
        v                       v
-solvers/baseline          framework runtime
+solvers catalog          framework runtime
        |                       |
        +----------+------------+
                   v
@@ -40,7 +40,8 @@ solvers/baseline          framework runtime
 - `framework` adapts Site, materializes actual layouts and invokes shared checks.
   It imports no concrete solver or application module.
 - `solvers` uses public Context, Builder, Action and immutable records. It does not
-  manipulate Site or the native grid directly.
+  manipulate Site or the native grid directly. `regional` uses candidate queries
+  and construction withdrawal; its optional compaction reuses `baseline.shrink`.
 - `layout/engine` is a compatibility composition root, not a low-level domain
   dependency. It resolves the solver catalog and injects the selected strategy.
 - `render`, `serve` and `cli` consume artifacts and stage APIs.

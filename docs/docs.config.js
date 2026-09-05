@@ -68,6 +68,7 @@ const sidebarStructure = {
     "dev/internals.md",
     "dev/dependency-graph.md",
     "dev/testing.md",
+    "dev/regional-benchmarks.md",
     "dev/frontend.md",
     "dev/native.md",
     "dev/assumptions.md",
