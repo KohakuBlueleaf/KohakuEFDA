@@ -13,9 +13,9 @@ Manual and contracts: `docs/en/framework/`.
 | `config.py` | Strict settings and application-owned extension catalog |
 | `control.py` | Work/time budgets, cancellation and errors |
 | `actions.py` | Workspace/handler protocols and relocate/rebuild/reroute handlers |
-| `backend.py` | Site adapter, immutable queries, routing/coverage injection and snapshot codec |
+| `backend.py` | Site adapter, immutable port/tree endpoint queries, routing/coverage injection and snapshot codec |
 | `assessment.py` | Materialization, optional metric-only rejection, mandatory candidate checks and separate rate evidence |
-| `context.py` | Builder, scoped scratch actions, revision-safe publication and best archives |
+| `context.py` | Builder with atomic withdrawal/refill, scoped scratch actions, revision-safe publication events and best archives |
 | `execution.py` | Isolated batch workers and cleanup; no winner-selection policy |
 | `runtime.py` | Solver protocol, Runner and solve lifecycle |
 | `checkpoint.py` | Versioned JSON routed-seed save/load |

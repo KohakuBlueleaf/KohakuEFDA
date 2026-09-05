@@ -17,6 +17,7 @@ from kohakuefda.model.geometry import ROTATIONS
 from kohakuefda.model.plan import Plan
 from kohakuefda.model.solver import (
     BlockInfo,
+    ConnectionTarget,
     Lane,
     Link,
     PortChoice,
@@ -119,9 +120,8 @@ class SiteBackend:
                 p.kind,
                 p.item_id,
                 str(p.rate),
-                tuple(
-                    PortChoice(o.index, o.cell, o.edge.value) for o in p.alternatives
-                ),
+                tuple(PortChoice(o.index, o.cell, o.edge.value) for o in p.alternatives)
+                or (PortChoice(0, p.cell, p.edge.value),),
             )
             for p in block.pins.values()
         )
@@ -152,6 +152,28 @@ class SiteBackend:
             tuple(w.id for w in site.unrouted()),
             site.wire_cells(),
         )
+
+    def connection_targets(self, block_id: str) -> tuple[ConnectionTarget, ...]:
+        site = self.site
+        if block_id not in self.blocks:
+            raise Rejected(f"unknown block {block_id}", "hard_conflict")
+        targets = []
+        for wire in site.touching[block_id]:
+            mine, other = (
+                (wire.source, wire.sink)
+                if wire.source[0] == block_id
+                else (wire.sink, wire.source)
+            )
+            if other[0] in site.placed:
+                cells = tuple(site.router._ends(wire, other)[0])
+                targets.append(ConnectionTarget(wire.id, mine[1], cells))
+        return tuple(targets)
+
+    def repair_ready(self) -> None:
+        site = self.site
+        required = {w.id for w in site.unrouted()}
+        if not self.routing(site, required) or site.unrouted():
+            raise Rejected("remaining construction routes not found")
 
     def mark(self):
         return self.site.snapshot()

@@ -320,7 +320,7 @@ class Router:
             self.recording[wire.id] = (wire, list(wire.cells), wire.branch, wire.join)
 
     def _tree(self, net_id: str, key: PinKey) -> list[Wire]:
-        return self.trees.setdefault((net_id, key), [])
+        return self.trees.get((net_id, key), [])
 
     def _bridges_outside(self, wire: Wire, path: list[Cell]) -> bool:
         """Whether this path would put a bridge outside the area.
@@ -508,8 +508,8 @@ class Router:
             self.grid.add_unit(wire.layer, wire.join)
         wire.cells = cells
         self.hold(wire)
-        self._tree(wire.net_id, wire.source).append(wire)
-        self._tree(wire.net_id, wire.sink).append(wire)
+        self.trees.setdefault((wire.net_id, wire.source), []).append(wire)
+        self.trees.setdefault((wire.net_id, wire.sink), []).append(wire)
         return True
 
     def _option_at(self, key: PinKey, wire: Wire, cell: Cell) -> PortOption | None:

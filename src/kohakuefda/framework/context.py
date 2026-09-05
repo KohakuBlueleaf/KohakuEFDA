@@ -118,6 +118,29 @@ class Builder:
         ctx.revision += 1
         return AttemptResult("placed")
 
+    def withdraw(self, block_ids: tuple[str, ...]) -> AttemptResult:
+        """Remove construction blocks and repair remaining ready routes, or roll back."""
+        self.check()
+        ctx = self.context
+        ctx.budget.charge("actions")
+        if set(block_ids) - ctx.blocks.keys():
+            return AttemptResult("hard_conflict", message="unknown construction block")
+        mark = ctx._backend.mark()
+        accepted = False
+        try:
+            for block_id in sorted(set(block_ids)):
+                ctx._backend.remove(block_id)
+            ctx._backend.repair_ready()
+            ctx.budget.check()
+            accepted = True
+        except Rejected as error:
+            return AttemptResult(error.status, message=str(error))
+        finally:
+            if not accepted:
+                ctx._backend.restore(mark)
+        ctx.revision += 1
+        return AttemptResult("removed")
+
     def finish(self) -> Snapshot:
         self.check()
         snapshot = self.context._backend.capture()
@@ -130,6 +153,7 @@ class Builder:
         self.context._current = snapshot
         self.context._builder = None
         self.context.consider(snapshot)
+        self.context.emit("constructed", {"state_id": snapshot.id})
         return snapshot
 
     def diagnostic(self) -> Snapshot:
@@ -199,6 +223,10 @@ class Context:
     @property
     def pylon_width(self):
         return self._backend.pylon_width
+
+    def connection_targets(self, block_id: str) -> tuple:
+        """Read opposite port/tree endpoints without editing their logical connections."""
+        return self._backend.connection_targets(block_id)
 
     def slot_anchors(self, block_id: str) -> tuple:
         return self._backend.slot_anchors(block_id)

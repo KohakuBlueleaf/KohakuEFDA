@@ -9,8 +9,9 @@ application composition point, not imported by the framework or physical model.
 |---|---|
 | `__init__.py` | Application-visible SOLVERS catalog |
 | `baseline/` | First-feasible spread and greedy shrink |
+| `regional/` | Coupled frontier construction with regional reconstruction and optional greedy compaction |
 
 ## Dependencies
 
 - `kohakuefda.framework`, `kohakuefda.model.solver`.
-- External: none.
+- External: `numpy` for regional candidate queries.

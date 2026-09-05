@@ -5,6 +5,7 @@ crossings and soft congestion, and the router that turns nets into wires,
 trees, trunks, bridges, repeaters and segments. RouteGrid selects native/Python
 per instance and snapshots both mirrors, history and wire identities. Router
 accepts an optional cooperative check callback from the execution framework.
+Tree endpoint lookups do not create empty trees; only accepted routing inserts them.
 
 ## Files
 

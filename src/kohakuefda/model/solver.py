@@ -65,6 +65,15 @@ class Link:
 
 
 @dataclass(frozen=True)
+class ConnectionTarget:
+    """Available opposite-end cells for one connection of a prospective block."""
+
+    link_id: str
+    lane_id: str
+    cells: tuple[Cell, ...]
+
+
+@dataclass(frozen=True)
 class WorldView:
     """Read-only placement, routing and geometry queries at one revision."""
 
