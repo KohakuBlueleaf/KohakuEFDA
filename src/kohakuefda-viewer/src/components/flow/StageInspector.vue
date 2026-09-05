@@ -41,10 +41,7 @@ function collect() {
 
 // Every numeric setting spans its whole legal range: shares and probabilities 0..1,
 // counts and weights 0 and up; floats step freely.
-const RANGES = [
-  { match: /^(p_|route_from$|reheat$)/, min: 0, max: 1 },
-  { match: /./, min: 0, max: null },
-]
+const RANGES = [{ match: /./, min: 0, max: null }]
 
 function boundsOf(key) {
   const range = RANGES.find((r) => r.match.test(key))
@@ -77,21 +74,10 @@ function clamp(key) {
 const GROUPS = [
   {
     key: "spread",
-    match: /^(workers|spread_gap|spread_widest|flow_order|candidate_tries|frame_every)$/,
+    match:
+      /^(workers|spread_attempts|spread_slice|spread_gap|spread_widest|flow_order|frame_every)$/,
   },
   { key: "shrink", match: /^shrink_/ },
-  {
-    key: "placement",
-    match:
-      /^(heuristic|native|start|seed_attempts|seed_draws|build_tries|route_rounds|repair_tries|route_widest|route_slack|route_slacks|route_heat|route_cool)$/,
-  },
-  { key: "anneal", match: /^sa_/ },
-  { key: "evolve", match: /^ga_/ },
-  { key: "moves", match: /^move_/ },
-  {
-    key: "weights",
-    match: /^(w_area|w_overlap|w_group|w_shut|w_crowd|w_tight|w_jam)$/,
-  },
   {
     key: "space",
     match: /^(w_wire|w_unit|w_pull|w_shape|w_over|w_pylon|entry_sides|pylon)$/,
@@ -101,19 +87,20 @@ const GROUPS = [
     match: /^(route_iterations|present_cost|present_growth|turn_cost|bridge_cost|history_cost)$/,
   },
 ]
-const CHOICES = {
+const CHOICES = computed(() => ({
   entry_sides: ["NW", "N", "W", "NESW"],
   flow_order: ["bottom-up", "top-down"],
-  heuristic: ["anneal", "evolve", "off"],
-  native: ["on", "off"],
-  start: ["scatter", "construct", "best-of", "refine"],
-  sa_schedule: ["adaptive", "geometric", "fast-sa"],
+  solver: store.solvers.map((entry) => entry.name),
+  backend: ["auto", "python", "native"],
+}))
+
+function choiceLabel(key, choice) {
+  const label = t(`choices.${key}.${choice}`)
+  return label === `choices.${key}.${choice}` ? choice : label
 }
 
-// The settings that decide what a run does and how long it takes. They sit above the fold,
-// always open: burying the choice of algorithm among forty tuning knobs hides it completely.
 const PRIMARY = {
-  layout: ["heuristic", "restarts", "sa_moves", "seed"],
+  layout: ["solver", "spread_attempts", "workers", "seed"],
 }
 
 const headline = computed(() => (PRIMARY[stage.value] ?? []).filter((key) => key in defaults.value))
@@ -203,7 +190,7 @@ function when(entry) {
             </span>
             <select v-if="CHOICES[key]" v-model="params[key]" class="input-number !w-40">
               <option v-for="choice in CHOICES[key]" :key="choice" :value="choice">
-                {{ t(`choices.${key}.${choice}`) }}
+                {{ choiceLabel(key, choice) }}
               </option>
             </select>
             <input
@@ -234,7 +221,7 @@ function when(entry) {
               }}</span>
               <select v-if="CHOICES[key]" v-model="params[key]" class="input-number !w-32">
                 <option v-for="choice in CHOICES[key]" :key="choice" :value="choice">
-                  {{ t(`choices.${key}.${choice}`) }}
+                  {{ choiceLabel(key, choice) }}
                 </option>
               </select>
               <input

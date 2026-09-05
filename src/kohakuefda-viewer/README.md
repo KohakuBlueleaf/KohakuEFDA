@@ -30,6 +30,10 @@ only. `npm run build` writes into `../kohakuefda/web_dist/`, which
 | `src/i18n/`                      | `useI18n()`, the `en`, `zh-TW`, `zh-CN` bundles, `names.js` (dataset names, rate formatting) |
 | `src/style.css`                  | Theme variables                                                  |
 
+The stage inspector reads registered solver names from `/api/solvers` and
+backend/budget settings from `/api/params`. Extra solver settings use the
+`solver_options` JSON field. Labels exist in all three supported locales.
+
 ## Commands
 
 ```bash

@@ -57,6 +57,7 @@ export const useAppStore = defineStore("app", {
     meta: null,
     examples: [],
     params: {},
+    solvers: [],
     icons: emptyIcons(),
     apiAvailable: false,
     artifacts: {},
@@ -149,6 +150,7 @@ export const useAppStore = defineStore("app", {
         this.meta = await getJson("api/meta")
         this.examples = await getJson("api/examples")
         this.params = await getJson("api/params")
+        this.solvers = await getJson("api/solvers")
         this.icons = await getJson("api/icons")
         this.apiAvailable = true
         await this.listRuns()
