@@ -1,0 +1,27 @@
+mode = "machines"
+mixed_lanes = true
+gas = false
+liquids = true
+events = false
+natural_default = "none"
+gas_default = "none"
+activation = "built"
+depot = "bus"
+core = false
+
+[supply]
+item_iron_ore = "unlimited"
+item_originium_ore = "unlimited"
+item_copper_ore = "unlimited"
+item_liquid_water = "unlimited"
+item_liquid_acid = "unlimited"
+item_plant_tundra_wood = 0
+
+[targets]
+item_proc_battery_5 = 12
+
+[basement]
+region = "wuling"
+basement_id = "wuling_city"
+level = 3
+depot_level = 5
