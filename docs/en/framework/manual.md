@@ -57,6 +57,53 @@ In Studio choose `regional` and set a time budget. Policy overrides go in the
 Balancing belongs to planning; rate evaluation is optional diagnostics rather
 than a regional acceptance penalty.
 
+## Run hill climbing or simulated annealing
+
+Select `hc` or `sa` in Studio. Both use the same coupled move operators and
+maintain separate current and best states. HC accepts improvements and neutral
+moves; SA can also accept worse legal states. The baseline remains the default.
+
+In Python, use `HillClimbing` or `SimulatedAnnealing` from
+`kohakuefda.solvers.local` with the same `problem` built above:
+
+```python
+from kohakuefda.framework import solve
+from kohakuefda.solvers.local import SimulatedAnnealing
+
+result = solve(
+    problem,
+    SimulatedAnnealing(improvement_steps=2000),
+    settings={"seed": 0, "seconds": 60, "backend": "native", "check_rates": False},
+)
+layout = result.best_routed
+```
+
+Check for `None` before using the layout. Use `improvement_steps=0` for
+construction only, or pass a routed `seed` to compare improvement on an existing
+layout. At an SA stop, current may be larger than best; use `best_routed` to
+retrieve the best retained geometry. Studio exposes time/action budgets, backend,
+seed and policy stop controls at the top of the layout inspector. The advanced
+sections provide typed controls for every remaining selected-solver setting;
+`solver_options` remains a synchronized optional JSON editor, for example
+`{"layout_temperature": 0.01}`. Baseline-only spread/workers controls are hidden
+for HC/SA. The time preset buttons set seconds, remove the action cap and enable
+budget-driven search; they do not enable phases whose step count is zero.
+
+A solver stop without a routed result is labelled **incomplete**, not an execution
+failure or a proof that the board is too small. The outcome panel reports the stop
+reason, placement count, work and last-run resolved settings. When a complete
+routed result exists, budget exhaustion retains it and the stage is **done**.
+Verification does not run automatically after an incomplete layout.
+
+HC/SA default to `until_budget=true`: with a supplied time or action budget they
+continue searching beyond nonzero construction/improvement step caps. Increase
+`seconds` to allow more work. Best output never worsens, though some runs plateau.
+To enforce a finite step cap instead, set
+`{"until_budget": false, "improvement_steps": 4000}`. With no global budget the
+finite step caps always apply. `improvement_steps=0` still skips improvement.
+Regional repacking is enabled every 16 improvement proposals; set
+`{"repack_every": 0}` to disable that move without changing HC/SA acceptance.
+
 ## Write a strategy
 
 A strategy needs `name`, `capabilities` and `solve(context) -> str`. It can be a

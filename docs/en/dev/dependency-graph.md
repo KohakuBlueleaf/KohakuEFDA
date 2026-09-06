@@ -42,6 +42,8 @@ solvers catalog          framework runtime
 - `solvers` uses public Context, Builder, Action and immutable records. It does not
   manipulate Site or the native grid directly. `regional` uses candidate queries
   and construction withdrawal; its optional compaction reuses `baseline.shrink`.
+  `local` supplies HC/SA policy over regional insertion/region helpers and builtin
+  actions; it does not use regional's best-prefix loop or baseline compaction.
 - `layout/engine` is a compatibility composition root, not a low-level domain
   dependency. It resolves the solver catalog and injects the selected strategy.
 - `render`, `serve` and `cli` consume artifacts and stage APIs.

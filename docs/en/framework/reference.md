@@ -73,6 +73,72 @@ Regional preserves the input netlist and the backend's logical connections.
 Its acceptance criteria are complete placement, legal routing, and passing geometry
 checks. Rate evaluation is optional and separate from layout acceptance.
 
+## HC and SA settings
+
+`HillClimbing` and `SimulatedAnnealing` in `solvers.local` are catalog entries
+`hc` and `sa`. Both are serial, share coupled moves, and continue from their
+current state rather than restoring best before each proposal. They do not run
+the baseline's greedy shrink. HC accepts lower or equal energy; SA also samples
+positive deltas with `exp(-delta/T)`. Identical physical states are rejected.
+
+Construction uses missing-machine count and assessed withdrawal/refill transactions.
+`insertion_lookahead=6` compares extra routed anchors after the first successful
+insertion, selecting shortest actual routes. Zero restores first-fit insertion.
+Experimental `frontier_weight=0` may be set up to0.5 to add a bounded optimistic
+footprint-obstruction and endpoint-distance score for missing machines. It is not
+proof of connectability. `local_repair_every=0` disables small repairs; N>=2 chooses
+local trials on N-1 steps followed by one regional trial, with
+`local_repair_size=3` as the maximum local scope. These are typed construction
+controls in Studio. Defaults leave the experimental score and local trials off.
+
+Area and occupied bounding rectangles include only cells inside the build area.
+External pipe cells remain in routing state, verification and total route length;
+they do not inflate occupied width/height/area.
+
+Complete-layout energy is `(A + w * L / (B + L)) / B`, using actual
+area `A`, wire-path length `L`, board area `B` and `0 <= wire_tiebreak = w < 1`.
+The length term only breaks area ties: it cannot outweigh a single area cell.
+Shift, rotate, swap, connected-group shift, reroute, gap compression, and
+connection-directed relocation proposals share the same acceptance gate.
+Every accepted complete state passes the framework gate. `best_routed` remains independently
+ordered by the configured objective; it can differ from the current SA state.
+
+Shared defaults: `construction_steps=128`, `improvement_steps=2000`,
+`candidates=150`, `gap=2`, `repair_actions=12000`, `repair_route_calls=24000`,
+`move_radius=4`, `cluster_size=3`, `compaction_moves=true`, `compact_choices=6`,
+`pull_radius=6`, `wire_tiebreak=0.5`, `cooling_work=100000`,
+`layout_cooling_work=20000`, `until_budget=true`, `repack_every=16`,
+`repack_size=8`, `repack_candidates=24`, `repack_gap=1`.
+Each compaction move has twice the sampling weight
+of an original move. Gap compression transactionally relocates only changed
+blocks; pull moves sample short-connection candidates, including legal depot
+slots and border entries. Every `repack_every` proposals, the solver instead
+reconstructs a sampled spatial region inside one scoped action transaction. All
+removed machines and affected routes must be reconnected before normal HC/SA
+acceptance applies. `repack_every=0` disables this move. Failed repairs roll back
+and retain their charged actions and route calls. All routes still require full validation.
+
+SA temperatures: construction `2.0` to `0.05` (missing-machine units), layout
+`0.02` to `0.0000001` (board-area fractions). Cooling is geometric by charged actions
+plus route calls since the phase began, clamped at the final temperature.
+The construction and layout phases use their respective work horizons. This
+work sum is a deterministic cooling clock, not an equal-compute measurement.
+Both temperatures of a phase can be zero for HC-equivalent acceptance.
+
+With the default `until_budget=true` and a supplied global time/action budget,
+enabled phases run until that budget ends rather than stopping at a nonzero step
+cap. With no global budget, or `until_budget=false`, step caps still apply. A zero
+step count always disables its phase: `improvement_steps=0` stops at first complete
+construction. Empty proposals consume an action to avoid infinite no-work loops.
+Budget-driven frames have `of=0` because their step total is not predetermined.
+A supplied routed snapshot starts improvement immediately. Proposal and acceptance RNG streams are
+separate. `transition` events record parent, candidate, next parent, best, delta,
+temperature, probability, draw, result, actual area/wire deltas and work; frames
+use `frame_every`. Disable `compaction_moves`, set `repack_every=0`, and set
+`wire_tiebreak=0` to use the original move set and area-only energy.
+The best archive never worsens, but continued search can still plateau.
+No adaptive operator selection, restart, or exact search-history resume is implied.
+
 ## State records (`model.solver`)
 
 | Record | Contents |
@@ -131,6 +197,25 @@ Use `mark/restore/release` to retain a prefix while exploring a refill.
 
 `builder.finish()` emits `constructed` after geometry-checked publication;
 observers can record time to first routed state at this boundary.
+
+## Compound construction trials and local allowances
+
+`with builder.transaction() as trial:` groups multiple builder operations.
+`trial.assess()` materializes the candidate and checks placed geometry, support,
+groups and ready routes; only missing-machine findings are permitted. Its returned
+snapshot may be partial and is not published. `trial.accept()` retains that
+assessed revision at normal context exit. Without acceptance, or after any
+exception/cancellation/deadline, the pre-trial physical state is restored even
+though normal builder methods would refuse work after the deadline. Work remains
+charged. Nested/reused trials and stale acceptance are rejected. `finish()` is
+allowed only after the trial closes and still requires complete routed geometry.
+
+`with budget.limit(actions=n, route_calls=m):` temporarily bounds named counters.
+Nested allowances all apply; zero allows no additional work of that kind.
+`LocalBudgetExhausted` distinguishes a failed bounded repair from a global budget
+or cancellation stop. It is a `BudgetExhausted` subclass, so solvers continuing
+after local repair failure must catch it before the global exception. Allowances
+never reset global counters; the global action/deadline checks take precedence.
 
 ## Builtin actions
 
