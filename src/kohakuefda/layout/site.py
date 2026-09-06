@@ -368,10 +368,20 @@ class Site:
         return cells
 
     def bbox(self) -> Rect:
+        """Rectangle occupied inside the build area; external routing stays physical only."""
+        x0, y0, x1, y1 = self.area
         if self.grid.native is not None:
             extent = self.grid.extent()
-            return self.area if extent is None else tuple(extent)
-        cells = self.occupied()
+            if extent is None:
+                return self.area
+            if (
+                x0 <= extent[0]
+                and y0 <= extent[1]
+                and extent[2] <= x1
+                and extent[3] <= y1
+            ):
+                return tuple(extent)
+        cells = {(x, y) for x, y in self.occupied() if x0 <= x < x1 and y0 <= y < y1}
         if not cells:
             return self.area
         xs = [c[0] for c in cells]
