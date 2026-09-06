@@ -29,12 +29,33 @@ only. `npm run build` writes into `../kohakuefda/web_dist/`, which
 | `src/stores/app.js`              | Language, artifact loading state, dataset                        |
 | `src/i18n/`                      | `useI18n()`, the `en`, `zh-TW`, `zh-CN` bundles, `names.js` (dataset names, rate formatting) |
 | `src/style.css`                  | Theme variables                                                  |
+| `src/layout-settings.js`         | Catalog field schema, typed request serialization, effective limits and legacy outcome interpretation |
+| `src/layout-settings.test.js`    | Control completeness, types, solver switching, SSR rendering and outcome tests |
+| `src/components/flow/StageInspector.vue` | Stage execution, progress and search outcome panel |
+| `src/components/flow/LayoutSettings.vue` | Primary budgets, typed solver controls, presets and advanced sections |
+| `src/components/flow/SettingField.vue` | Shared typed number, checkbox, text and select control |
+| `src/components/flow/LayoutOutcome.vue` | Search stop reason, retained result and effective last-run settings |
 
-The stage inspector reads registered solver names from `/api/solvers` and
-backend/budget settings from `/api/params`. Extra solver settings use the
-`solver_options` JSON field. Baseline and regional reconstruction choices have
-labels in all three supported locales. Regional runs are serial; baseline-only
-spread settings do not configure the regional policy.
+The stage inspector reads solver defaults, parameter types and parallel capability
+from `/api/solvers`; shared backend/budget settings come from `/api/params`.
+Time/actions, backend, seed and policy stop controls are always visible. Advanced
+sections include construction insertion lookahead and optional frontier/local-repair
+controls, as well as every remaining selected-solver field, serialized as typed values
+in `solver_options`; the optional JSON editor edits those same overrides. Solver
+switching preserves separate drafts. Time presets explicitly enable budget-driven
+search and remove action caps, but do not silently enable a zero-step phase.
+
+HC/SA budget/step semantics and serial execution are shown next to the controls;
+baseline workers/spread settings are hidden for other policies. Final outcomes
+separate `incomplete` search from execution `failed` and preserve a successful
+`done` result even when search ends by budget exhaustion. All three locales have
+control and outcome labels. HC/SA frames report current; the selected artifact is
+best routed. Partial diagnostic artifacts are labelled incomplete, not complete.
+
+## Dependencies
+
+- Vue 3, Pinia, Vite, UnoCSS, unplugin-vue-router and auto-import/component plugins.
+- Backend `/api/params` and `/api/solvers` contracts; no game-model facts embedded in controls.
 
 ## Commands
 

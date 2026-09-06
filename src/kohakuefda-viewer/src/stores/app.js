@@ -1,6 +1,7 @@
 import { defineStore } from "pinia"
 import { deleteJson, getJson, openEvents, postJson } from "@/api"
 import { useToastStore } from "@/stores/toasts"
+import { layoutStatus, optionValues, solverEntry } from "@/layout-settings"
 
 const LANG_KEY = "kohakuefda.lang"
 export const STAGES = ["plan", "netlist", "layout", "verify"]
@@ -80,6 +81,7 @@ export const useAppStore = defineStore("app", {
     selectedStage: "plan",
     pinnedStage: false,
     drafts: {},
+    solverDrafts: {},
   }),
   getters: {
     artifactCount: (state) => state.files.length,
@@ -90,7 +92,10 @@ export const useAppStore = defineStore("app", {
     report: (state) => state.artifacts["report.json"] ?? null,
     evaluation: (state) => state.artifacts["evaluation.json"] ?? null,
     runBusy: (state) => Boolean(state.run?.busy),
-    stageStatus: (state) => (stage) => state.run?.stages?.[stage]?.status ?? "idle",
+    stageStatus: (state) => (stage) =>
+      stage === "layout"
+        ? layoutStatus(state.run?.stages?.layout, state.frames.layout)
+        : (state.run?.stages?.[stage]?.status ?? "idle"),
     activeStage: (state) =>
       STAGES.find((s) => ["running", "queued"].includes(state.run?.stages?.[s]?.status)) ?? "",
     iconUrl: (state) => (kind, id) =>
@@ -216,6 +221,7 @@ export const useAppStore = defineStore("app", {
         this.log = []
         this.frames = emptyFrames()
         this.drafts = {}
+        this.solverDrafts = {}
         this.outcomes = []
         this.alternatives = { alternatives: [], bannable: [] }
         this.scenario = JSON.parse(JSON.stringify(summary.scenario))
@@ -297,7 +303,7 @@ export const useAppStore = defineStore("app", {
       if (event.data.status === "cancelled") {
         toasts.warn(event.stage, "cancelled")
       }
-      if (event.data.status === "done") {
+      if (["done", "incomplete"].includes(event.data.status)) {
         for (const name of PRODUCES[event.stage]) {
           try {
             this.artifacts[`${name}.json`] = await getJson(`api/runs/${runId}/artifacts/${name}`)
@@ -318,7 +324,11 @@ export const useAppStore = defineStore("app", {
           if (!this.pinnedStage) {
             this.selectedStage = event.stage === "netlist" ? "plan" : event.stage
           }
-          toasts.ok(event.stage, "done")
+          if (this.stageStatus(event.stage) === "incomplete") {
+            toasts.warn(event.stage, "No complete routed layout found within search limits")
+          } else {
+            toasts.ok(event.stage, "done")
+          }
         }
       }
     },
@@ -383,7 +393,22 @@ export const useAppStore = defineStore("app", {
       }
       return this.drafts[stage]
     },
+    switchDraftSolver(name) {
+      const draft = this.draftParams("layout")
+      if (name === draft.solver) return
+      const previous = solverEntry(this.solvers, draft.solver)
+      try {
+        this.solverDrafts[draft.solver] = JSON.stringify(optionValues(previous, draft))
+      } catch {
+        this.solverDrafts[draft.solver] = draft.solver_options
+      }
+      const next = solverEntry(this.solvers, name)
+      if (!next) return
+      draft.solver = name
+      draft.solver_options = this.solverDrafts[name] ?? JSON.stringify(next.defaults)
+    },
     resetDraft(stage) {
+      if (stage === "layout") this.solverDrafts = {}
       this.drafts[stage] = { ...(this.params[stage] ?? {}) }
       return this.drafts[stage]
     },

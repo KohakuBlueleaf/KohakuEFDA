@@ -43,7 +43,8 @@ const label = computed(() => {
     const done = `${f.placed ?? f.blocks.length}/${f.total ?? f.blocks.length}`
     return `${t(f.kind === "build" ? "flow.building" : "flow.improving")} · ${done} · ${size} · ${t("flow.cost")} ${f.cost.toFixed(0)}`
   }
-  return `${t("flow.final")} · ${f.fits ? t("flow.fits") : t("flow.tooBig")}`
+  const routed = f.outcome?.routed ?? f.evidence?.routed ?? f.clean ?? f.fits
+  return `${t("flow.final")} · ${t(routed ? "solverUI.routedResult" : "solverUI.incompleteResult")}`
 })
 </script>
 

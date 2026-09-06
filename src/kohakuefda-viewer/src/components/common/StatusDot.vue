@@ -11,6 +11,7 @@ const colour = computed(
       done: "bg-aquamarine",
       idle: "bg-warm-400",
       failed: "bg-coral",
+      incomplete: "bg-amber",
       cancelled: "bg-amber",
     })[props.status] ?? "bg-warm-400",
 )
