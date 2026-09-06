@@ -38,6 +38,7 @@ BACKEND = "native"
 OUT = Path("out/dense-benchmarks")
 VERIFY_RATES = True
 SOLVER_SETTINGS = {}
+SOLVER_OPTIONS = "{}"
 WORLD = {"frame_every": 100000}
 console = Console()
 
@@ -63,7 +64,17 @@ def rate_evidence(dataset, result, snapshot, directory: Path) -> dict:
     }
 
 
-def run_case(dataset, problem, result, name, seed, settings, directory, verify_rates):
+def run_case(
+    dataset,
+    problem,
+    result,
+    name,
+    seed,
+    settings,
+    directory,
+    verify_rates,
+    solver_options=None,
+):
     """Run a catalog solver and save first-observed, best and diagnostic evidence."""
     first = None
     first_elapsed = None
@@ -71,12 +82,17 @@ def run_case(dataset, problem, result, name, seed, settings, directory, verify_r
 
     def observe(event):
         nonlocal first, first_elapsed
-        events.append({"kind": event.kind, "elapsed": event.elapsed})
+        entry = {"kind": event.kind, "elapsed": event.elapsed}
+        if event.kind in ("transition", "constructed", "progress"):
+            entry["payload"] = json.loads(event.payload_json)
+        events.append(entry)
         if first is None and runner.context.best_routed is not None:
             first = runner.context.best_routed
             first_elapsed = event.elapsed
 
-    solver = SOLVERS.get(name).build(SOLVER_SETTINGS.get(name))
+    solver = SOLVERS.get(name).build(
+        {**SOLVER_SETTINGS.get(name, {}), **(solver_options or {}).get(name, {})}
+    )
     runner = Runner(
         problem, settings={**settings, "seed": seed}, world=WORLD, observe=observe
     )
@@ -169,6 +185,7 @@ def main(
     output: Path = OUT,
     dataset_path: Path = DATASET,
     verify_rates: bool = VERIFY_RATES,
+    solver_options: str = SOLVER_OPTIONS,
 ) -> None:
     """Benchmark selected comma-separated cases, catalog solvers and integer seeds."""
     setup("WARNING")
@@ -177,8 +194,20 @@ def main(
     seed_values = [int(seed) for seed in seeds.split(",")]
     if set(selected) - set(CASES.split(",")):
         raise typer.BadParameter("unknown dense battery case")
+    try:
+        options = json.loads(solver_options)
+    except ValueError as error:
+        raise typer.BadParameter("solver-options must be a JSON object") from error
+    if not isinstance(options, dict) or any(
+        not isinstance(value, dict) for value in options.values()
+    ):
+        raise typer.BadParameter("solver-options maps solver names to settings objects")
+    if set(options) - set(names):
+        raise typer.BadParameter("solver-options includes an unselected solver")
     for name in names:
-        SOLVERS.get(name)
+        SOLVERS.get(name).build(
+            {**SOLVER_SETTINGS.get(name, {}), **options.get(name, {})}
+        )
     if seconds < 0 or max_actions < 0 or not (seconds or max_actions):
         raise typer.BadParameter("set a positive seconds or action ceiling")
     if output.exists():
@@ -210,6 +239,7 @@ def main(
             "solvers": names,
             "seeds": seed_values,
             "settings": settings,
+            "solver_options": options,
             "timing": "Serial search; first routed timestamp is first observer notification. Rate checks are post-search, not time-to-first-verified search results.",
         },
     )
@@ -239,6 +269,7 @@ def main(
                     settings,
                     run_dir,
                     verify_rates,
+                    options,
                 )
                 row["case"] = case
                 row["cells"] = len(netlist.cells)

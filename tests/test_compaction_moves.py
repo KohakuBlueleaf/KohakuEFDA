@@ -2,6 +2,9 @@
 
 import json
 import random
+import subprocess
+import sys
+from dataclasses import asdict
 from itertools import pairwise
 from pathlib import Path
 
@@ -150,3 +153,50 @@ def test_old_move_set_remains_available(inputs):
         "cluster",
         "reroute",
     }
+
+
+def test_benchmark_improvement_records_identical_seeds_and_preserves_outputs(
+    inputs, tmp_path
+):
+    _, seed, planned, netlist = inputs
+    source = tmp_path / "source"
+    case = source / "small"
+    initial = case / "hc/0/first"
+    initial.mkdir(parents=True)
+    planned.save(case / "plan.json")
+    netlist.save(case / "netlist.json")
+    (initial / "snapshot.json").write_text(json.dumps(asdict(seed)))
+    output = tmp_path / "comparison"
+    command = [
+        sys.executable,
+        str(ROOT / "scripts/dev/benchmark_improvement.py"),
+        "--source",
+        str(source),
+        "--cases",
+        "small:0",
+        "--output",
+        str(output),
+        "--seconds",
+        "0",
+        "--max-actions",
+        "1",
+        "--backend",
+        "python",
+    ]
+    completed = subprocess.run(
+        command, cwd=ROOT, capture_output=True, text=True, check=False
+    )
+    assert completed.returncode == 0, completed.stderr
+    rows = json.loads((output / "summary.json").read_text())
+    assert len(rows) == 4
+    assert {r["initial_snapshot"] for r in rows} == {seed.id}
+    assert all(row["work"]["actions"] == 1 for row in rows)
+    assert all(
+        row["routed"] and row["assessment"]["rates"] == "not_checked" for row in rows
+    )
+    before = (output / "summary.json").read_bytes()
+    repeated = subprocess.run(
+        command, cwd=ROOT, capture_output=True, text=True, check=False
+    )
+    assert repeated.returncode != 0
+    assert (output / "summary.json").read_bytes() == before
