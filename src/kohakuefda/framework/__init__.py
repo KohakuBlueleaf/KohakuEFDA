@@ -8,6 +8,7 @@ from kohakuefda.framework.control import (
     BudgetExhausted,
     ConfigurationError,
     FrameworkError,
+    LocalBudgetExhausted,
     Rejected,
 )
 from kohakuefda.framework.problem import problem_of
@@ -33,6 +34,7 @@ __all__ = [
     "Context",
     "Entry",
     "FrameworkError",
+    "LocalBudgetExhausted",
     "Problem",
     "Rejected",
     "Scope",

@@ -7,6 +7,7 @@ import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Self
 
 from kohakuefda.framework.actions import default_actions
 from kohakuefda.framework.assessment import AreaWire
@@ -71,6 +72,72 @@ class EditWorkspace:
         self._context._backend.reroute(routes)
 
 
+class BuildTransaction:
+    """An assessed construction edit with rollback on rejection or exceptional exit."""
+
+    def __init__(self, builder: "Builder") -> None:
+        self.builder = builder
+        self.snapshot = None
+        self._mark = None
+        self._active = False
+        self._accepted = False
+        self._revision = -1
+
+    def __enter__(self) -> Self:
+        self.builder.check()
+        if self._mark is not None or self.builder._transaction is not None:
+            raise FrameworkError("construction transactions cannot nest or be reused")
+        self._mark = self.builder.context._backend.mark()
+        self.builder._transaction = self
+        self._active = True
+        return self
+
+    def assess(self) -> Snapshot:
+        if not self._active or self._accepted:
+            raise FrameworkError("construction transaction is closed")
+        self.builder.check()
+        ctx = self.builder.context
+        snapshot = ctx._backend.capture()
+        if any(
+            issue.severity == "error" and issue.rule != "layout.unplaced"
+            for issue in snapshot.assessment.issues
+        ):
+            raise Rejected(
+                "construction candidate has illegal placed geometry or routes"
+            )
+        ctx.budget.check()
+        self.snapshot = snapshot
+        self._revision = ctx.revision
+        return snapshot
+
+    def accept(self) -> None:
+        if not self._active or self._accepted or self.snapshot is None:
+            raise FrameworkError(
+                "construction acceptance requires an assessed transaction"
+            )
+        self.builder.check()
+        if self._revision != self.builder.context.revision:
+            raise FrameworkError("construction changed after assessment")
+        self._accepted = True
+
+    def __exit__(self, exc_type, exc_value, traceback) -> bool:
+        ctx = self.builder.context
+        retain = False
+        try:
+            if exc_type is None and self._accepted:
+                ctx.budget.check()
+                if self._revision != ctx.revision:
+                    raise FrameworkError("construction changed after acceptance")
+                retain = True
+        finally:
+            if not retain:
+                ctx._backend.restore(self._mark)
+                ctx.revision += 1
+            self._active = False
+            self.builder._transaction = None
+        return False
+
+
 class Builder:
     """Partial construction with routed ready connections; never an improvement state."""
 
@@ -79,6 +146,11 @@ class Builder:
         self._marks = {}
         self._counter = 0
         self._closed = False
+        self._transaction = None
+
+    def transaction(self) -> BuildTransaction:
+        """Open a compound construction trial; only explicit assessed acceptance retains it."""
+        return BuildTransaction(self)
 
     def check(self) -> None:
         if self._closed or self.context.current is not None:
@@ -143,6 +215,8 @@ class Builder:
 
     def finish(self) -> Snapshot:
         self.check()
+        if self._transaction is not None:
+            raise FrameworkError("finish requires a closed construction transaction")
         snapshot = self.context._backend.capture()
         if not snapshot.assessment.routed:
             raise Rejected(
