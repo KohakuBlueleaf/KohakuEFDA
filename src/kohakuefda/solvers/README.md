@@ -9,6 +9,7 @@ application composition point, not imported by the framework or physical model.
 |---|---|
 | `__init__.py` | Application-visible SOLVERS catalog |
 | `baseline/` | First-feasible spread and greedy shrink |
+| `local/` | Matched current-state hill-climbing and simulated-annealing construction/improvement |
 | `regional/` | Coupled frontier construction with regional reconstruction and optional greedy compaction |
 
 ## Dependencies
