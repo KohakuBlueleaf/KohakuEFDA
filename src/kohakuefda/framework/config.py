@@ -94,6 +94,10 @@ class Catalog:
                 "version": e.version,
                 "description": e.description,
                 "defaults": dict(e.defaults),
+                "parameter_types": {
+                    key: type(value).__name__ for key, value in e.defaults.items()
+                },
+                "parallel": bool(getattr(e.factory, "parallel", False)),
             }
             for e in self._entries.values()
         ]

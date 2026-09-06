@@ -26,6 +26,20 @@ LAYOUT_DEFAULTS = {
 LayoutError = ConfigurationError
 
 
+def solver_of(params: dict):
+    """Build the selected solver from flat legacy settings and explicit overrides."""
+    entry = SOLVERS.get(params["solver"])
+    try:
+        options = json.loads(params["solver_options"])
+    except (ValueError, TypeError) as error:
+        raise ConfigurationError("solver_options must be a JSON object") from error
+    if not isinstance(options, dict):
+        raise ConfigurationError("solver_options must be a JSON object")
+    return entry.build(
+        {**{k: params[k] for k in entry.defaults if k in params}, **options}
+    )
+
+
 class EngineResult:
     """Legacy stage output backed by a framework snapshot and assessment."""
 
@@ -56,16 +70,7 @@ class Engine:
         self.params = settings_of(LAYOUT_DEFAULTS, params)
         self.problem = problem_of(dataset, netlist)
         self.board = board
-        entry = SOLVERS.get(self.params["solver"])
-        options = json.loads(self.params["solver_options"])
-        if not isinstance(options, dict):
-            raise ConfigurationError("solver_options must be a JSON object")
-        self.solver = entry.build(
-            {
-                **{k: self.params[k] for k in entry.defaults if k in self.params},
-                **options,
-            }
-        )
+        self.solver = solver_of(self.params)
         self.runner = None
         self.site = None
         self.spread = None
@@ -102,11 +107,29 @@ class Engine:
         if result.status == "cancelled":
             raise CancelledError("layout cancelled")
         snapshot = result.best_routed or result.current
+        outcome = {
+            "status": result.status,
+            "routed": result.best_routed is not None,
+            "elapsed": result.elapsed,
+            "work": dict(result.work),
+            "settings": json.loads(result.settings_json),
+        }
         if snapshot is None:
+            frame = self.runner.backend.frame("selected")
+            outcome.update(placed=frame["placed"], total=frame["total"])
+            frame.update(status=result.status, outcome=outcome)
+            self.runner.context.emit("selected", frame)
             raise LayoutError(f"no layout produced: {result.status}")
         selected = EngineResult(self.runner, snapshot)
         frame = self.runner.backend.snapshot_frame(snapshot, "selected")
         frame["status"] = result.status
+        outcome.update(
+            placed=frame["placed"],
+            total=frame["total"],
+            geometry=snapshot.assessment.geometry,
+            rates=snapshot.assessment.rates,
+        )
+        frame["outcome"] = outcome
         self.runner.context.emit("selected", frame)
         return selected
 

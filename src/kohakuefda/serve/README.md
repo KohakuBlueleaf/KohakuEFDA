@@ -6,7 +6,16 @@ API that runs a scenario stage by stage (plan, netlist, layout, verify) with
 checkpoints, tunable parameters, recorded frames, a live event stream that
 resumes after the last sequence seen, requirements and outcomes. `/api/solvers`
 exposes the application solver catalog (`kohakuefda.solvers`); the server never
-loads arbitrary Python code from HTTP settings.
+loads arbitrary Python code from HTTP settings. Catalog entries include parameter
+types and parallel capability for typed controls. Invalid solver options are
+rejected before a stage is queued.
+
+Layout stage summaries retain a structured `outcome`: solver stop status, complete
+routed evidence, elapsed time, work and resolved settings. A budget/step-limited
+search without a routed result ends `incomplete`, preserves available diagnostics,
+and does not run verification. A retained routed result ends `done`, including when
+the solver status is `budget_exhausted`; execution faults remain `failed`.
+Legacy partial `done` frames are reclassified on load without rewriting evidence.
 
 ## Files
 

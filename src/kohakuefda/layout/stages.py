@@ -10,8 +10,10 @@ machine placed and wired, an ``improve`` frame whenever a move betters the layou
 import logging
 
 from kohakuefda.flow.evaluate import Evaluation, evaluate
+from kohakuefda.framework.config import settings_of
+from kohakuefda.framework.control import ConfigurationError
 from kohakuefda.layout.board import Board, board_of
-from kohakuefda.layout.engine import LAYOUT_DEFAULTS, Engine
+from kohakuefda.layout.engine import LAYOUT_DEFAULTS, Engine, solver_of
 from kohakuefda.layout.place import Block
 from kohakuefda.model.cells import Netlist
 from kohakuefda.model.control import Cancelled, Observe
@@ -45,16 +47,13 @@ def params_of(stage: str, given: dict | None = None) -> dict:
     """The stage's defaults overridden by ``given``, each value cast to the default's type."""
     if stage not in DEFAULTS:
         raise StageError(f"unknown stage {stage!r}")
-    defaults = DEFAULTS[stage]
-    out = dict(defaults)
-    for key, value in (given or {}).items():
-        if key not in defaults:
-            raise StageError(f"unknown {stage} parameter {key!r}")
-        try:
-            out[key] = type(defaults[key])(value)
-        except (TypeError, ValueError) as error:
-            raise StageError(f"{stage} parameter {key!r}: {error}") from error
-    return out
+    try:
+        out = settings_of(DEFAULTS[stage], given)
+        if stage == "layout":
+            solver_of(out)
+        return out
+    except ConfigurationError as error:
+        raise StageError(f"{stage} parameters: {error}") from error
 
 
 def blocks_of(dataset: Dataset, netlist: Netlist) -> list[Block]:
@@ -101,7 +100,8 @@ def layout_stage(
     layout = result.layout
     layout.notes = (
         f"{scenario.basement.basement_id} level {scenario.basement.level}, "
-        f"seed {settings['seed']}, spread budget {settings['spread_attempts']}"
+        f"solver {settings['solver']}, seed {settings['seed']}, "
+        f"time budget {settings['seconds']}s, action budget {settings['max_actions']}"
     )
     return result.placement, layout
 

@@ -14,8 +14,8 @@ from kohakuefda.flow.evaluate import evaluate
 from kohakuefda.layout.board import board_of
 from kohakuefda.layout.coverage import cover, covered, inside, zone_rect
 from kohakuefda.layout.depot_via import BUS_PORT, BUS_SECTION, io_budget
-from kohakuefda.layout.engine import Engine, LayoutError
-from kohakuefda.layout.stages import params_of
+from kohakuefda.layout.engine import Engine
+from kohakuefda.layout.stages import StageError, params_of
 from kohakuefda.model.basement import Region
 from kohakuefda.model.cells import CellInstance, Netlist, NetSpec, PinRef
 from kohakuefda.model.control import CancelledError
@@ -361,9 +361,9 @@ def test_cancellation_and_a_budget_that_cannot_run(dataset: Dataset) -> None:
     netlist = _furnace_pair(dataset)
     with pytest.raises(CancelledError):
         _engine(dataset, netlist, workers=1).run(None, lambda: True)
-    with pytest.raises(LayoutError):
+    with pytest.raises(StageError):
         _engine(dataset, netlist, spread_gap=-1)
-    with pytest.raises(LayoutError):
+    with pytest.raises(StageError):
         _engine(dataset, netlist, spread_gap=4, spread_widest=2)
 
 

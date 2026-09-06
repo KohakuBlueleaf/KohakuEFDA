@@ -10,7 +10,7 @@ Manual and contracts: `docs/en/framework/`.
 |---|---|
 | `__init__.py` | Public exports |
 | `problem.py` | Immutable domain capture and content identities |
-| `config.py` | Strict settings and application-owned extension catalog |
+| `config.py` | Strict settings and application-owned catalog with parameter types and parallel capability metadata |
 | `control.py` | Global work/time budgets, nested local work allowances, cancellation and errors |
 | `actions.py` | Workspace/handler protocols and relocate/rebuild/reroute handlers |
 | `backend.py` | Site adapter, immutable port/tree endpoint queries, routing/coverage injection and snapshot codec |

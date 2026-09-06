@@ -18,6 +18,7 @@ DEFAULTS = {
 
 class Baseline:
     name = "spread-greedy-v1"
+    parallel = True
     capabilities = frozenset({"place", "relocate", "rebuild"})
 
     def __init__(self, **settings) -> None:

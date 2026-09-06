@@ -49,7 +49,7 @@ PRODUCES = {
     "verify": ("report", "evaluation"),
 }
 FRAME_STAGES = ("layout",)
-FINAL = ("done", "failed", "cancelled", "idle")
+FINAL = ("done", "incomplete", "failed", "cancelled", "idle")
 
 log = logging.getLogger(__name__)
 
@@ -67,6 +67,7 @@ class StageState:
         self.started: float | None = None
         self.finished: float | None = None
         self.error = ""
+        self.outcome: dict | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -75,6 +76,7 @@ class StageState:
             "started": self.started,
             "finished": self.finished,
             "error": self.error,
+            "outcome": self.outcome,
         }
 
     @classmethod
@@ -87,6 +89,7 @@ class StageState:
         state.started = raw.get("started")
         state.finished = raw.get("finished")
         state.error = raw.get("error", "")
+        state.outcome = raw.get("outcome")
         return state
 
 
@@ -197,6 +200,25 @@ class Run:
             path = directory / "frames" / f"{stage}.json"
             if path.is_file():
                 run.frames[stage] = json.loads(path.read_text(encoding="utf-8"))
+        state = run.stages["layout"]
+        if state.status == "done" and state.outcome is None:
+            final = next(
+                (f for f in reversed(run.frames["layout"]) if f.get("kind") == "final"),
+                None,
+            )
+            if final is not None and "status" in final:
+                state.outcome = final.get("outcome") or {
+                    "status": final["status"],
+                    "routed": final.get("evidence", {}).get(
+                        "routed", final.get("clean", False)
+                    ),
+                    "placed": final.get("placed"),
+                    "total": final.get("total"),
+                    "elapsed": final.get("elapsed"),
+                    "settings": {"runtime": state.params},
+                }
+                if state.outcome["routed"] is False:
+                    state.status = "incomplete"
         return run
 
 
@@ -278,6 +300,7 @@ class RunManager:
             state = run.stages[name]
             state.status = "idle"
             state.error = ""
+            state.outcome = None
             state.started = state.finished = None
             for artifact in PRODUCES[name]:
                 run.artifacts.pop(artifact, None)
@@ -321,12 +344,22 @@ class RunManager:
             log.info("run %s: stage %s started", run.id, stage)
             try:
                 self._run_stage(run, stage, state.params)
-                state.status = "done"
+                state.status = (
+                    "incomplete"
+                    if state.outcome and not state.outcome["routed"]
+                    else "done"
+                )
             except CancelledError:
                 state.status = "cancelled"
             except Exception as error:  # noqa: BLE001
-                state.status = "failed"
-                state.error = f"{type(error).__name__}: {error}"
+                if state.outcome and state.outcome.get("status") in (
+                    "no_solution_found",
+                    "budget_exhausted",
+                ):
+                    state.status = "incomplete"
+                else:
+                    state.status = "failed"
+                    state.error = f"{type(error).__name__}: {error}"
             state.finished = time.time()
             duration = state.finished - state.started
             if state.status == "failed":
@@ -360,6 +393,8 @@ class RunManager:
         artifacts = run.artifacts
 
         def observe(frame: dict) -> None:
+            if frame.get("kind") == "final" and frame.get("outcome"):
+                run.stages[stage].outcome = frame["outcome"]
             run.frames[stage].append(frame)
             run.emit("frame", stage, frame, len(run.frames[stage]) - 1)
 

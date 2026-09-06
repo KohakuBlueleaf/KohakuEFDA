@@ -17,10 +17,10 @@ The baseline constructs a routed spread and greedily compacts it through Context
 | `board.py` | Basement, ring, fixed cells and slots |
 | `groups.py` | Mandatory group constraints |
 | `site.py` | Backend-owned placement/routing state, complete snapshots and build-area-clipped occupied bounds |
-| `engine.py` | Compatibility/composition adapter to framework Runner and solver catalog |
+| `engine.py` | Validated solver composition, Runner adapter and structured final search outcome |
 | `assemble.py` | Blocks/support to emitted layout and routing pins |
 | `chunk.py` | Blueprint module partitioning |
-| `stages.py` | Four stage APIs and parameter validation |
+| `stages.py` | Four stage APIs and strict shared/solver parameter validation before execution |
 | `pipeline.py` | Scenario-to-artifacts orchestration and recorded frames |
 
 ## Dependencies

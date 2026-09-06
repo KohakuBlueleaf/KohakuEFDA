@@ -50,7 +50,7 @@ def _wait(base_url: str, run_id: str, stage: str) -> dict:
     while time.time() < deadline:
         _, summary = _request(f"{base_url}/api/runs/{run_id}")
         state = summary["stages"][stage]
-        if state["status"] in ("done", "failed", "cancelled"):
+        if state["status"] in ("done", "incomplete", "failed", "cancelled"):
             return summary
         time.sleep(0.2)
     raise AssertionError(f"stage {stage} did not finish")
@@ -75,8 +75,14 @@ def test_meta_examples_and_params(base_url: str) -> None:
     status, solvers = _request(f"{base_url}/api/solvers")
     assert status == 200
     by_name = {entry["name"]: entry for entry in solvers}
-    assert {"baseline", "regional"} <= by_name.keys()
+    assert {"baseline", "regional", "hc", "sa"} <= by_name.keys()
+    assert by_name["hc"]["defaults"] == by_name["sa"]["defaults"]
     assert by_name["regional"]["defaults"]["attempts"] == 128
+    assert by_name["hc"]["parameter_types"]["until_budget"] == "bool"
+    assert by_name["hc"]["parameter_types"]["construction_temperature"] == "float"
+    assert by_name["baseline"]["parallel"]
+    assert not by_name["hc"]["parallel"]
+    assert not by_name["sa"]["parallel"]
 
 
 def test_scenario_toml_round_trip(base_url: str) -> None:
