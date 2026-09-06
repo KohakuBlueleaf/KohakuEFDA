@@ -1,5 +1,6 @@
 """Shared coupled construction repair and complete-layout mutation operators."""
 
+from kohakuefda.framework.control import Rejected
 from kohakuefda.model.geometry import ROTATIONS
 from kohakuefda.model.solver import Action
 from kohakuefda.solvers.local.compact import CompactionMoves
@@ -8,20 +9,89 @@ from kohakuefda.solvers.regional import DEFAULTS as REGIONAL_DEFAULTS
 from kohakuefda.solvers.regional.search import Search
 
 
+class ConstructionSearch(Search):
+    def insert(self, block_id, anchors):
+        if not self.settings["insertion_lookahead"]:
+            return super().insert(block_id, anchors)
+        before = self.builder.mark()
+        best = None
+        best_cost = float("inf")
+        chosen = None
+        remaining = None
+        try:
+            for anchor in anchors:
+                if remaining is not None:
+                    remaining -= 1
+                    if remaining < 0:
+                        break
+                result = self.builder.place(block_id, anchor)
+                if result.status != "placed":
+                    continue
+                if remaining is None:
+                    remaining = self.settings["insertion_lookahead"]
+                cost = self.context.view.wire_cells
+                if cost < best_cost:
+                    if best is not None:
+                        self.builder.release(best)
+                    best = self.builder.mark()
+                    best_cost, chosen = cost, anchor
+                self.builder.restore(before)
+            if best is None:
+                return False
+            self.builder.restore(best)
+            self.proposals.occupy(block_id, chosen)
+            return True
+        finally:
+            self.builder.release(before)
+            if best is not None:
+                self.builder.release(best)
+
+
 class ConstructionMoves:
     """Reuse regional insertion/region operators without its best-prefix search policy."""
 
     def __init__(self, context, settings) -> None:
         self.context = context
-        self.repair = Search(
+        self.repair = ConstructionSearch(
             context,
             {
                 **REGIONAL_DEFAULTS,
                 "candidates": settings["candidates"],
                 "gap": settings["gap"],
+                "insertion_lookahead": settings["insertion_lookahead"],
             },
         )
         self.repair.rng = context.rng("local.proposals")
+        self.settings = settings
+
+    def prepare(self, step):
+        if (
+            self.settings["local_repair_every"]
+            and step % self.settings["local_repair_every"]
+        ):
+            placed = dict(self.context.anchors)
+            free = [
+                i
+                for i in placed
+                if self.context.blocks[i].constraint == "free"
+                and not self.context.blocks[i].group
+            ]
+            if not free:
+                return "local"
+            root = self.repair.rng.choice(free)
+            x, y, _ = placed[root]
+            near = sorted(
+                free, key=lambda i: abs(placed[i][0] - x) + abs(placed[i][1] - y)
+            )
+            size = self.repair.rng.randint(1, self.settings["local_repair_size"])
+            result = self.repair.builder.withdraw(tuple(near[:size]))
+            if result.status != "removed":
+                raise Rejected(result.message, result.status)
+            return "local"
+        result = self.repair.builder.withdraw(self.region(step))
+        if result.status != "removed":
+            raise Rejected(result.message, result.status)
+        return "regional"
 
     def region(self, step: int) -> tuple[str, ...]:
         placed = dict(self.context.anchors)

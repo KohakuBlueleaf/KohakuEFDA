@@ -1,0 +1,27 @@
+mode = "machines"
+mixed_lanes = true
+gas = false
+liquids = true
+events = false
+natural_default = "plenty"
+gas_default = "none"
+activation = "built"
+depot = "bus"
+core = false
+
+[supply]
+item_iron_ore = "unlimited"
+item_originium_ore = "unlimited"
+item_copper_ore = "unlimited"
+item_liquid_acid = "unlimited"
+item_liquid_water = "unlimited"
+item_quartz_sand = "unlimited"
+
+[targets]
+item_proc_battery_5 = "min"
+
+[basement]
+region = "wuling"
+basement_id = "cardiac_remediation_station"
+level = 3
+depot_level = 4

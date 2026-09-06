@@ -10,7 +10,7 @@ as the baseline. Only the framework owns mutable physical state.
 |---|---|
 | `__init__.py` | Regional solver and validated policy defaults |
 | `candidates.py` | Temporary clearance map and compatible-port-distance proposals |
-| `search.py` | Frontier order, missing-machine pressure, restarts and regional withdrawal/refill |
+| `search.py` | Overridable priority/insertion operators, missing-machine pressure, restarts and regional withdrawal/refill |
 
 ## Contracts
 

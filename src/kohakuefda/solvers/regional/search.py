@@ -82,6 +82,25 @@ class Search:
             )
         )
 
+    def priority(self, i, placed, jitter):
+        block = self.blocks[i]
+        n = sum(j in placed for j in self.neighbors[i])
+        return (
+            block.kind == "depot",
+            n > 0,
+            self.pressure[i] + n / (len(self.neighbors[i]) or 1),
+            n,
+            block.width * block.height,
+            jitter[i],
+        )
+
+    def insert(self, block_id, anchors):
+        for anchor in anchors:
+            if self.builder.place(block_id, anchor).status == "placed":
+                self.proposals.occupy(block_id, anchor)
+                return True
+        return False
+
     def construct(self, trial: int) -> list[str]:
         remaining = set(self.blocks) - dict(self.context.anchors).keys()
         jitter = {i: self.rng.random() for i in self.blocks}
@@ -96,26 +115,10 @@ class Search:
                 failed.extend(sorted(remaining))
                 break
 
-            def priority(i, placed=placed):
-                block = self.blocks[i]
-                n = sum(j in placed for j in self.neighbors[i])
-                return (
-                    block.kind == "depot",
-                    n > 0,
-                    self.pressure[i] + n / (len(self.neighbors[i]) or 1),
-                    n,
-                    block.width * block.height,
-                    jitter[i],
-                )
-
-            block_id = max(ready, key=priority)
+            block_id = max(ready, key=lambda i: self.priority(i, placed, jitter))
             remaining.remove(block_id)
             anchors = self.proposals.ranked(block_id, trial, self.rng)
-            for anchor in anchors:
-                if self.builder.place(block_id, anchor).status == "placed":
-                    self.proposals.occupy(block_id, anchor)
-                    break
-            else:
+            if not self.insert(block_id, anchors):
                 failed.append(block_id)
             if not remaining and failed and retries < self.settings["refill_rounds"]:
                 remaining = set(failed)

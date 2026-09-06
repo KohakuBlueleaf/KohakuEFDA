@@ -9,6 +9,10 @@ DEFAULTS = {
     "improvement_steps": 2000,
     "candidates": 150,
     "gap": 2,
+    "frontier_weight": 0.0,
+    "insertion_lookahead": 6,
+    "local_repair_every": 0,
+    "local_repair_size": 3,
     "repair_actions": 12000,
     "repair_route_calls": 24000,
     "move_radius": 4,
@@ -40,6 +44,7 @@ POSITIVE = (
     "compact_choices",
     "pull_radius",
     "repack_candidates",
+    "local_repair_size",
 )
 
 
@@ -53,6 +58,10 @@ class LocalSolver:
         for key in POSITIVE:
             if self.settings[key] < 1:
                 raise ConfigurationError(f"{key} must be positive")
+        if self.settings["frontier_weight"] > 0.5:
+            raise ConfigurationError("frontier_weight must not exceed 0.5")
+        if self.settings["local_repair_every"] == 1:
+            raise ConfigurationError("local_repair_every must be zero or at least two")
         if self.settings["repack_size"] < 2:
             raise ConfigurationError("repack_size must be at least two")
         if self.settings["wire_tiebreak"] >= 1:

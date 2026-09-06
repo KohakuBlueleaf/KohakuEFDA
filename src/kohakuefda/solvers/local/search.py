@@ -8,6 +8,7 @@ from kohakuefda.framework.control import (
     Rejected,
 )
 from kohakuefda.model.control import CancelledError
+from kohakuefda.solvers.local.frontier import Frontier
 from kohakuefda.solvers.local.moves import ConstructionMoves, LayoutMoves
 from kohakuefda.solvers.local.policy import (
     Decision,
@@ -17,6 +18,7 @@ from kohakuefda.solvers.local.policy import (
     missing,
     temperature,
 )
+from kohakuefda.solvers.regional import DEFAULTS as REGIONAL_DEFAULTS
 
 
 class Trajectory:
@@ -30,6 +32,8 @@ class Trajectory:
         self.current = None
         self.best = None
         self.phase_work = 0
+        self.potentials = {}
+        self.frontier = Frontier(context, REGIONAL_DEFAULTS)
         self.frame_every = int(context.world_settings["frame_every"])
         x0, y0, x1, y1 = context.area
         self.board_area = (x1 - x0) * (y1 - y0)
@@ -69,7 +73,12 @@ class Trajectory:
         if identity(parent) == identity(candidate):
             return 0.0, Decision(False, 0.0), "duplicate"
         if phase == "construction":
-            delta = missing(candidate) - missing(parent)
+            delta = (
+                missing(candidate)
+                - missing(parent)
+                + self.settings["frontier_weight"]
+                * (self.potentials[candidate.id] - self.potentials[parent.id])
+            )
         else:
             delta = layout_delta(
                 dict(parent.assessment.metrics),
@@ -118,6 +127,10 @@ class Trajectory:
                 "probability": decision.probability,
                 "draw": decision.draw,
                 "accepted": decision.accepted,
+                "parent_potential": self.potentials.get(parent.id),
+                "candidate_potential": (
+                    self.potentials.get(candidate.id) if candidate else None
+                ),
                 "parent_missing": missing(parent),
                 "candidate_missing": missing(candidate) if candidate else None,
                 "parent_area": dict(parent.assessment.metrics)["area"],
@@ -160,6 +173,9 @@ class Trajectory:
         moves = ConstructionMoves(ctx, self.settings)
         self.current = self.best = builder.diagnostic()
         ctx.diagnostic = self.best
+        self.potentials[self.current.id] = (
+            self.frontier.potential() if self.settings["frontier_weight"] else 0.0
+        )
         self.phase_work = self.work()
         for step in self.steps("construction"):
             ctx.budget.charge("construction_steps")
@@ -176,11 +192,14 @@ class Trajectory:
                         route_calls=self.settings["repair_route_calls"],
                     ):
                         if step and ctx.anchors:
-                            result = builder.withdraw(moves.region(step))
-                            if result.status != "removed":
-                                raise Rejected(result.message, result.status)
+                            operator = moves.prepare(step)
                         moves.fill(step)
                     candidate = trial.assess()
+                    self.potentials[candidate.id] = (
+                        self.frontier.potential()
+                        if self.settings["frontier_weight"]
+                        else 0.0
+                    )
                     delta, decision, outcome = self.choose(
                         parent, candidate, "construction", heat
                     )
@@ -224,6 +243,9 @@ class Trajectory:
                 delta,
                 decision,
             )
+            self.potentials = {
+                s.id: self.potentials[s.id] for s in (self.current, self.best)
+            }
             if self.current.assessment.routed:
                 builder.finish()
                 return True

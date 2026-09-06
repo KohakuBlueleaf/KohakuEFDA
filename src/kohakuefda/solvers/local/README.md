@@ -9,7 +9,8 @@ They share move generation and differ only in uphill acceptance.
 | File | Provides |
 |---|---|
 | `__init__.py` | Validated shared defaults, HillClimbing and SimulatedAnnealing |
-| `moves.py` | Regional refill and complete-layout mutation proposals |
+| `moves.py` | Routed insertion lookahead, local/regional repair and complete-layout mutation proposals |
+| `frontier.py` | Optional optimistic obstruction/endpoint-distance score for missing machines |
 | `compact.py` | Compound gap compression and connection-directed relocation proposals |
 | `repack.py` | Scoped whole-region reconstruction action with bounded coupled insertion |
 | `policy.py` | Area-first bounded tie-break, acceptance, work-based cooling and physical identity |
@@ -17,8 +18,21 @@ They share move generation and differ only in uphill acceptance.
 
 ## Behavior
 
-Construction energy counts missing machines. Regional insertion/region helpers
-serve both methods without the regional best-prefix search loop.
+Construction uses regional insertion/region helpers, not their best-prefix loop.
+`insertion_lookahead=6` compares up to six additional anchor trials after the first
+routed insertion and retains the shortest actual routed realization. Set zero for
+first-fit insertion. All trials are charged and remain inside the macro transaction.
+
+The default construction energy is missing-machine count. Optional
+`frontier_weight` adds an optimistic obstruction/endpoint-distance term: each missing
+free machine searches all fitting rectangular anchors, minimizing footprint overlap
+plus normalized distance to its currently available opposite endpoints. The mean
+penalty is bounded by two; weight must be in `[0, 0.5]`. It estimates opportunity,
+not routing feasibility, and defaults to zero. `local_repair_every=0` disables
+small-region construction trials; a value N>=2 uses local trials on N-1 of every N
+steps and the original regional repair on the remaining step. Their maximum size
+is `local_repair_size=3`. These guidance settings are experimental and are not
+claims of improved reliability. Transition evidence records both potential values.
 
 Complete-state energy is `(area + w * L / (B + L)) / B`, where `L` is
 actual routed wire-path length, `B` is board area and `w=wire_tiebreak` is in
