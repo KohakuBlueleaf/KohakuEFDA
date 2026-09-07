@@ -5,6 +5,7 @@ import { flowDimensions } from "@/draw"
 import { useI18n } from "@/i18n"
 import { useNames } from "@/i18n/names"
 import { useAppStore } from "@/stores/app"
+import { progressFrames, progressOf, useFinalArtifact } from "@/progress"
 
 const { t } = useI18n()
 const names = useNames()
@@ -18,10 +19,22 @@ const hover = ref(null)
 const stageEl = ref(null)
 
 const catalogue = computed(() => store.frames.layout.find((f) => f?.kind === "catalogue") ?? null)
-const frames = computed(() => store.frames.layout.filter((f) => f && f.kind !== "catalogue"))
+const frames = computed(() => progressFrames(store.frames.layout))
 const { index, playing, speed, live } = useTimeline(frames)
 const frame = computed(() => frames.value[Math.min(index.value, frames.value.length - 1)] ?? null)
-const finalReady = computed(() => Boolean(store.layout) && showFinal.value)
+const finalReady = computed(
+  () =>
+    Boolean(store.layout) &&
+    !frame.value?.layout &&
+    useFinalArtifact({
+      showFinal: showFinal.value,
+      playing: playing.value,
+      live: live.value,
+      index: index.value,
+      count: frames.value.length,
+      running: ["running", "queued"].includes(store.stageStatus("layout")),
+    }),
+)
 const gridSize = computed(() =>
   finalReady.value && store.layout
     ? [store.layout.width, store.layout.height]
@@ -38,13 +51,9 @@ const label = computed(() => {
   if (!f) {
     return ""
   }
-  if (f.kind === "build" || f.kind === "improve") {
-    const size = `${f.rect[2] - f.rect[0]}×${f.rect[3] - f.rect[1]}`
-    const done = `${f.placed ?? f.blocks.length}/${f.total ?? f.blocks.length}`
-    return `${t(f.kind === "build" ? "flow.building" : "flow.improving")} · ${done} · ${size} · ${t("flow.cost")} ${f.cost.toFixed(0)}`
-  }
-  const routed = f.outcome?.routed ?? f.evidence?.routed ?? f.clean ?? f.fits
-  return `${t("flow.final")} · ${t(routed ? "solverUI.routedResult" : "solverUI.incompleteResult")}`
+  const p = progressOf(f)
+  const key = `progress.phase.${p.phase}`
+  return `${t(key) === key ? p.phase : t(key)} · ${p.placed ?? "—"}/${p.total ?? "—"} · ${Number(p.elapsed ?? 0).toFixed(2)} s`
 })
 </script>
 
@@ -77,6 +86,7 @@ const label = computed(() => {
         t("flow.noFrames")
       }}</span>
     </div>
+    <LayoutProgress :frame="frame" :frames="frames" />
     <div class="flex-1 min-h-0 flex gap-3">
       <div
         ref="stageEl"
@@ -112,6 +122,7 @@ const label = computed(() => {
           :cell-size="cellSize"
           :catalogue="catalogue"
           :frame="frame"
+          :show-items="showItems"
           :show-labels="showLabels"
           :show-coverage="showCoverage"
           :lang="names.lang.value"

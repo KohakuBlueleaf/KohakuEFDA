@@ -1,4 +1,5 @@
 import { pickName } from "@/i18n/names"
+import { frameSpace } from "@/progress"
 
 export const EDGES = ["N", "E", "S", "W"]
 export const STEP = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0] }
@@ -71,7 +72,7 @@ export function sizeCanvas(element, width, height) {
 
 export function flowDimensions(frame, catalogue, square) {
   const frameRect = frame?.rect
-  const grid = catalogue?.grid ?? square
+  const grid = frameSpace(frame, catalogue, square).grid
   if (!frameRect) {
     return grid
   }

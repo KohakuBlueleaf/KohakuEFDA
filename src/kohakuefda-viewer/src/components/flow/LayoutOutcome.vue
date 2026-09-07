@@ -40,7 +40,14 @@ const reason = computed(() => {
       >{{ t("solverUI.workUsed") }}: {{ result.work.actions ?? 0 }} {{ t("solverUI.actions") }} ·
       {{ result.work.route_calls ?? 0 }} {{ t("solverUI.routes") }}</span
     >
-    <span v-if="!result.routed" class="text-amber">{{ t("solverUI.incompleteHint") }}</span>
+    <span v-if="!result.routed && result.workspace_routed" class="text-amber">{{
+      t("solverUI.workspaceHint", {
+        width: result.workspace_width,
+        height: result.workspace_height,
+        overflow: result.target_overflow,
+      })
+    }}</span>
+    <span v-else-if="!result.routed" class="text-amber">{{ t("solverUI.incompleteHint") }}</span>
     <span v-else-if="result.status === 'budget_exhausted'" class="text-secondary">{{
       t("solverUI.bestRetained")
     }}</span>

@@ -5,7 +5,6 @@ import {
   drawBlocks,
   drawCells,
   drawEntries,
-  drawMarks,
   drawPath,
   drawPylons,
   drawRect,
@@ -15,6 +14,8 @@ import {
   sizeCanvas,
 } from "@/draw"
 import { useThemeStore } from "@/stores/theme"
+import { frameSpace } from "@/progress"
+import { drawProgressLayout } from "@/progress-draw"
 
 const props = defineProps({
   dataset: { type: Object, required: true },
@@ -24,6 +25,7 @@ const props = defineProps({
   catalogue: { type: Object, default: null },
   frame: { type: Object, default: null },
   showLabels: { type: Boolean, default: true },
+  showItems: { type: Boolean, default: true },
   showCoverage: { type: Boolean, default: true },
   lang: { type: String, default: "en" },
   fill: { type: Boolean, default: false },
@@ -42,7 +44,7 @@ function drawWires(ctx, frame, size, p) {
   const items = frame.items ?? {}
   for (const [id, kind, net, cells] of frame.wires ?? []) {
     const pipe = kind === "pipe"
-    const colour = itemColour(items[id] ?? net, p, pipe)
+    const colour = props.showItems ? itemColour(items[id] ?? net, p, pipe) : pipe ? p.pipe : p.belt
     drawPath(ctx, cells, size, colour, pipe ? 0.5 : 0.32, null, pipe)
   }
 }
@@ -58,16 +60,27 @@ function draw() {
   const ctx = sizeCanvas(element, width * size, height * size)
   drawBackground(ctx, width, height, size, p)
   const catalogue = props.catalogue
-  if (catalogue?.area) {
-    drawArea(ctx, [width, height], catalogue.area, size, p)
+  const space = frameSpace(props.frame, catalogue, props.square)
+  if (space.area) {
+    drawArea(ctx, [width, height], space.area, size, p)
     drawCells(
       ctx,
-      (catalogue.slots ?? []).map(([x, y]) => [x, y]),
+      space.slots.map(([x, y]) => [x, y]),
       size,
       p.slot,
     )
   }
+  drawCells(ctx, space.fixed, size, p.fixed)
   const frame = props.frame
+  if (frame?.layout) {
+    drawProgressLayout(ctx, frame, props.dataset, size, p, {
+      showLabels: props.showLabels,
+      showItems: props.showItems,
+      showCoverage: props.showCoverage,
+      lang: props.lang,
+    })
+    return
+  }
   if (!catalogue || !frame?.blocks) {
     return
   }
@@ -83,6 +96,7 @@ function draw() {
   })
   drawEntries(ctx, frame.entries ?? [], props.dataset, size, p, props.lang, props.showLabels)
   drawWires(ctx, frame, size, p)
+  drawRect(ctx, space.target, size, p.areaEdge)
 }
 
 function onMove(event) {
@@ -101,6 +115,7 @@ watch(
     props.catalogue,
     props.frame,
     props.showLabels,
+    props.showItems,
     props.showCoverage,
     props.lang,
     theme.dark,

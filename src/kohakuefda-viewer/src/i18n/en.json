@@ -1,4 +1,29 @@
 {
+  "progress": {
+    "phase": {
+      "construction": "Construction",
+      "improvement": "Improvement",
+      "compaction": "Target compaction",
+      "expansion": "Workspace expansion",
+      "projection": "Target validation",
+      "parallel": "Parallel construction",
+      "final": "Stopped / selected result"
+    },
+    "current": "Current state",
+    "best": "Best retained",
+    "selected": "Selected result",
+    "worker": "Worker",
+    "target": "Target boundary (blue)",
+    "targetRouted": "Target-valid routed state",
+    "workspace": "Workspace",
+    "overflow": "Overflow distance",
+    "workspaceOnly": "Workspace routed; target not met",
+    "partial": "Not a target-valid complete layout",
+    "bestMissing": "Best missing machines",
+    "workerWork": "Worker actions / routes",
+    "rates": "Rate evidence",
+    "curve": "Current / best over elapsed seconds"
+  },
   "app": {
     "title": "KohakuEFDA",
     "theme": "Light / dark"
@@ -538,6 +563,7 @@
     "incompleteHint": "This is not proof of impossibility. Increase the relevant search budget or try another seed. Partial diagnostics are not a complete layout.",
     "bestRetained": "The budget ended after a solution was found; the best routed layout is preserved.",
     "usedLimits": "Last-run time/action limits (0 = off)",
+    "workspaceHint": "Fully routed only in the temporary {width}×{height} workspace. Target boundary not met; overflow distance {overflow}. This is not a buildable result for the requested basement.",
     "workUsed": "Work spent",
     "actions": "actions",
     "routes": "route calls",

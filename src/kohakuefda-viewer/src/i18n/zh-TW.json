@@ -1,4 +1,29 @@
 {
+  "progress": {
+    "phase": {
+      "construction": "建構中",
+      "improvement": "改善中",
+      "compaction": "壓縮至目標邊界",
+      "expansion": "擴展搜尋空間",
+      "projection": "目標佈局驗證",
+      "parallel": "平行建構",
+      "final": "已停止／選定結果"
+    },
+    "current": "目前狀態",
+    "best": "保留最佳",
+    "selected": "選定結果",
+    "worker": "工作程序",
+    "target": "目標邊界（藍色）",
+    "targetRouted": "符合目標的完整佈線狀態",
+    "workspace": "搜尋空間",
+    "overflow": "超界距離",
+    "workspaceOnly": "搜尋空間內已佈線，尚未符合目標",
+    "partial": "尚非符合目標的完整佈局",
+    "bestMissing": "最佳狀態缺少機器",
+    "workerWork": "工作程序操作／佈線",
+    "rates": "產率驗證",
+    "curve": "目前／最佳曲線（經過秒數）"
+  },
   "app": {
     "title": "KohakuEFDA",
     "theme": "淺色 / 深色"
@@ -538,6 +563,7 @@
     "incompleteHint": "這不代表不可能。可增加相關搜尋預算或更換種子；部分診斷並非完整佈局。",
     "bestRetained": "預算在找到解之後用盡，最佳完整佈線結果已保留。",
     "usedLimits": "上次時間／操作限制（0 停用）",
+    "workspaceHint": "僅在暫時的 {width}×{height} 搜尋空間內完成佈線，尚未符合目標邊界；超界距離 {overflow}。這不是可在指定基地建造的結果。",
     "workUsed": "已用工作量",
     "actions": "操作",
     "routes": "佈線呼叫",
