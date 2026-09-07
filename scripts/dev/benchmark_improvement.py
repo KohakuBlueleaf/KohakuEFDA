@@ -42,6 +42,8 @@ CONFIGS = {
     "sa": ("sa", {}),
     "hc-compact": ("hc", {"repack_every": 0}),
     "sa-compact": ("sa", {"repack_every": 0}),
+    "hc-tree": ("hc-tree", {"tree_improvement": True}),
+    "sa-tree": ("sa-tree", {"tree_improvement": True}),
 }
 console = Console()
 

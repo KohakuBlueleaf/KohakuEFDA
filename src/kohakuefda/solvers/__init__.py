@@ -3,11 +3,26 @@
 from kohakuefda.framework.config import Catalog, Entry
 from kohakuefda.solvers.baseline import DEFAULTS, Baseline
 from kohakuefda.solvers.local import DEFAULTS as LOCAL_DEFAULTS
-from kohakuefda.solvers.local import HillClimbing, SimulatedAnnealing
+from kohakuefda.solvers.local import (
+    TREE_DEFAULTS,
+    HillClimbing,
+    SimulatedAnnealing,
+    TreeHillClimbing,
+    TreeSimulatedAnnealing,
+)
 from kohakuefda.solvers.regional import DEFAULTS as REGIONAL_DEFAULTS
 from kohakuefda.solvers.regional import Regional
 
 SOLVERS = Catalog()
+for name, solver in (
+    ("hc-tree", TreeHillClimbing),
+    ("sa-tree", TreeSimulatedAnnealing),
+):
+    SOLVERS.register(
+        Entry(
+            name, solver, TREE_DEFAULTS, "Experimental B*-tree-guided coupled search."
+        )
+    )
 SOLVERS.register(
     Entry(
         "hc",

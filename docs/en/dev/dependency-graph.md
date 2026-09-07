@@ -44,6 +44,8 @@ solvers catalog          framework runtime
   and construction withdrawal; its optional compaction reuses `baseline.shrink`.
   `local` supplies HC/SA policy over regional insertion/region helpers and builtin
   actions; it does not use regional's best-prefix loop or baseline compaction.
+  Its experimental B*-tree variants decode structural preferences through those same
+  public coupled operations; tree geometry never bypasses physical assessment.
 - `layout/engine` is a compatibility composition root, not a low-level domain
   dependency. It resolves the solver catalog and injects the selected strategy.
 - `render`, `serve` and `cli` consume artifacts and stage APIs.

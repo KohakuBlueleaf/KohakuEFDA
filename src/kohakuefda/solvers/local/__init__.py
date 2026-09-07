@@ -3,6 +3,8 @@
 from kohakuefda.framework.config import settings_of
 from kohakuefda.framework.control import ConfigurationError
 from kohakuefda.solvers.local.search import Trajectory
+from kohakuefda.solvers.local.structural import DEFAULTS as TREE_OPTIONS
+from kohakuefda.solvers.local.structural import TreeTrajectory
 
 DEFAULTS = {
     "construction_steps": 128,
@@ -52,9 +54,11 @@ class LocalSolver:
     """Construct and improve from current state; archive the best independently."""
 
     capabilities = frozenset({"place", "relocate", "reroute"})
+    defaults = DEFAULTS
+    trajectory = Trajectory
 
     def __init__(self, **settings) -> None:
-        self.settings = settings_of(DEFAULTS, settings)
+        self.settings = settings_of(self.defaults, settings)
         for key in POSITIVE:
             if self.settings[key] < 1:
                 raise ConfigurationError(f"{key} must be positive")
@@ -75,7 +79,7 @@ class LocalSolver:
                 )
 
     def solve(self, context) -> str:
-        trajectory = Trajectory(context, self.settings, self.method)
+        trajectory = self.trajectory(context, self.settings, self.method)
         if context.current is None and not trajectory.construct():
             return "no_solution_found"
         trajectory.improve()
@@ -89,4 +93,30 @@ class HillClimbing(LocalSolver):
 
 class SimulatedAnnealing(LocalSolver):
     name = "simulated-annealing-v1"
+    method = "sa"
+
+
+TREE_DEFAULTS = {**DEFAULTS, **TREE_OPTIONS}
+
+
+class TreeSolver(LocalSolver):
+    defaults = TREE_DEFAULTS
+    trajectory = TreeTrajectory
+
+    def __init__(self, **settings):
+        super().__init__(**settings)
+        for key in ("tree_every", "tree_gap", "tree_max_gap", "tree_candidates"):
+            if self.settings[key] < 1:
+                raise ConfigurationError(f"{key} must be positive")
+        if self.settings["tree_gap"] > self.settings["tree_max_gap"]:
+            raise ConfigurationError("tree_gap must not exceed tree_max_gap")
+
+
+class TreeHillClimbing(TreeSolver):
+    name = "hill-climbing-btree-v1"
+    method = "hc"
+
+
+class TreeSimulatedAnnealing(TreeSolver):
+    name = "simulated-annealing-btree-v1"
     method = "sa"

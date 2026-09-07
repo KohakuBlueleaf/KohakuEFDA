@@ -8,13 +8,16 @@ They share move generation and differ only in uphill acceptance.
 
 | File | Provides |
 |---|---|
-| `__init__.py` | Validated shared defaults, HillClimbing and SimulatedAnnealing |
+| `__init__.py` | Validated HC/SA defaults and experimental tree-guided variants |
 | `moves.py` | Routed insertion lookahead, local/regional repair and complete-layout mutation proposals |
 | `frontier.py` | Optional optimistic obstruction/endpoint-distance score for missing machines |
 | `compact.py` | Compound gap compression and connection-directed relocation proposals |
 | `repack.py` | Scoped whole-region reconstruction action with bounded coupled insertion |
 | `policy.py` | Area-first bounded tie-break, acceptance, work-based cooling and physical identity |
-| `search.py` | Current-state construction and improvement trajectories, best archives and transition events |
+| `search.py` | Current-state trajectories, move lifecycle hooks, best archives and transition events |
+| `tree.py` | Immutable B*-tree topology, validated serialization, contour packing and subtree mutations |
+| `decode.py` | Coupled realization of structural preferences with endpoint-distance ranking |
+| `structural.py` | Paired structural/physical ancestry, transactional tree neighborhoods and scoped actions |
 
 ## Behavior
 
@@ -88,8 +91,52 @@ temperature, draw, outcome, actual area/wire deltas and work. Studio frames hono
 (zero disables them). `best_routed` is the best factory, not necessarily current
 at an annealing stop. No exact search-resume claim is made by layout checkpoints.
 
+## Experimental structural variants
+
+`hc-tree` and `sa-tree` augment the physical search state with an immutable B*-tree.
+A subtree graft, machine-label swap, orientation change or clearance change can
+alter many preferred anchors at once. Contour packing produces preferences, not a
+routing certificate. Every insertion still uses the coupled physical backend.
+No recipe, logical connection or balancing decision is changed by the tree.
+
+With `tree_relative=true`, a mutation's packed displacement is applied to the
+retained physical anchors. Unchanged machines stay in place; affected machines are
+withdrawn and decoded against retained port/tree endpoints. `tree_relative=false`
+uses absolute packed preferences. The full search state is the tree **and** its
+retained physical realization, not the tree alone. Rejected or interrupted trials
+retain both parents; neutral structural changes are distinct even when the physical
+realization is identical. Neither solver resets its trajectory to the best archive.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `tree_every` | 4 | One structural construction trial per N proposals; positive |
+| `tree_gap` | 2 | Initial packed clearance; positive |
+| `tree_max_gap` | 4 | Upper bound for clearance mutations |
+| `tree_candidates` | 150 | Maximum ranked physical anchors attempted per insertion/pass |
+| `tree_pull` | 0.5 | Preference-distance weight alongside opposite-endpoint distance |
+| `tree_clearance` | 2 | Initial decoding clearance; failed insertions retry with zero |
+| `tree_rebuild` | false | Decode from empty instead of retaining unaffected placement |
+| `tree_warm_start` | true | Initial construction uses the ordinary regional refill, not spread |
+| `tree_relative` | true | Apply structural displacement relative to retained physical anchors |
+| `tree_improvement` | false | Also enable structural moves on complete layouts; experimental |
+
+By default the complete-layout phase retains ordinary HC/SA compaction and repacking.
+`tree_improvement=true` enables the scoped `local.tree` action; its serialized tree
+and target anchors make attempts independent of subsequent proposal mutations.
+All decoding work uses the existing repair/global budgets. Complete-layout candidates
+must remain fully routed and geometry-checked. The ordinary `hc`/`sa` defaults are
+unchanged; structural variants are not a claim of universal improvement.
+
+Transition events include structural parent/candidate/next ids, the candidate tree,
+preferred anchors and changed-target count. Realized movement counts only retained
+machines whose anchors changed; additions/removals have separate counters. Missing
+candidate evidence is null, not a zero-movement claim. Portable layout snapshots do
+not resume the tree or RNG trajectory; supplying a routed seed initializes a new tree.
+The dense benchmark accepts the exact `wuling50` fixture. Improvement benchmark
+`hc-tree`/`sa-tree` profiles explicitly opt into structural complete-layout moves.
+
 ## Dependencies
 
 - `kohakuefda.framework`, `kohakuefda.model`.
 - Regional proposal/repair helpers, not its search or greedy compaction policy.
-- External: `numpy` through regional candidate generation.
+- External: `numpy` for regional candidate generation and structural endpoint-distance queries.

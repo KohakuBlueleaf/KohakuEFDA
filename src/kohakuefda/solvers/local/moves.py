@@ -47,7 +47,17 @@ class ConstructionSearch(Search):
                 self.builder.release(best)
 
 
-class ConstructionMoves:
+class MovePolicy:
+    """Optional representation lifecycle for a matched proposal family."""
+
+    def accept(self) -> None:
+        pass
+
+    def evidence(self, candidate=None) -> dict:
+        return {}
+
+
+class ConstructionMoves(MovePolicy):
     """Reuse regional insertion/region operators without its best-prefix search policy."""
 
     def __init__(self, context, settings) -> None:
@@ -109,7 +119,7 @@ class ConstructionMoves:
         self.repair.construct(step)
 
 
-class LayoutMoves:
+class LayoutMoves(MovePolicy):
     """Sample a shared mixture of local, route and coordinated compaction moves."""
 
     def __init__(self, context, settings) -> None:

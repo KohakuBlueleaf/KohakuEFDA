@@ -32,11 +32,18 @@ class Trajectory:
         self.current = None
         self.best = None
         self.phase_work = 0
+        self.moves = None
         self.potentials = {}
         self.frontier = Frontier(context, REGIONAL_DEFAULTS)
         self.frame_every = int(context.world_settings["frame_every"])
         x0, y0, x1, y1 = context.area
         self.board_area = (x1 - x0) * (y1 - y0)
+
+    def construction_moves(self):
+        return ConstructionMoves(self.context, self.settings)
+
+    def layout_moves(self):
+        return LayoutMoves(self.context, self.settings)
 
     def step_limit(self, phase: str) -> int | None:
         limit = self.settings[f"{phase}_steps"]
@@ -69,8 +76,11 @@ class Trajectory:
             ],
         )
 
+    def equivalent(self, parent, candidate):
+        return identity(parent) == identity(candidate)
+
     def choose(self, parent, candidate, phase, heat):
-        if identity(parent) == identity(candidate):
+        if self.equivalent(parent, candidate):
             return 0.0, Decision(False, 0.0), "duplicate"
         if phase == "construction":
             delta = (
@@ -113,6 +123,7 @@ class Trajectory:
         ctx.emit(
             "transition",
             {
+                **(self.moves.evidence(candidate) if self.moves else {}),
                 "method": self.method,
                 "phase": phase,
                 "step": step,
@@ -170,7 +181,7 @@ class Trajectory:
     def construct(self) -> bool:
         ctx = self.context
         builder = ctx.builder()
-        moves = ConstructionMoves(ctx, self.settings)
+        self.moves = moves = self.construction_moves()
         self.current = self.best = builder.diagnostic()
         ctx.diagnostic = self.best
         self.potentials[self.current.id] = (
@@ -206,6 +217,7 @@ class Trajectory:
                     if decision.accepted:
                         trial.accept()
                 if decision.accepted:
+                    moves.accept()
                     self.current = candidate
                 if candidate is not None and (
                     missing(candidate),
@@ -252,8 +264,7 @@ class Trajectory:
         return False
 
     def improve(self) -> None:
-        ctx = self.context
-        moves = LayoutMoves(ctx, self.settings)
+        self.moves = moves = self.layout_moves()
         try:
             self.improve_with(moves)
         finally:
@@ -292,6 +303,7 @@ class Trajectory:
                         ctx.consider(candidate)
                         if decision.accepted:
                             ctx.accept(issued)
+                            moves.accept()
             except LocalBudgetExhausted:
                 outcome = "repair_budget"
             except (BudgetExhausted, CancelledError):

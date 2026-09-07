@@ -30,6 +30,8 @@ from kohakuefda.verify.rules.rates import rate_findings
 DATASET = Path("data/1.5.3@9764758-3/dataset.json")
 FIXTURES = Path("tests/fixtures")
 CASES = "valley6,valley12,valley18,wuling6,wuling12"
+SCENARIOS = {case: f"scenario_dense_{case}.toml" for case in CASES.split(",")}
+SCENARIOS["wuling50"] = "scenario_wuling_battery50.toml"
 SOLVER_NAMES = "baseline"
 SEEDS = "0,1,2"
 SECONDS = 60.0
@@ -192,7 +194,7 @@ def main(
     selected = cases.split(",")
     names = solvers.split(",")
     seed_values = [int(seed) for seed in seeds.split(",")]
-    if set(selected) - set(CASES.split(",")):
+    if set(selected) - SCENARIOS.keys():
         raise typer.BadParameter("unknown dense battery case")
     try:
         options = json.loads(solver_options)
@@ -247,7 +249,7 @@ def main(
     for case in selected:
         directory = output / case
         directory.mkdir()
-        scenario = Scenario.from_toml(FIXTURES / f"scenario_dense_{case}.toml")
+        scenario = Scenario.from_toml(FIXTURES / SCENARIOS[case])
         result = plan(dataset, scenario)
         netlist = build_netlist(dataset, scenario, result)
         problem = problem_of(dataset, netlist, result)
