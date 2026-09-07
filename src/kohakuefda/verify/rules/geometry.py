@@ -462,11 +462,11 @@ def bus_connected(dataset: Dataset, layout: Layout) -> list[Finding]:
     ]
 
 
-def entries_on_border(layout: Layout) -> list[Finding]:
+def entries_on_border(layout: Layout, entry_area: Rect | None = None) -> list[Finding]:
     """An outside input sits on a border cell of the area with the outside beyond its edge
     (RES-09); no two share a cell."""
     out: list[Finding] = []
-    area = layout.area_rect
+    area = entry_area or layout.area_rect
     seen: set[tuple[int, int]] = set()
     for entry in layout.entries:
         inside_area = rect_inside((entry.x, entry.y, entry.x + 1, entry.y + 1), area)
@@ -513,7 +513,9 @@ def pipes_over_machines(
     return out
 
 
-def check_layout(dataset: Dataset, layout: Layout) -> list[Finding]:
+def check_layout(
+    dataset: Dataset, layout: Layout, *, entry_area: Rect | None = None
+) -> list[Finding]:
     """All geometry rules in one pass."""
     occ = occupancy_of(dataset, layout)
     conn = Connectivity(dataset, layout)
@@ -528,7 +530,7 @@ def check_layout(dataset: Dataset, layout: Layout) -> list[Finding]:
     findings += area_and_ring(dataset, layout)
     findings += depot_bus(dataset, layout)
     findings += bus_connected(dataset, layout)
-    findings += entries_on_border(layout)
+    findings += entries_on_border(layout, entry_area)
     findings += pipes_over_machines(dataset, layout, occ)
     for placed in layout.machines:
         if not all(

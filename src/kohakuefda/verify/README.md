@@ -9,7 +9,7 @@ report is the machine artifact; the CLI renders it.
 | File                | Description                                                                 |
 | ------------------- | --------------------------------------------------------------------------- |
 | `report.py`         | `Report`: findings, verdict, save/load                                      |
-| `rules/geometry.py` | bounds, overlap, segment shape and run length, port connections and merges, unit counts, conduit links, gas zones, pylon coverage (12×12 squares from the dataset's pylons), the core, the area and its ring, depot bricks touching a Depot Bus with their back face, a laid bus one cluster with its port, outside inputs on the border, pipe over machine; `check_layout` |
+| `rules/geometry.py` | bounds, overlap, segment shape and run length, port connections and merges, unit counts, conduit links, gas zones, pylon coverage (12×12 squares from the dataset's pylons), the core, the area and its ring, depot bricks touching a Depot Bus with their back face, a laid bus one cluster with its port, outside inputs on the border (optionally retained independently of search extent), pipe over machine; `check_layout` |
 | `rules/rates.py`    | `rate_findings` over an evaluation: convergence, crafters below utilisation 1, idle sources |
 
 ## Rule ids

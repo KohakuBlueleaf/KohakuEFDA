@@ -61,6 +61,7 @@ class SiteBackend:
         backend: str = "auto",
         routing=None,
         coverage=None,
+        board=None,
     ) -> None:
         if backend not in ("auto", "python", "native"):
             raise ConfigurationError(f"unknown backend {backend!r}")
@@ -83,7 +84,7 @@ class SiteBackend:
         self.site = Site(
             dataset,
             netlist,
-            board_of(dataset, netlist.scenario),
+            board if board is not None else board_of(dataset, netlist.scenario),
             self.settings,
             budget.check,
             native=backend != "python",
@@ -233,7 +234,7 @@ class SiteBackend:
         )
 
     def border_anchors(self) -> tuple:
-        x0, y0, x1, y1 = self.site.area
+        x0, y0, x1, y1 = self.site.board.entry_area
         result = []
         for side in self.settings["entry_sides"]:
             if side == "N":

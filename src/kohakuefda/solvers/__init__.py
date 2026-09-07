@@ -10,10 +10,24 @@ from kohakuefda.solvers.local import (
     TreeHillClimbing,
     TreeSimulatedAnnealing,
 )
+from kohakuefda.solvers.outline import DEFAULTS as OUTLINE_DEFAULTS
+from kohakuefda.solvers.outline import OutlineHillClimbing, OutlineSimulatedAnnealing
 from kohakuefda.solvers.regional import DEFAULTS as REGIONAL_DEFAULTS
 from kohakuefda.solvers.regional import Regional
 
 SOLVERS = Catalog()
+for name, solver in (
+    ("hc-outline", OutlineHillClimbing),
+    ("sa-outline", OutlineSimulatedAnnealing),
+):
+    SOLVERS.register(
+        Entry(
+            name,
+            solver,
+            OUTLINE_DEFAULTS,
+            "Experimental expanded-workspace construction and fixed-outline search.",
+        )
+    )
 for name, solver in (
     ("hc-tree", TreeHillClimbing),
     ("sa-tree", TreeSimulatedAnnealing),

@@ -19,7 +19,8 @@ Manual and contracts: `docs/en/framework/`.
 | `execution.py` | Isolated batch workers and cleanup; no winner-selection policy |
 | `runtime.py` | Solver protocol, Runner and solve lifecycle |
 | `checkpoint.py` | Versioned JSON routed-seed save/load |
-| `scopes.py` | Component membership, footprint union and boundary-link views |
+| `scopes.py` | Component membership, footprint union and boundary-link queries |
+| `workspace.py` | Isolated expanded search, original entry/slot geometry, shared budgets, overflow metrics and strict target projection |
 
 ## Dependencies
 

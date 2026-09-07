@@ -128,6 +128,10 @@ class Engine:
             total=frame["total"],
             geometry=snapshot.assessment.geometry,
             rates=snapshot.assessment.rates,
+            workspace_routed=bool(selected.terms.get("workspace_routed", 0)),
+            target_overflow=selected.terms.get("target_overflow", 0),
+            workspace_width=selected.terms.get("workspace_width"),
+            workspace_height=selected.terms.get("workspace_height"),
         )
         frame["outcome"] = outcome
         self.runner.context.emit("selected", frame)

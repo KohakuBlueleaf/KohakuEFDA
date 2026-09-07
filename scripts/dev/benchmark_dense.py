@@ -85,7 +85,11 @@ def run_case(
     def observe(event):
         nonlocal first, first_elapsed
         entry = {"kind": event.kind, "elapsed": event.elapsed}
-        if event.kind in ("transition", "constructed", "progress"):
+        if event.kind in (
+            "transition",
+            "constructed",
+            "progress",
+        ) or event.kind.startswith("workspace_"):
             entry["payload"] = json.loads(event.payload_json)
         events.append(entry)
         if first is None and runner.context.best_routed is not None:

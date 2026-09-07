@@ -18,12 +18,14 @@ class Board:
         slots: list[Slot],
         fixed: set[Cell],
         findings: list[Finding],
+        entry_area: Rect | None = None,
     ) -> None:
         self.square = square
         self.ring = ring
         self.slots = slots
         self.fixed = fixed
         self.findings = findings
+        self.entry_area = entry_area or self.area
 
     @property
     def grid(self) -> tuple[int, int]:

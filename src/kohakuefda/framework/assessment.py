@@ -159,7 +159,7 @@ def assess(
                 message="mandatory spatial group constraints failed",
             )
         )
-    findings += check_layout(site.dataset, layout)
+    findings += check_layout(site.dataset, layout, entry_area=site.board.entry_area)
     geometry = "fail" if any(f.severity == "error" for f in findings) else "pass"
     rate_status = "not_checked"
     if rates and plan is not None:
