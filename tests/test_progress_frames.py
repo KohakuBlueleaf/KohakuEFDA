@@ -63,6 +63,7 @@ def test_every_solver_streams_checked_frames_through_real_stage(
             "layout",
             {
                 "solver": name,
+                "seconds": 0,
                 "frame_every": 1,
                 "solver_options": json.dumps(options(name)),
                 "workers": 1,
@@ -111,6 +112,8 @@ def test_parallel_baseline_forwards_live_worker_geometry(dataset, scenario):
         params_of(
             "layout",
             {
+                "solver": "baseline",
+                "seconds": 0,
                 "workers": 2,
                 "frame_every": 1,
                 "solver_options": json.dumps(options("baseline")),
@@ -180,6 +183,7 @@ def test_cancellation_preserves_terminal_frame_after_live_observation(
             "layout",
             {
                 "solver": name,
+                "seconds": 0,
                 "frame_every": 1,
                 "max_actions": 3000,
             },

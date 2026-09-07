@@ -119,7 +119,16 @@ def test_run_stage_by_stage_with_checkpoints(base_url: str, workspace: Path) -> 
 
     status, queued = _request(
         f"{base_url}/api/runs/{run_id}/stages/layout",
-        {"params": {"workers": 1, "frame_every": 20}, "through": "verify"},
+        {
+            "params": {
+                "solver": "baseline",
+                "seconds": 0,
+                "backend": "auto",
+                "workers": 1,
+                "frame_every": 20,
+            },
+            "through": "verify",
+        },
     )
     assert status == 202
     summary = _wait(base_url, run_id, "verify")
@@ -162,7 +171,15 @@ def test_rerun_layout_with_other_settings_clears_later_stages(base_url: str) -> 
     _, before = _request(f"{base_url}/api/runs/{run_id}/artifacts/layout")
     status, queued = _request(
         f"{base_url}/api/runs/{run_id}/stages/layout",
-        {"params": {"turn_cost": 0.5, "spread_gap": 1}},
+        {
+            "params": {
+                "solver": "baseline",
+                "seconds": 0,
+                "backend": "auto",
+                "turn_cost": 0.5,
+                "spread_gap": 1,
+            }
+        },
     )
     assert status == 202 and queued["queued"] == ["layout"]
     assert queued["run"]["stages"]["verify"]["status"] == "idle"
@@ -265,6 +282,7 @@ def test_all_catalog_solvers_deliver_sse_progress_and_matching_replay(
             {
                 "params": {
                     "solver": entry["name"],
+                    "seconds": 0,
                     "workers": 1,
                     "frame_every": 1,
                     "solver_options": json.dumps(opts),

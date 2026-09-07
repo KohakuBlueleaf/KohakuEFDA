@@ -35,11 +35,17 @@ only. `npm run build` writes into `../kohakuefda/web_dist/`, which
 | `src/progress-draw.js`           | Materialized progress layout and workspace/target boundary rendering |
 | `src/components/flow/LayoutProgress.vue` | Selected-frame phase, current/best evidence, workspace/target distinction and curves |
 | `src/layout-settings.js`         | Catalog field schema, typed request serialization, effective limits and legacy outcome interpretation |
-| `src/layout-settings.test.js`    | Control completeness, types, solver switching, SSR rendering and outcome tests |
+| `src/layout-settings.test.js`    | Control completeness, types, solver switching, SSR rendering and outcome checks |
+| `src/default-layout.test.js`     | Default HC budget, phase caps, fresh drafts, reset and saved-setting preservation |
 | `src/components/flow/StageInspector.vue` | Stage execution, progress and search outcome panel |
 | `src/components/flow/LayoutSettings.vue` | Primary budgets, typed solver controls, presets and advanced sections |
 | `src/components/flow/SettingField.vue` | Shared typed number, checkbox, text and select control |
 | `src/components/flow/LayoutOutcome.vue` | Search stop reason, workspace-only warning, retained target result and last-run settings |
+
+Fresh layout drafts and reset use standard `hc`, 600 seconds, native backend,
+seed 0 and no action limit, with both phase caps set to 1,000,000. Search-until-budget
+is enabled; zero phase caps disable phases rather than remove their limits.
+Saved-run parameters still seed existing drafts and are not rewritten by a reset.
 
 The stage inspector reads solver defaults, parameter types and parallel capability
 from `/api/solvers`; shared backend/budget settings come from `/api/params`.

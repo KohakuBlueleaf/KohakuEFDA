@@ -49,7 +49,13 @@ NUGGET = "item_copper_nugget"
 WATER = "item_liquid_water"
 SEWAGE = "item_liquid_sewage"
 GAS = "item_gas_inert"
-FAST = {"workers": 1, "frame_every": 1000}
+FAST = {
+    "solver": "baseline",
+    "seconds": 0,
+    "backend": "auto",
+    "workers": 1,
+    "frame_every": 1000,
+}
 
 
 @pytest.fixture(scope="module")

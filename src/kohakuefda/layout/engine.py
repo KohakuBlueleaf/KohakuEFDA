@@ -21,7 +21,11 @@ LAYOUT_DEFAULTS = {
     **WORLD_DEFAULTS,
     **DEFAULTS,
     **{k: v for k, v in RUNTIME_DEFAULTS.items() if k != "check_rates"},
-    "solver": "baseline",
+    "solver": "hc",
+    "seconds": 600.0,
+    "backend": "native",
+    "construction_steps": 1_000_000,
+    "improvement_steps": 1_000_000,
     "solver_options": "{}",
 }
 LayoutError = ConfigurationError

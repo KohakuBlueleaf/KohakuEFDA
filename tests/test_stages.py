@@ -56,7 +56,13 @@ def test_layout_stage_records_frames_and_a_checkpoint(
     placement, layout = layout_stage(
         dataset,
         built,
-        {"workers": 1, "frame_every": 10},
+        {
+            "solver": "baseline",
+            "seconds": 0,
+            "backend": "auto",
+            "workers": 1,
+            "frame_every": 10,
+        },
         frames.append,
     )
     catalogue = frames[0]
@@ -88,7 +94,13 @@ def test_layout_stage_records_frames_and_a_checkpoint(
 
 def test_layout_is_reproducible_for_a_seed(dataset: Dataset, netlist) -> None:
     _, built = netlist
-    settings = {"workers": 1, "seed": 5}
+    settings = {
+        "solver": "baseline",
+        "seconds": 0,
+        "backend": "auto",
+        "workers": 1,
+        "seed": 5,
+    }
     first = layout_stage(dataset, built, settings)[1]
     again = layout_stage(dataset, built, settings)[1]
     assert first.model_dump() == again.model_dump()

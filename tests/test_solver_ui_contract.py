@@ -5,11 +5,17 @@ from pathlib import Path
 
 import pytest
 
+from kohakuefda.framework import problem_of
+from kohakuefda.framework.runtime import Runner
 from kohakuefda.layout.engine import solver_of
 from kohakuefda.layout.stages import StageError, params_of
 from kohakuefda.model.dataset import Dataset
 from kohakuefda.model.scenario import Scenario
+from kohakuefda.plan.netlist import build_netlist
+from kohakuefda.plan.planner import plan
 from kohakuefda.serve.runs import Run, RunError, RunManager
+from kohakuefda.solvers.local import HillClimbing
+from kohakuefda.solvers.local.search import Trajectory
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -30,6 +36,27 @@ def prepared(dataset, scenario, tmp_path):
     manager._execute(run, ["plan", "netlist"])
     assert run.stages["netlist"].status == "done"
     return manager, run
+
+
+def test_default_layout_is_standard_hc_with_time_controlled_phases(dataset, scenario):
+    params = params_of("layout")
+    assert params["solver"] == "hc"
+    assert params["seconds"] == 600
+    assert params["backend"] == "native" and params["seed"] == 0
+    assert params["max_actions"] == 0
+    solver = solver_of(params)
+    assert type(solver) is HillClimbing
+    assert solver.settings["until_budget"] is True
+    assert solver.settings["construction_steps"] == 1_000_000
+    assert solver.settings["improvement_steps"] == 1_000_000
+    planned = plan(dataset, scenario)
+    context = Runner(
+        problem_of(dataset, build_netlist(dataset, scenario, planned), planned),
+        settings={"seconds": params["seconds"]},
+    ).context
+    trajectory = Trajectory(context, solver.settings, "hc")
+    assert trajectory.step_limit("construction") is None
+    assert trajectory.step_limit("improvement") is None
 
 
 def test_ui_payload_keeps_booleans_and_explicit_solver_overrides():
@@ -58,7 +85,11 @@ def test_ui_payload_keeps_booleans_and_explicit_solver_overrides():
     baseline = solver_of(
         params_of(
             "layout",
-            {"spread_attempts": 2, "solver_options": '{"spread_attempts": 17}'},
+            {
+                "solver": "baseline",
+                "spread_attempts": 2,
+                "solver_options": '{"spread_attempts": 17}',
+            },
         )
     )
     assert baseline.settings["spread_attempts"] == 17

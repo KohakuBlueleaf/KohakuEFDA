@@ -29,7 +29,16 @@ def battery():
 
 def test_hub_battery_stops_at_first_complete_spread_and_shrinks(battery) -> None:
     dataset, netlist = battery
-    settings = params_of("layout", {"workers": 1, "spread_attempts": 32})
+    settings = params_of(
+        "layout",
+        {
+            "solver": "baseline",
+            "seconds": 0,
+            "backend": "auto",
+            "workers": 1,
+            "spread_attempts": 32,
+        },
+    )
     engine = Engine(dataset, netlist, board_of(dataset, netlist.scenario), settings)
     result = engine.run()
     assert 1 <= engine.spread.tried < settings["spread_attempts"]

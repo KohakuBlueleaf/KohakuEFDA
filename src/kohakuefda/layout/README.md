@@ -2,7 +2,12 @@
 
 Physical geometry, groups, occupancy-facing placement, assembly and stage adapters.
 Search strategies live in `solvers/`; safe solver services live in `framework/`.
-The baseline constructs a routed spread and greedily compacts it through Context.
+The default layout stage runs standard `hc` on the native backend for 600 seconds,
+with seed 0, no action cap, and construction/improvement caps of 1,000,000 each.
+HC's `until_budget=true` makes the time budget authoritative while both phases are
+enabled. A zero phase cap skips that phase; it does not mean unlimited search.
+Library solver defaults remain independently configurable. The baseline is still
+available explicitly and constructs a routed spread before greedy compaction.
 
 ## Files
 

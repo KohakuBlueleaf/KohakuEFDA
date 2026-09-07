@@ -105,7 +105,11 @@ def test_benchmark_lays_out_clean_and_at_rate(
     dataset: Dataset, fixtures_dir: Path, name: str
 ) -> None:
     scenario = Scenario.from_toml(fixtures_dir / name)
-    result = layout_scenario(dataset, scenario, {"workers": 1})
+    result = layout_scenario(
+        dataset,
+        scenario,
+        {"solver": "baseline", "seconds": 0, "backend": "auto", "workers": 1},
+    )
     assert result.layout is not None, result.report.findings
     laid = [
         f
