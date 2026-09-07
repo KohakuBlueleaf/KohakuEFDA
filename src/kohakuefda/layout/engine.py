@@ -5,6 +5,7 @@ import json
 from kohakuefda.framework.config import RUNTIME_DEFAULTS, WORLD_DEFAULTS, settings_of
 from kohakuefda.framework.control import ConfigurationError
 from kohakuefda.framework.problem import problem_of
+from kohakuefda.framework.progress import summary
 from kohakuefda.framework.runtime import Runner
 from kohakuefda.layout.board import Board
 from kohakuefda.model.cells import Netlist
@@ -78,7 +79,13 @@ class Engine:
     def _runner(self, observe=None, cancelled=None) -> Runner:
         def watch(event):
             payload = json.loads(event.payload_json)
-            if payload.get("kind") in ("catalogue", "build", "improve", "selected"):
+            if event.kind == "frame" or payload.get("kind") in (
+                "catalogue",
+                "build",
+                "improve",
+                "selected",
+                "final",
+            ):
                 payload.update(
                     elapsed=event.elapsed,
                     duration=event.duration,
@@ -104,8 +111,6 @@ class Engine:
         result = self.runner.run(self.solver)
         self.site = self.runner.backend.site
         self.spread = getattr(self.solver, "spread", None)
-        if result.status == "cancelled":
-            raise CancelledError("layout cancelled")
         snapshot = result.best_routed or result.current
         outcome = {
             "status": result.status,
@@ -119,6 +124,8 @@ class Engine:
             outcome.update(placed=frame["placed"], total=frame["total"])
             frame.update(status=result.status, outcome=outcome)
             self.runner.context.emit("selected", frame)
+            if result.status == "cancelled":
+                raise CancelledError("layout cancelled")
             raise LayoutError(f"no layout produced: {result.status}")
         selected = EngineResult(self.runner, snapshot)
         frame = self.runner.backend.snapshot_frame(snapshot, "selected")
@@ -134,7 +141,15 @@ class Engine:
             workspace_height=selected.terms.get("workspace_height"),
         )
         frame["outcome"] = outcome
+        frame.update(
+            work=dict(result.work),
+            solver=self.solver.name,
+            display="selected",
+            best=summary(result.best_routed or result.current),
+        )
         self.runner.context.emit("selected", frame)
+        if result.status == "cancelled":
+            raise CancelledError("layout cancelled")
         return selected
 
     def kinds(self, *constraints):

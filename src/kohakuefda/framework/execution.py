@@ -14,12 +14,18 @@ JOIN_SECONDS = 0.2
 log = logging.getLogger(__name__)
 
 
-def _execute(connection, function, arguments) -> None:
+def _execute(connection, function, arguments, stream=False) -> None:
+    def forward(event):
+        connection.send(("event", event))
+
     try:
-        connection.send((True, function(*arguments)))
+        value = (
+            function(*arguments, observe=forward) if stream else function(*arguments)
+        )
+        connection.send(("result", True, value))
     except Exception:
         log.exception("isolated solver job failed")
-        connection.send((False, traceback.format_exc()))
+        connection.send(("result", False, traceback.format_exc()))
     finally:
         connection.close()
 
@@ -30,6 +36,7 @@ def gather(
     workers: int,
     budget: Budget,
     observe=None,
+    stream=False,
 ) -> list:
     """Execute a batch in input order; terminate outstanding children on every failed exit."""
     if workers < 1:
@@ -43,7 +50,7 @@ def gather(
             while next_job < len(jobs) and len(pending) < workers:
                 receive, send = context.Pipe(duplex=False)
                 process = context.Process(
-                    target=_execute, args=(send, function, jobs[next_job])
+                    target=_execute, args=(send, function, jobs[next_job], stream)
                 )
                 process.start()
                 send.close()
@@ -51,15 +58,24 @@ def gather(
                 pending[receive] = (next_job, process, time.monotonic())
                 next_job += 1
             for connection in wait(list(pending), timeout=POLL_SECONDS):
-                index, process, started = pending.pop(connection)
+                index, process, started = pending[connection]
                 try:
-                    ok, value = connection.recv()
+                    message = connection.recv()
                 except EOFError as error:
                     raise FrameworkError(
                         f"worker {index} exited without a result"
                     ) from error
-                finally:
-                    connection.close()
+                if message[0] == "event":
+                    if observe:
+                        observe(
+                            "worker_frame",
+                            {"task": index, "frame": message[1]},
+                            time.monotonic() - started,
+                        )
+                    continue
+                pending.pop(connection)
+                connection.close()
+                _, ok, value = message
                 process.join(JOIN_SECONDS)
                 if not ok:
                     raise FrameworkError(f"worker {index}: {value}")

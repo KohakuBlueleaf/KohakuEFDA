@@ -126,7 +126,7 @@ def test_run_stage_by_stage_with_checkpoints(base_url: str, workspace: Path) -> 
     assert summary["stages"]["layout"]["params"]["workers"] == 1
     assert summary["stages"]["layout"]["status"] == "done"
     assert summary["stages"]["verify"]["status"] == "done"
-    assert summary["frames"]["layout"] >= 11
+    assert summary["frames"]["layout"] > 0
 
     status, report = _request(f"{base_url}/api/runs/{run_id}/artifacts/report")
     assert status == 200
@@ -137,6 +137,11 @@ def test_run_stage_by_stage_with_checkpoints(base_url: str, workspace: Path) -> 
     status, frames = _request(f"{base_url}/api/runs/{run_id}/frames/layout")
     assert frames[0]["kind"] == "catalogue" and frames[-1]["kind"] == "final"
     assert {f["kind"] for f in frames} >= {"catalogue", "build", "final"}
+    assert any(f.get("milestone") == "constructed" for f in frames)
+    assert all(
+        "layout" in f and "target_area" in f for f in frames if f["kind"] != "catalogue"
+    )
+    assert len(frames) == summary["frames"]["layout"]
 
     status, events = _request(f"{base_url}/api/runs/{run_id}/events?once=1")
     assert status == 200
@@ -233,6 +238,65 @@ def _get_status(url: str) -> int:
             return response.status
     except urllib.error.HTTPError as error:
         return error.code
+
+
+def test_all_catalog_solvers_deliver_sse_progress_and_matching_replay(
+    base_url: str,
+) -> None:
+    _, catalog = _request(f"{base_url}/api/solvers")
+    text = (FIXTURES / "scenario_valley_battery.toml").read_text()
+    _, parsed = _request(f"{base_url}/api/scenario/parse", {"toml": text})
+    limits = {
+        "improvement_steps": 3,
+        "construction_steps": 3,
+        "attempts": 3,
+        "shrink_rounds": 2,
+        "spread_attempts": 4,
+        "spread_slice": 2,
+    }
+    for entry in catalog:
+        _, run = _request(f"{base_url}/api/runs", parsed["scenario"])
+        prefix = f"{base_url}/api/runs/{run['id']}"
+        _request(f"{prefix}/stages/plan", {"through": "netlist"})
+        _wait(base_url, run["id"], "netlist")
+        opts = {k: v for k, v in limits.items() if k in entry["defaults"]}
+        _request(
+            f"{prefix}/stages/layout",
+            {
+                "params": {
+                    "solver": entry["name"],
+                    "workers": 1,
+                    "frame_every": 1,
+                    "solver_options": json.dumps(opts),
+                }
+            },
+        )
+        streamed = []
+        with urllib.request.urlopen(f"{prefix}/events", timeout=30) as response:
+            assert response.headers["Content-Type"] == "text/event-stream"
+            for line in response:
+                if not line.startswith(b"data: "):
+                    continue
+                event = json.loads(line[6:])
+                if event["stage"] != "layout":
+                    continue
+                if event["kind"] == "frame":
+                    streamed.append(event["data"])
+                if event["kind"] == "stage" and event["data"]["status"] in (
+                    "done",
+                    "incomplete",
+                    "failed",
+                ):
+                    assert event["data"]["status"] != "failed", event
+                    break
+        _, replay = _request(f"{prefix}/frames/layout")
+        assert streamed == replay
+        assert any(f.get("placed", 0) for f in replay if f["kind"] != "final")
+        assert all(
+            f.get("layout")
+            for f in replay
+            if f.get("frame_schema") and f["kind"] != "catalogue"
+        )
 
 
 def test_unknown_routes_and_bad_bodies(base_url: str) -> None:

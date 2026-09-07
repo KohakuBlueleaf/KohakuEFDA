@@ -137,6 +137,10 @@ class Shrink:
         return False
 
     def run(self) -> None:
+        if self.rounds:
+            self.ctx.frame(
+                "improve", force=True, milestone="improvement_started", of=self.rounds
+            )
         for step in range(self.rounds):
             self.seen.clear()
             self.ctx.budget.check()

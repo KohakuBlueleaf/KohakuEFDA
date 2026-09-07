@@ -163,14 +163,17 @@ class Trajectory:
                 "work": {k: v - before.get(k, 0) for k, v in ctx.budget.work.items()},
             },
         )
-        if (
-            outcome != "interrupted"
-            and self.frame_every
-            and step % self.frame_every == 0
-        ):
+        if outcome != "interrupted":
             ctx.frame(
                 "build" if phase == "construction" else "improve",
                 method=self.method,
+                snapshot=self.current,
+                best=self.best,
+                operator=operator,
+                accepted=decision.accepted,
+                outcome=outcome,
+                temperature=heat,
+                delta=delta,
                 step=step + 1,
                 of=self.step_limit(
                     "construction" if phase == "construction" else "improvement"
@@ -275,6 +278,14 @@ class Trajectory:
         self.current = ctx.current
         self.best = ctx.best_routed
         self.phase_work = self.work()
+        if self.step_limit("improvement") != 0:
+            ctx.frame(
+                "improve",
+                snapshot=self.current,
+                best=self.best,
+                force=True,
+                milestone="improvement_started",
+            )
         for step in self.steps("improvement"):
             ctx.budget.charge("improvement_steps")
             parent = ctx.current

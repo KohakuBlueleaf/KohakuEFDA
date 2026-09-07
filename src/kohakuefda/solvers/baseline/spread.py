@@ -181,7 +181,9 @@ class Spread:
             for block_id in self.order:
                 if not self.stand(builder, block_id):
                     missed.append(block_id)
-                ctx.frame("build")
+                ctx.frame(
+                    "build", attempt=attempt + 1, of=cfg["spread_attempts"], gap=gap
+                )
             for block_id in list(missed):
                 if self.stand(builder, block_id):
                     missed.remove(block_id)
@@ -192,6 +194,7 @@ class Spread:
                 if best is not None:
                     builder.release(best[1])
                 best = score, builder.mark(), list(self.order)
+                ctx.diagnostic = builder.diagnostic()
             ctx.emit(
                 "progress",
                 {

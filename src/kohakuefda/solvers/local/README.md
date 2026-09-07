@@ -87,9 +87,10 @@ tests. More budget extends the search, not a guarantee of further improvement.
 Cooling is based on work already spent, not the eventual stop budget.
 
 `transition` events include parent, candidate, next parent, best, energy delta,
-temperature, draw, outcome, actual area/wire deltas and work. Studio frames honor world `frame_every`
-(zero disables them). `best_routed` is the best factory, not necessarily current
-at an annealing stop. No exact search-resume claim is made by layout checkpoints.
+temperature, draw, outcome, actual area/wire deltas and work. Studio samples the
+retained current snapshot at safe proposal boundaries with separate best metadata.
+World `frame_every=0` suppresses periodic frames, not lifecycle milestones.
+`best_routed` is the best factory, not necessarily current at an annealing stop. No exact search-resume claim is made by layout checkpoints.
 
 ## Experimental structural variants
 

@@ -15,6 +15,7 @@ from kohakuefda.framework.backend import SiteBackend
 from kohakuefda.framework.control import FrameworkError, Rejected
 from kohakuefda.framework.execution import gather
 from kohakuefda.framework.problem import digest
+from kohakuefda.framework.progress import Progress
 from kohakuefda.model.solver import (
     Action,
     AttemptResult,
@@ -228,6 +229,9 @@ class Builder:
         self.context._builder = None
         self.context.consider(snapshot)
         self.context.emit("constructed", {"state_id": snapshot.id})
+        self.context.frame(
+            "build", snapshot=snapshot, force=True, milestone="constructed"
+        )
         return snapshot
 
     def diagnostic(self) -> Snapshot:
@@ -266,6 +270,7 @@ class Context:
         self._sequence = 0
         self._streams = {}
         self.workers = 1
+        self.progress = Progress(self)
 
     @property
     def repeatable_edits(self) -> bool:
@@ -279,8 +284,25 @@ class Context:
     def world_settings(self) -> dict:
         return dict(self._backend.settings)
 
-    def gather(self, function, jobs: tuple[tuple, ...]) -> list:
-        return gather(function, jobs, self.workers, self.budget, self.emit)
+    def gather(self, function, jobs: tuple[tuple, ...], *, stream=False) -> list:
+        def observe(kind, payload, duration):
+            if kind == "worker_frame":
+                frame = payload["frame"]
+                frame.update(
+                    worker=payload["task"],
+                    display="worker",
+                    phase="parallel",
+                    worker_elapsed=frame.get("elapsed"),
+                    elapsed=self.budget.elapsed,
+                    worker_work=frame.pop("work", {}),
+                    work=dict(self.budget.work),
+                    solver=getattr(self, "solver_name", ""),
+                )
+                self.emit("frame", frame, duration)
+            else:
+                self.emit(kind, payload, duration)
+
+        return gather(function, jobs, self.workers, self.budget, observe, stream)
 
     @property
     def view(self):
@@ -344,8 +366,11 @@ class Context:
                 log.exception("solver observer failed")
 
     def frame(self, kind: str, **fields) -> None:
-        if self.observe is not None:
-            self.emit(kind, {**self._backend.frame(kind), **fields})
+        if kind == "catalogue":
+            if self.observe is not None:
+                self.emit(kind, {**self._backend.frame(kind), **fields})
+        else:
+            self.progress.send(kind, **fields)
 
     def attempt(
         self,

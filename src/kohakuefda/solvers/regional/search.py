@@ -152,6 +152,12 @@ class Search:
                 self.prepare(trial)
                 failed = self.construct(trial)
                 self.retain(failed)
+                self.context.frame(
+                    "build",
+                    attempt=trial + 1,
+                    of=self.settings["attempts"],
+                    best=self.context.diagnostic,
+                )
                 self.context.emit(
                     "progress",
                     {

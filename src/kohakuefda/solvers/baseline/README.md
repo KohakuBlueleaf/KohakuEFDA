@@ -11,7 +11,7 @@ the framework owns physical changes, assessment, isolation and artifacts.
 | `__init__.py` | Baseline strategy, validated defaults and declared parallel capability |
 | `spread.py` | Seeded flow traversal, lattice, rotations and construction retries |
 | `shrink.py` | First-improvement carve/press/nudge, metric screening and revision-local duplicate pruning |
-| `parallel.py` | Seeded construction batches; selected snapshots imported without replay |
+| `parallel.py` | Seeded batches with live labeled worker frames; selected snapshots imported without replay |
 
 ## Dependencies
 

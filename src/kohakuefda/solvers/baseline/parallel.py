@@ -1,4 +1,6 @@
-"""Baseline-owned attempt slicing and deterministic winner selection."""
+"""Baseline-owned attempt slicing, streamed worker frames and deterministic selection."""
+
+import json
 
 from kohakuefda.framework.runtime import Runner
 from kohakuefda.solvers.baseline.spread import Spread
@@ -19,7 +21,7 @@ class Construct:
         return "completed" if self.spread.run() else "no_solution_found"
 
 
-def construct(problem, settings, world, seed, backend, seconds):
+def construct(problem, settings, world, seed, backend, seconds, observe=None):
     solver = Construct(settings)
     runner = Runner(
         problem,
@@ -30,6 +32,17 @@ def construct(problem, settings, world, seed, backend, seconds):
             "check_rates": False,
         },
         world=world,
+        observe=(
+            (
+                lambda e: (
+                    observe(json.loads(e.payload_json))
+                    if e.kind in ("frame", "build", "improve")
+                    else None
+                )
+            )
+            if observe
+            else None
+        ),
     )
     result = runner.run(solver)
     return result, tuple(solver.spread.order), solver.spread.tried
@@ -57,7 +70,7 @@ def build_parallel(context, settings):
             )
             for offset in range(start, min(limit, start + size * context.workers), size)
         )
-        results = context.gather(construct, jobs)
+        results = context.gather(construct, jobs, stream=context.observe is not None)
         for result, _, _ in results:
             context.budget.work.update(dict(result.work))
         for result, order, tried in results:
@@ -66,11 +79,21 @@ def build_parallel(context, settings):
                 continue
             if snapshot.assessment.routed:
                 context.import_snapshot(snapshot)
-                context.frame("build", attempt=tried)
+                context.frame(
+                    "build", attempt=tried, force=True, milestone="worker_selected"
+                )
                 return order
             score = sum(i.rule == "layout.unplaced" for i in snapshot.assessment.issues)
             if best is None or score < best[0]:
                 best = score, snapshot
+                context.diagnostic = snapshot
+                context.frame(
+                    "build",
+                    snapshot=snapshot,
+                    force=True,
+                    phase="parallel",
+                    milestone="worker_best",
+                )
     if best is not None:
         context.diagnostic = best[1]
     return None

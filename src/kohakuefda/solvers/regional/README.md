@@ -27,7 +27,9 @@ provide physical proposals; they do not alter source allocations or demand.
 All policy defaults live in `DEFAULTS`. `shrink_rounds=0` stops at first complete
 construction. `seconds` and `max_actions` are common runtime settings, not policy
 parameters. Regional execution is serial even if a caller requests more workers.
-Use Studio's `regional` solver choice and JSON `solver_options` for policy overrides.
+Use Studio's `regional` solver choice and typed controls or JSON `solver_options`.
+Each completed construction trial supplies a sampled current frame and separate
+best-prefix evidence; partial frames are not complete layout certificates.
 
 ## Dependencies
 

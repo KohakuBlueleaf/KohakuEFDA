@@ -9,6 +9,7 @@ from kohakuefda.framework.backend import SiteBackend, SiteCoverage, SiteRouting
 from kohakuefda.framework.config import RUNTIME_DEFAULTS, settings_of
 from kohakuefda.framework.context import Context
 from kohakuefda.framework.control import Budget, BudgetExhausted, ConfigurationError
+from kohakuefda.framework.progress import summary
 from kohakuefda.model.control import CancelledError
 from kohakuefda.model.solver import Problem, Snapshot, SolveResult
 
@@ -64,11 +65,16 @@ class Runner:
                 f"unsupported solver capabilities: {sorted(missing)}"
             )
         status, error = "completed", ""
+        failure = None
+        ctx.solver_name = solver.name
         try:
             ctx.budget.check()
-            ctx.frame("catalogue")
+            ctx.frame("catalogue", solver=solver.name)
             if seed is not None:
                 ctx.import_snapshot(seed)
+                ctx.frame("improve", force=True, milestone="seed_loaded")
+            else:
+                ctx.frame("build", force=True, milestone="started")
             status = solver.solve(ctx)
             if status not in (
                 "completed",
@@ -85,15 +91,24 @@ class Runner:
         except BudgetExhausted:
             status = "budget_exhausted"
         except Exception as exc:
-            if strict:
-                raise
+            failure = exc
             log.exception("solver failed")
             status, error = "error", str(exc)
-        current = ctx.current or ctx.diagnostic
+        current = ctx.current or ctx.diagnostic or ctx.progress.last_snapshot
         if current is not None:
             frame = backend.snapshot_frame(current, "final")
-            frame["status"] = status
+            frame.update(
+                status=status,
+                display="current",
+                error=error,
+                work=dict(ctx.budget.work),
+                elapsed=ctx.budget.elapsed,
+                solver=solver.name,
+                best=summary(ctx.best_routed or ctx.diagnostic),
+            )
             ctx.emit("final", frame)
+        if failure is not None and strict:
+            raise failure
         resolved = {
             "runtime": params,
             "world": backend.settings,

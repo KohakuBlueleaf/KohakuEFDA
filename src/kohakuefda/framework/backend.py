@@ -9,6 +9,7 @@ from kohakuefda.framework.control import Budget, ConfigurationError, Rejected
 from kohakuefda.framework.problem import digest
 from kohakuefda.layout.board import board_of
 from kohakuefda.layout.depot_via import brick_rotation
+from kohakuefda.layout.geometry import footprint
 from kohakuefda.layout.place import catalogue_of
 from kohakuefda.layout.site import Site
 from kohakuefda.model.cells import Netlist
@@ -261,9 +262,64 @@ class SiteBackend:
         placement = json.loads(snapshot.placement_json)
         metrics = dict(snapshot.assessment.metrics)
         wires = {w.id: w for w in self.site.wires}
+        workspace = snapshot.backend.startswith("site-workspace-")
+        cells = {(e["x"], e["y"]) for e in layout["entries"]}
+        for collection, registry, key in (
+            (layout["machines"], self.site.dataset.machines, "machine_id"),
+            (layout["units"], self.site.dataset.logistics, "unit_id"),
+        ):
+            for entity in collection:
+                spec = registry[entity[key]]
+                cells.update(
+                    footprint(
+                        entity["x"],
+                        entity["y"],
+                        spec.width,
+                        spec.depth,
+                        entity["rotation"],
+                    )
+                )
+        cells.update(tuple(c) for s in layout["segments"] for c in s["cells"])
+        cells = {
+            c
+            for c in cells
+            if layout["area"][0] <= c[0] < layout["area"][2]
+            and layout["area"][1] <= c[1] < layout["area"][3]
+        }
+        rect = (
+            [
+                min(x for x, y in cells),
+                min(y for x, y in cells),
+                max(x for x, y in cells) + 1,
+                max(y for x, y in cells) + 1,
+            ]
+            if cells
+            else layout["area"]
+        )
         return {
+            "frame_schema": 1,
             "kind": kind,
+            "phase": (
+                "final"
+                if kind in ("final", "selected")
+                else ("construction" if kind == "build" else "improvement")
+            ),
+            "domain": "workspace" if workspace else "target",
+            "display": "selected" if kind in ("final", "selected") else "current",
+            "layout": layout,
+            "rect": rect,
+            "fixed": sorted(self.site.board.fixed),
+            "slots": [[s.x, s.y, s.side.value] for s in self.site.board.slots],
             "state_id": snapshot.id,
+            "grid": [layout["width"], layout["height"]],
+            "area": layout["area"],
+            "target_area": list(self.site.board.entry_area),
+            "workspace_routed": bool(
+                metrics.get(
+                    "workspace_routed",
+                    snapshot.assessment.routed if workspace else False,
+                )
+            ),
             "blocks": [[i, *anchor] for i, anchor in raw["anchors"]],
             "wires": [
                 [i, wires[i].kind, wires[i].net_id, values[0]]
@@ -277,16 +333,18 @@ class SiteBackend:
                 for i in snapshot.assessment.issues
                 if i.rule == "layout.unrouted"
             ],
-            "clean": snapshot.assessment.routed,
+            "clean": snapshot.assessment.routed and not workspace,
             "pylons": placement["pylons"],
             "entries": [
                 [e["id"], e["x"], e["y"], e["edge"]] for e in layout["entries"]
             ],
             "terms": metrics,
             "cost": metrics["area"],
-            "fits": snapshot.assessment.geometry == "pass",
+            "fits": snapshot.assessment.geometry == "pass" and not workspace,
             "evidence": {
-                "routed": snapshot.assessment.routed,
+                "routed": snapshot.assessment.routed and not workspace,
+                "geometry": snapshot.assessment.geometry,
+                "routing": snapshot.assessment.routing,
                 "rates": snapshot.assessment.rates,
             },
         }
@@ -300,6 +358,9 @@ class SiteBackend:
                 "area": list(site.area),
                 "slots": [[s.x, s.y, s.side.value] for s in site.board.slots],
                 "blocks": catalogue_of(list(site.blocks.values())),
+                "frame_schema": 1,
+                "target_area": list(site.board.entry_area),
+                "fixed": sorted(site.board.fixed),
             }
         return {
             "kind": kind,

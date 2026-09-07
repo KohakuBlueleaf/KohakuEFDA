@@ -121,6 +121,10 @@ class Workspace:
         self.first_routed = None
         self.projection_actions = projection_actions
         self.last_projection = None
+        self.context.solver_name = getattr(parent, "solver_name", "")
+        self.context.frame(
+            "build", force=True, phase="expansion", milestone="workspace_opened"
+        )
         parent.emit(
             "workspace_opened",
             {
@@ -132,6 +136,13 @@ class Workspace:
 
     def observe(self, event):
         ctx = self.context
+        if event.kind in ("frame", "build", "improve"):
+            frame = json.loads(event.payload_json)
+            if frame.get("phase") == "improvement":
+                frame["phase"] = "compaction"
+            frame["workspace_id"] = self.backend.name
+            self.parent.emit("frame", frame, event.duration)
+            return
         snapshot = ctx.best_routed or ctx.diagnostic
         if snapshot is not None and snapshot.id != (
             self.best.id if self.best else None
@@ -209,6 +220,13 @@ class Workspace:
             ):
                 return False
         self.last_projection = anchors
+        self.context.frame(
+            "build",
+            snapshot=snapshot,
+            force=True,
+            phase="projection",
+            milestone="target_projection",
+        )
         builder = parent.builder()
         try:
             with (
@@ -306,3 +324,10 @@ class Workspace:
             raise
         self.context.diagnostic = checked
         self.retain(checked)
+        self.context.frame(
+            "build",
+            snapshot=checked,
+            force=True,
+            phase="expansion",
+            milestone="workspace_transferred",
+        )
