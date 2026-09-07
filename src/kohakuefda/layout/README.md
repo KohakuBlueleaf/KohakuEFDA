@@ -16,9 +16,9 @@ The baseline constructs a routed spread and greedily compacts it through Context
 | `place.py` | Mutable backend blocks and placement artifact conversion |
 | `board.py` | Basement, ring, fixed cells, slots and independently retained entry border |
 | `groups.py` | Mandatory group constraints |
-| `site.py` | Backend-owned placement/routing state, complete snapshots and build-area-clipped occupied bounds |
+| `site.py` | Coupled placement/routing, batched footprint updates, unique wired-pin checks and clipped occupied bounds |
 | `engine.py` | Solver composition, Runner adapter and target-valid versus workspace-only final evidence |
-| `assemble.py` | Blocks/support to emitted layout and routing pins |
+| `assemble.py` | Emitted layout and routing pins with immutable cached port-access geometry |
 | `chunk.py` | Blueprint module partitioning |
 | `stages.py` | Four stage APIs and strict shared/solver parameter validation before execution |
 | `pipeline.py` | Scenario-to-artifacts orchestration and recorded frames |

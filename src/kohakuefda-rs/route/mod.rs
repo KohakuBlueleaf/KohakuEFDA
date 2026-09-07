@@ -4,6 +4,9 @@
 //! in `bindings.rs` exports these mechanisms to the Python framework.
 
 pub mod core;
+pub mod queries;
 
+#[cfg(test)]
+mod query_tests;
 #[cfg(test)]
 mod tests;

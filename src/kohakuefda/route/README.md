@@ -7,6 +7,18 @@ per instance and snapshots both mirrors, history and wire identities. Router
 accepts an optional cooperative check callback from the execution framework.
 Tree endpoint lookups do not create empty trees; only accepted routing inserts them.
 
+RouteGrid keeps per-cell holders immutable and reservations as frozensets. Snapshots
+copy the outer dictionaries and share unchanged entries; edits replace only touched
+entries. Use grid mutation methods rather than mutating nested holder/reservation
+values. Python occupancy, history and wire identities remain available alongside the
+native mirror, and arbitrary retained marks can be restored repeatedly.
+
+`straight_cells`, `bridges_outside` and `extent_in` have native batch implementations
+and Python fallbacks, preserving traversal/insertion order and existing physical
+rules. Missing additive methods in an older extension use the Python queries.
+`block_cells` mirrors a whole footprint with one native call. `BACKEND_API` remains
+1; rebuild with `maturin develop --release` to enable the additive native queries.
+
 ## Files
 
 | File            | Description                                                   |

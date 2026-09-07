@@ -51,6 +51,37 @@ impl PyGrid {
         self.inner.extent()
     }
 
+    /// Occupied bounds clipped to the supplied build area.
+    fn extent_in(&self, area: (i32, i32, i32, i32)) -> Option<(i32, i32, i32, i32)> {
+        self.inner.extent_in(area)
+    }
+
+    /// Ordered straight junction candidates on already routed chains.
+    fn straight_cells(
+        &self,
+        layer: usize,
+        chains: Vec<Vec<(i32, i32)>>,
+        area: (i32, i32, i32, i32),
+    ) -> PyResult<Vec<(i32, i32, u8)>> {
+        if layer >= LAYERS {
+            return Err(pyo3::exceptions::PyValueError::new_err("invalid layer"));
+        }
+        Ok(self.inner.straight_cells(layer, &chains, area))
+    }
+
+    /// Whether a path crosses occupied cells outside the logistics-unit area.
+    fn bridges_outside(
+        &self,
+        layer: usize,
+        cells: Vec<(i32, i32)>,
+        area: (i32, i32, i32, i32),
+    ) -> PyResult<bool> {
+        if layer >= LAYERS {
+            return Err(pyo3::exceptions::PyValueError::new_err("invalid layer"));
+        }
+        Ok(self.inner.bridges_outside(layer, &cells, area))
+    }
+
     /// The first free square of ``size`` inside ``window``, or ``None``: where a pylon may go.
     fn free_square(
         &self,
@@ -165,9 +196,9 @@ impl PyGrid {
         let mut out = Vec::new();
         for index in 0..side.count.len() {
             let (x, y) = self.inner.cell(index);
-            if side.count[index] > 1 && !self.legal_crossing(layer, x, y) {
-                out.push((x, y));
-            } else if layer == 0 && side.count[index] > 0 && self.pipe_unit(x, y) {
+            if (side.count[index] > 1 && !self.legal_crossing(layer, x, y))
+                || (layer == 0 && side.count[index] > 0 && self.pipe_unit(x, y))
+            {
                 out.push((x, y));
             }
         }

@@ -80,6 +80,11 @@ class Site:
         self.area: Rect = board.area
         self.blocks = {c.id: Block.of_cell(c, dataset) for c in netlist.cells}
         self.wires: list[Wire] = wires_of(netlist)
+        self.wired_pins = tuple(
+            dict.fromkeys(
+                key for wire in self.wires for key in (wire.source, wire.sink)
+            )
+        )
         self.owner: dict[PinKey, Block] = {
             key: block for block in self.blocks.values() for key in block.pins
         }
@@ -205,21 +210,14 @@ class Site:
         now stands in front of. Such a lane is unroutable however the rest is arranged, so no
         placement may do it. A pin that was already shut elsewhere is not this one's doing.
         """
-        for wire in self.wires:
-            for key in (wire.source, wire.sink):
-                pin = self.router.pins.get(key)
-                if pin is None:
-                    continue
-                if key not in block.pins and not any(
-                    o.outside in cells for o in pin.options
-                ):
-                    continue
-                layer = LAYER[pin.kind]
-                if (
-                    self.grid.first_open(layer, [o.outside for o in pin.options])
-                    is None
-                ):
-                    return True
+        for key in self.wired_pins:
+            pin = self.router.pins.get(key)
+            if pin is None or (
+                key not in block.pins and pin.access_set.isdisjoint(cells)
+            ):
+                continue
+            if self.grid.first_open(LAYER[pin.kind], pin.access_cells) is None:
+                return True
         return False
 
     def wire_up(self, required: set[str], strict: bool = True) -> bool:
@@ -260,9 +258,7 @@ class Site:
             for key in (wire.source, wire.sink):
                 if key in block.pins:
                     self.router.unreserve_pin(key, wire)
-        for cell in self.cells_of.pop(block_id, ()):
-            self.grid.unblock(GROUND, cell)
-            self.grid.unblock(SKY, cell)
+        self.grid.block_cells(self.cells_of.pop(block_id, []), False)
         self.placed.pop(block_id, None)
         for key in block.pins:
             self.router.pins.pop(key, None)
@@ -272,9 +268,7 @@ class Site:
     ) -> None:
         block.x, block.y, block.rotation = x, y, rotation
         self.cells_of[block.id] = cells
-        for cell in cells:
-            self.grid.block(GROUND, cell, owned=True)
-            self.grid.block(SKY, cell, owned=True)
+        self.grid.block_cells(cells, True, owned=True)
         self.router.pins.update(world_pins([block]))
         self.placed[block.id] = (x, y, rotation)
         for wire in self.touching[block.id]:
@@ -371,16 +365,7 @@ class Site:
         """Rectangle occupied inside the build area; external routing stays physical only."""
         x0, y0, x1, y1 = self.area
         if self.grid.native is not None:
-            extent = self.grid.extent()
-            if extent is None:
-                return self.area
-            if (
-                x0 <= extent[0]
-                and y0 <= extent[1]
-                and extent[2] <= x1
-                and extent[3] <= y1
-            ):
-                return tuple(extent)
+            return self.grid.extent_in(self.area) or self.area
         cells = {(x, y) for x, y in self.occupied() if x0 <= x < x1 and y0 <= y < y1}
         if not cells:
             return self.area

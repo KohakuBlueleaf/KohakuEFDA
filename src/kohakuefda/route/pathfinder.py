@@ -12,6 +12,8 @@ cells.
 
 import heapq
 import logging
+from collections.abc import Mapping
+from types import MappingProxyType
 
 from kohakuefda.model.geometry import Edge
 from kohakuefda.model.layout import Cell, Rect
@@ -61,11 +63,11 @@ class RouteGrid:
         self.turn_cost = turn_cost
         self.bridge_cost = bridge_cost
         self.history_cost = history_cost
-        self.holders: list[dict[Cell, dict[str, Axis]]] = [{}, {}]
+        self.holders: list[dict[Cell, Mapping[str, Axis]]] = [{}, {}]
         self.history: list[dict[Cell, float]] = [{}, {}]
         self.owned: list[set[Cell]] = [set(), set()]
         self.units: list[set[Cell]] = [set(), set()]
-        self.reserved: list[dict[Cell, set[str]]] = [{}, {}]
+        self.reserved: list[dict[Cell, frozenset[str]]] = [{}, {}]
         self._wires: dict[str, int] = {}
         self._names: dict[int, str] = {}
         self.native = (
@@ -96,11 +98,11 @@ class RouteGrid:
     def python_state(self) -> tuple | None:
         """Copy Python occupancy, history and wire identities alongside native state."""
         return (
-            [{c: dict(h) for c, h in layer.items()} for layer in self.holders],
+            [dict(layer) for layer in self.holders],
             [set(layer) for layer in self.units],
             [set(layer) for layer in self.blocked],
             [set(layer) for layer in self.owned],
-            [{c: set(o) for c, o in layer.items()} for layer in self.reserved],
+            [dict(layer) for layer in self.reserved],
             [dict(layer) for layer in self.history],
             dict(self._wires),
             dict(self._names),
@@ -110,11 +112,11 @@ class RouteGrid:
         """Put back what :meth:`python_state` took."""
         if state is None:
             return
-        self.holders = [{c: dict(h) for c, h in layer.items()} for layer in state[0]]
+        self.holders = [dict(layer) for layer in state[0]]
         self.units = [set(layer) for layer in state[1]]
         self.blocked = [set(layer) for layer in state[2]]
         self.owned = [set(layer) for layer in state[3]]
-        self.reserved = [{c: set(o) for c, o in layer.items()} for layer in state[4]]
+        self.reserved = [dict(layer) for layer in state[4]]
         self.history = [dict(layer) for layer in state[5]]
         self._wires, self._names = dict(state[6]), dict(state[7])
 
@@ -183,6 +185,84 @@ class RouteGrid:
         """Every cell the line uses, or ``None`` when the native grid is not built."""
         return None if self.native is None else {tuple(c) for c in self.native.used()}
 
+    def block_cells(self, cells: list[Cell], value: bool, owned: bool = False) -> None:
+        """Block or free a whole machine footprint on both mirrored layers."""
+        for layer in (0, 1):
+            if value:
+                self.blocked[layer].update(cells)
+                if owned:
+                    self.owned[layer].update(cells)
+            else:
+                self.blocked[layer].difference_update(cells)
+                self.owned[layer].difference_update(cells)
+        if self.native is not None:
+            self.native.block_many(cells, value, owned)
+
+    def extent_in(self, area: Rect) -> Rect | None:
+        """Occupied bounds inside area, including routing units but not fixed terrain."""
+        if self.native is not None and hasattr(self.native, "extent_in"):
+            return self.native.extent_in(area)
+        cells = self.owned[0] | self.owned[1] | self.units[0] | self.units[1]
+        cells |= self.holders[0].keys() | self.holders[1].keys()
+        inside = [
+            (x, y)
+            for x, y in cells
+            if area[0] <= x < area[2] and area[1] <= y < area[3]
+        ]
+        return (
+            (
+                min(x for x, y in inside),
+                min(y for x, y in inside),
+                max(x for x, y in inside) + 1,
+                max(y for x, y in inside) + 1,
+            )
+            if inside
+            else None
+        )
+
+    def straight_cells(
+        self, layer: int, chains: list[list[Cell]], area: Rect | None
+    ) -> dict[Cell, Edge]:
+        """Ordered straight cells available for a logistics junction."""
+        if self.native is not None and hasattr(self.native, "straight_cells"):
+            rect = area or (0, 0, self.width, self.height)
+            return {
+                (x, y): STEPS[d][0]
+                for x, y, d in self.native.straight_cells(layer, chains, rect)
+            }
+        result = {}
+        for chain in chains:
+            for before, cell, after in zip(chain, chain[1:], chain[2:]):
+                straight = before[0] == after[0] or before[1] == after[1]
+                allowed = area is None or (
+                    area[0] <= cell[0] < area[2] and area[1] <= cell[1] < area[3]
+                )
+                if (
+                    straight
+                    and allowed
+                    and not self.has_unit(layer, cell)
+                    and len(self.holders_at(layer, cell)) == 1
+                    and (layer == 0 or self.ground_free(cell))
+                ):
+                    result[cell] = next(
+                        edge
+                        for edge, dx, dy in STEPS
+                        if (cell[0] + dx, cell[1] + dy) == after
+                    )
+        return result
+
+    def bridges_outside(self, layer: int, cells: list[Cell], area: Rect | None) -> bool:
+        """Whether a path crosses an occupied cell outside the permitted unit area."""
+        if area is None:
+            return False
+        if self.native is not None and hasattr(self.native, "bridges_outside"):
+            return self.native.bridges_outside(layer, cells, area)
+        return any(
+            not (area[0] <= x < area[2] and area[1] <= y < area[3])
+            and self.holders_at(layer, (x, y))
+            for x, y in cells
+        )
+
     # ---- questions asked of the occupancy -------------------------------
 
     def free_for(self, cells: list[Cell], area: Rect, mine: list[Cell]) -> bool:
@@ -215,7 +295,7 @@ class RouteGrid:
     def holders_at(self, layer: int, cell: Cell) -> dict[str, Axis]:
         """The wires holding a cell of a layer, with their axis."""
         if self.native is None:
-            return self.holders[layer].get(cell, {})
+            return dict(self.holders[layer].get(cell, {}))
         return {
             self._names[wire]: AXIS_NAME[axis]
             for wire, axis in self.native.holders_at(layer, cell[0], cell[1])
@@ -243,14 +323,18 @@ class RouteGrid:
 
     def reserve(self, layer: int, cell: Cell, wire_id: str) -> None:
         """Only the named wires may use ``cell`` (a pin's facing cell)."""
-        self.reserved[layer].setdefault(cell, set()).add(wire_id)
+        self.reserved[layer][cell] = frozenset(
+            (*self.reserved[layer].get(cell, ()), wire_id)
+        )
         self._mirror("reserve_add", layer, cell, self._code(wire_id))
 
     def unreserve(self, layer: int, cell: Cell, wire_id: str) -> None:
         owners = self.reserved[layer].get(cell)
         if owners is not None:
-            owners.discard(wire_id)
-            if not owners:
+            owners = owners - {wire_id}
+            if owners:
+                self.reserved[layer][cell] = owners
+            else:
                 del self.reserved[layer][cell]
         self._mirror("reserve_drop", layer, cell, self._code(wire_id))
 
@@ -277,7 +361,9 @@ class RouteGrid:
                     axis = "v"
                 elif prev[1] == nxt[1]:
                     axis = "h"
-            self.holders[layer].setdefault(cell, {})[wire_id] = axis
+            self.holders[layer][cell] = MappingProxyType(
+                {**self.holders[layer].get(cell, {}), wire_id: axis}
+            )
             held.append((cell[0], cell[1], AXIS_CODE[axis]))
         if self.native is not None and held:
             self.native.hold_many(layer, held, self._code(wire_id))
@@ -286,8 +372,10 @@ class RouteGrid:
         for cell in cells:
             holders = self.holders[layer].get(cell)
             if holders:
-                holders.pop(wire_id, None)
-                if not holders:
+                holders = {i: axis for i, axis in holders.items() if i != wire_id}
+                if holders:
+                    self.holders[layer][cell] = MappingProxyType(holders)
+                else:
                     del self.holders[layer][cell]
         if self.native is not None and cells:
             self.native.release_many(layer, cells, self._code(wire_id))

@@ -347,7 +347,7 @@ impl Grid {
                 0
             };
             let (x, y) = self.cell(node.index);
-            for step in 0..4 {
+            for (step, &(dx, dy)) in STEPS.iter().enumerate() {
                 if node.crossing && step != node.direction {
                     continue;
                 }
@@ -357,8 +357,8 @@ impl Grid {
                 if node.direction != NO_DIR && step == OPPOSITE[node.direction] {
                     continue;
                 }
-                let nx = x + STEPS[step].0;
-                let ny = y + STEPS[step].1;
+                let nx = x + dx;
+                let ny = y + dy;
                 let Some(next) = self.index(nx, ny) else {
                     continue;
                 };

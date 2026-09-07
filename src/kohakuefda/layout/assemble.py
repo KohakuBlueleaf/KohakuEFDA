@@ -31,7 +31,9 @@ class WorldPin:
         self, key: PinKey, options: list[PortOption], kind: str, direction: str
     ) -> None:
         self.key = key
-        self.options = options
+        self.options = tuple(options)
+        self.access_cells = tuple(option.outside for option in options)
+        self.access_set = frozenset(self.access_cells)
         self.kind = kind
         self.direction = direction
 
@@ -110,7 +112,8 @@ def world_pins(blocks: list[Block]) -> dict[PinKey, WorldPin]:
             if not options:
                 cell, edge = block.pin_world(key)
                 options = [PortOption(0, cell, edge)]
-            options.sort(key=lambda o: o.cell != block.pin_world(key)[0])
+            chosen_cell = block.pin_world(key)[0]
+            options.sort(key=lambda o: o.cell != chosen_cell)
             out[key] = WorldPin(key, options, pin.kind, pin.direction)
             if chosen is None:
                 log.debug("pin %s has %d port option(s)", key, len(options))

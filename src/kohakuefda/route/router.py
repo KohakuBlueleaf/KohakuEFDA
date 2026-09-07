@@ -330,10 +330,7 @@ class Router:
         outside the area (REG-03). The crossing is chosen inside the search, so it is caught
         here, on the cells the path shares with a lane already down.
         """
-        return any(
-            not self._unit_allowed(cell) and self.grid.holders_at(wire.layer, cell)
-            for cell in path
-        )
+        return self.grid.bridges_outside(wire.layer, path, self.unit_area)
 
     def _unit_allowed(self, cell: Cell) -> bool:
         """Whether a splitter, converger or bridge may stand on cell: a pipe may run out
@@ -347,28 +344,16 @@ class Router:
     def _straight_cells(self, wires: list[Wire], layer: int) -> dict[Cell, Edge]:
         """Straight cells of routed wires with their travel direction, the cells in front of
         the ports included (a unit there links to the port directly)."""
-        out: dict[Cell, Edge] = {}
-        for wire in wires:
-            if len(wire.cells) < 2:
-                continue
-            chain = [
+        chains = [
+            [
                 wire.branch or self.source_cell(wire),
                 *wire.cells,
                 wire.join or self.sink_cell(wire),
             ]
-            for index in range(1, len(chain) - 1):
-                before, cell, after = chain[index - 1 : index + 2]
-                straight = before[0] == after[0] or before[1] == after[1]
-                free = (
-                    not self.grid.has_unit(layer, cell)
-                    and len(self.grid.holders_at(layer, cell)) == 1
-                    and self._unit_allowed(cell)
-                )
-                if layer == SKY and not self.grid.ground_free(cell):
-                    free = False
-                if straight and free:
-                    out[cell] = _direction(cell, after)
-        return out
+            for wire in wires
+            if len(wire.cells) >= 2
+        ]
+        return self.grid.straight_cells(layer, chains, self.unit_area)
 
     def _trunk_bounds(self, trunk: Wire) -> tuple[int, int]:
         """On a trunk: the index after the last join and the index of the first branch."""

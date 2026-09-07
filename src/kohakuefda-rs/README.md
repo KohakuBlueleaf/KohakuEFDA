@@ -9,11 +9,12 @@ Build with `.venv` active and `CONDA_PREFIX` unset: `maturin develop --release`.
 | File | Provides |
 |---|---|
 | `lib.rs` | PyO3 extension registration, BACKEND_API version |
-| `bindings.rs` | Python adapter, _Grid and dimension-checked _State snapshots |
+| `bindings.rs` | Python adapter, batched occupancy queries, _Grid and dimension-checked _State snapshots |
 | `route/` | Grid/occupancy/A* implementation and unit tests |
 
 ## Dependencies
 
 - `pyo3` at the binding boundary.
 - Routing kernels have no Python or solver dependencies.
-- Behavioral parity tests: `tests/test_native.py`, `tests/test_framework.py`.
+- Behavioral parity tests: `tests/test_native.py`, `tests/test_native_queries.py`, `tests/test_framework.py`.
+- Additive batch queries retain backend API 1; Python falls back when a method is absent.
