@@ -1,77 +1,139 @@
 {
   "bench_engine_attempt": {
-    "engine_attempt_place_us": 1402.9,
-    "engine_raw_place_us": 1243.3,
-    "engine_solve_aon_us": 35044.6
+    "engine_attempt_place_us": 1239.2,
+    "engine_raw_place_us": 1241.6,
+    "engine_solve_aon_us": 10688.3
+  },
+  "bench_family_quality": {
+    "quality_anneal_area": 360.0,
+    "quality_anneal_area_s1": 432,
+    "quality_anneal_area_s2": 336,
+    "quality_anneal_area_s3": 384,
+    "quality_anneal_area_s4": 336,
+    "quality_anneal_area_s5": 432,
+    "quality_anneal_area_s6": 336,
+    "quality_anneal_area_s7": 288,
+    "quality_anneal_area_s8": 384,
+    "quality_anneal_area_shared": 336.0,
+    "quality_anneal_complete": 8,
+    "quality_anneal_seconds": 33.5,
+    "quality_baseline_area": 432.0,
+    "quality_baseline_area_s1": 384,
+    "quality_baseline_area_s2": 432,
+    "quality_baseline_area_s3": 432,
+    "quality_baseline_area_s4": 336,
+    "quality_baseline_area_s5": 432,
+    "quality_baseline_area_s6": 384,
+    "quality_baseline_area_s7": 480,
+    "quality_baseline_area_s8": 480,
+    "quality_baseline_area_shared": 384.0,
+    "quality_baseline_complete": 8,
+    "quality_baseline_seconds": 15.5,
+    "quality_climb_area": 360.0,
+    "quality_climb_area_s1": 384,
+    "quality_climb_area_s2": 336,
+    "quality_climb_area_s3": 480,
+    "quality_climb_area_s4": 336,
+    "quality_climb_area_s5": 480,
+    "quality_climb_area_s6": 288,
+    "quality_climb_area_s7": 336,
+    "quality_climb_area_s8": 384,
+    "quality_climb_area_shared": 336.0,
+    "quality_climb_complete": 8,
+    "quality_climb_seconds": 31.3,
+    "quality_inorder_area": 360.0,
+    "quality_inorder_area_s1": 384,
+    "quality_inorder_area_s2": 336,
+    "quality_inorder_area_s3": 0,
+    "quality_inorder_area_s4": 336,
+    "quality_inorder_area_s5": 0,
+    "quality_inorder_area_s6": 432,
+    "quality_inorder_area_s7": 0,
+    "quality_inorder_area_s8": 0,
+    "quality_inorder_area_shared": 360.0,
+    "quality_inorder_complete": 4,
+    "quality_inorder_seconds": 0.7,
+    "quality_regional_area": 432.0,
+    "quality_regional_area_s1": 432,
+    "quality_regional_area_s2": 336,
+    "quality_regional_area_s3": 480,
+    "quality_regional_area_s4": 432,
+    "quality_regional_area_s5": 576,
+    "quality_regional_area_s6": 432,
+    "quality_regional_area_s7": 432,
+    "quality_regional_area_s8": 576,
+    "quality_regional_area_shared": 432.0,
+    "quality_regional_complete": 8,
+    "quality_regional_seconds": 19.2
   },
   "bench_floorplan": {
-    "floorplan_area": 200,
+    "floorplan_area": 240,
     "floorplan_attempts": 15,
     "floorplan_complete": 1,
-    "floorplan_seconds": 0.21
+    "floorplan_seconds": 0.1
   },
   "bench_flow": {
     "flow_nets": 200,
-    "flow_per_net_us": 19.6,
+    "flow_per_net_us": 15.2,
     "flow_rounds": 1
   },
   "bench_gates_inorder": {
-    "gates_assess_us": 85.2,
+    "gates_assess_us": 24.4,
     "gates_cells": 48,
-    "gates_inorder_place_us": 23489.8,
+    "gates_inorder_place_us": 16706.6,
     "gates_missing": 0
   },
   "bench_gates_power": {
     "gates_plain_emitters": 0,
-    "gates_plain_inorder_per_cell_us": 4619.9,
+    "gates_plain_inorder_per_cell_us": 1401.6,
     "gates_power_emitters": 3,
-    "gates_power_inorder_per_cell_us": 4981.2
+    "gates_power_inorder_per_cell_us": 2334.6
   },
   "bench_gates_route": {
     "gates_route_cells": 18,
     "gates_route_complete": 1,
     "gates_route_jumpers": 37,
     "gates_route_nets": 12,
-    "gates_route_per_cell_us": 50590.3,
-    "gates_route_per_net_us": 75885.4
+    "gates_route_per_cell_us": 19840.5,
+    "gates_route_per_net_us": 29760.8
   },
   "bench_gates_solvers": {
     "anneal_area": 96,
-    "anneal_attempts": 1274,
+    "anneal_attempts": 1085,
     "anneal_complete": 1,
-    "anneal_seconds": 4.04,
+    "anneal_seconds": 2.35,
     "baseline_area": 96,
-    "baseline_attempts": 35,
+    "baseline_attempts": 62,
     "baseline_complete": 1,
-    "baseline_seconds": 0.18,
+    "baseline_seconds": 0.13,
     "climb_area": 96,
-    "climb_attempts": 1286,
+    "climb_attempts": 1113,
     "climb_complete": 1,
-    "climb_seconds": 2.98,
+    "climb_seconds": 1.67,
     "inorder_area": 120,
     "inorder_attempts": 9,
     "inorder_complete": 1,
-    "inorder_seconds": 0.03,
+    "inorder_seconds": 0.01,
     "regional_area": 144,
-    "regional_attempts": 62,
+    "regional_attempts": 27,
     "regional_complete": 1,
-    "regional_seconds": 0.34
+    "regional_seconds": 0.05
   },
   "bench_kernels": {
-    "kernel_native_us_per_op": 2.17,
-    "kernel_ops": 491,
-    "kernel_python_us_per_op": 1.9
+    "kernel_native_us_per_op": 4.27,
+    "kernel_ops": 673,
+    "kernel_python_us_per_op": 3.4
   },
   "bench_null_place": {
     "null_cells": 26,
-    "null_digest_us": 1513.5,
-    "null_place_us": 1774.4,
-    "null_refuse_us": 404.1,
-    "null_snapshot_us": 1434.6
+    "null_digest_us": 24.9,
+    "null_place_us": 1275.9,
+    "null_refuse_us": 272.3,
+    "null_snapshot_us": 455.2
   },
   "bench_service": {
-    "service_direct_ms": 21.5,
-    "service_local_ms": 38.9,
-    "service_process_ms": 426.7
+    "service_direct_ms": 11.1,
+    "service_local_ms": 14.9,
+    "service_process_ms": 209.9
   }
 }

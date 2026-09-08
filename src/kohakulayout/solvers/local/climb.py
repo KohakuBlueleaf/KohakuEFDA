@@ -83,6 +83,12 @@ PARAMS: tuple[Param, ...] = (
         name="pull_radius", type="int", default=6, doc="how far a pull may move a cell"
     ),
     Param(
+        name="screen_moves",
+        type="bool",
+        default=False,
+        doc="drop a local move whose wire estimate grows before attempting it",
+    ),
+    Param(
         name="repack_every",
         type="int",
         default=16,

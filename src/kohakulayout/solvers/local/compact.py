@@ -1,4 +1,4 @@
-"""Compaction proposals over a complete layout: close an empty line, pull a cell toward its partners."""
+"""Compaction proposals over a complete layout: close an empty line, press toward a side, pull a cell toward its partners."""
 
 import random
 from itertools import pairwise
@@ -104,6 +104,38 @@ def cut_candidates(
     return sorted(candidates.values(), key=lambda item: item[0])
 
 
+def press_candidates(
+    world: Any, movable: frozenset[str], axis: int, step: int
+) -> Anchors:
+    """Every movable cell slid toward one side as far as free footprints allow, the farthest first."""
+    placed = world.placements
+    cells_of = standing_cells(world)
+    order = sorted(placed, key=lambda c: (placed[c].x, placed[c].y)[axis] * -step)
+    taken = {
+        c for cell_id in order if cell_id not in movable for c in cells_of[cell_id]
+    }
+    moves: Anchors = {}
+    for cell_id in order:
+        p = placed[cell_id]
+        spot = [p.x, p.y, p.rot]
+        if cell_id not in movable:
+            continue
+        cells = cells_of[cell_id]
+        while True:
+            moved = [(x + step, y) if axis == 0 else (x, y + step) for x, y in cells]
+            if any(not world.in_build(c) or c in taken for c in moved):
+                break
+            spot[axis] += step
+            cells = moved
+        taken.update(cells)
+        if spot[axis] != (p.x, p.y)[axis]:
+            moves[cell_id] = (spot[0], spot[1], spot[2])
+    return moves
+
+
+SIDES = ((0, -1), (1, -1), (0, 1), (1, 1))
+
+
 class CompactionMoves:
     """Sample cut and pull proposals; the world decides feasibility when they are attempted."""
 
@@ -138,6 +170,10 @@ class CompactionMoves:
         )
         _, anchors = self.cuts.pop(index)
         return anchors or None
+
+    def press(self) -> Anchors | None:
+        axis, step = self.rng.choice(SIDES)
+        return press_candidates(self.world, self.movable, axis, step) or None
 
     def pull(self) -> Anchors | None:
         world = self.world
@@ -180,4 +216,12 @@ class CompactionMoves:
         return {cell_id: anchor}
 
 
-__all__ = ["Anchors", "CompactionMoves", "cut_candidates", "relocate", "standing_cells"]
+__all__ = [
+    "SIDES",
+    "Anchors",
+    "CompactionMoves",
+    "cut_candidates",
+    "press_candidates",
+    "relocate",
+    "standing_cells",
+]

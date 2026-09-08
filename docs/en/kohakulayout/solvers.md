@@ -28,8 +28,8 @@ whether a resumed run reaches the same layout (`exact`) or only promises to fini
 |---|---|---|
 | `inorder` | null solver | cells in flow order, each at the first anchor the world admits; the instrument every measurement is read against |
 | `baseline` | coordinate | a first-complete spread on a lattice of squares with widening gaps (parallel slices through the execution slot when workers are given), then greedy shrinking: carve an empty line, press toward a side, nudge toward partners |
-| `regional` | coordinate | seeded frontier construction on a clearance map, ranked by how close each cell's pins land to the pins they must reach, with restarts, regional withdrawal and refill, and the best prefix retained; then shrinking |
-| `climb` | coordinate | construction by regional repair accepted on the gap delta, then hill climbing over shift, rotate, swap, cluster, reroute, cut, pull and repack moves, accepted on an area-first delta with a bounded wire tie-break |
+| `regional` | coordinate | seeded frontier construction on a clearance map, ranked by how close each cell's pins land to the pins they must reach and by how much the bounding box would grow, each insertion choosing among a few routed anchors, with restarts, regional withdrawal and refill, and the best prefix retained; then shrinking |
+| `climb` | coordinate | construction by regional repair accepted on the gap delta, then hill climbing over shift, rotate, swap, cluster, reroute, reroute-all, cut, pull, press and repack moves, accepted on an area-first delta with a bounded wire tie-break |
 | `anneal` | coordinate | the same trajectory with simulated-annealing acceptance and geometric cooling by charged work |
 | `floorplan` | structural | a floorplan over macro instances and free leaves: the rows representation packs items with channels between rows that become reservations, mutations are screened by a surrogate (area plus a half-perimeter wire estimate) and legalised through the builder; an exact packing (CP-SAT or HiGHS, optional) can seed it |
 | `skeleton` | template | the copyable minimal solver, with one improvement idea |

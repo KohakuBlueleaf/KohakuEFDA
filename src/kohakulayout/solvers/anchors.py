@@ -23,15 +23,18 @@ def facing(world: Any, cell_id: str, rng: random.Random) -> Iterable[Anchor]:
 
 
 def frontier(world: Any, cell_id: str, rng: random.Random) -> Iterable[Anchor]:
-    """Anchors touching the placed extent first, then the rest of the pack's stream."""
+    """Clear windows touching the placed extent first, ranked by pin distance, then the rest."""
     x0, y0, w, h = world.extent()
     fp = world.footprint_of(cell_id)
+    proposals = Proposals(world, {"candidates": 10**6})
+    proposals.reset(0)
+    ranked = proposals.ranked(cell_id, 0, rng)
     if w == 0 or fp is None:
-        return world.anchors(cell_id)
+        return ranked
     near: list[Anchor] = []
     far: list[Anchor] = []
     reach = max(fp.width, fp.height) + 1
-    for anchor in world.anchors(cell_id):
+    for anchor in ranked:
         touching = x0 - reach <= anchor.x <= x0 + w and y0 - reach <= anchor.y <= y0 + h
         (near if touching else far).append(anchor)
     return [*near, *far]

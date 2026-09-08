@@ -1,9 +1,10 @@
-"""Repacking: withdraw a spatial neighbourhood of free cells and reconnect it at ranked anchors, in one attempt."""
+"""Repacking: withdraw a spatial neighbourhood of free cells, every other time one at the extent's edge, and reconnect it at ranked anchors, in one attempt."""
 
 import random
 from typing import Any
 
 from kohakulayout.ir import Refusal
+from kohakulayout.ir.geometry import rotate_size
 from kohakulayout.solvers.regional.candidates import Proposals, is_free
 
 
@@ -15,13 +16,28 @@ class RepackMoves:
         self.settings = settings
         self.rng = rng
 
+    def edge_cells(self, free: list[str]) -> list[str]:
+        """The free cells whose footprint reaches the placed extent's last row or last column."""
+        placed = self.world.placements
+        far: dict[str, tuple[int, int]] = {}
+        for cell_id in free:
+            p = placed[cell_id]
+            fp = self.world.footprint_of(cell_id)
+            w, h = rotate_size(fp.width, fp.height, p.rot)
+            far[cell_id] = (p.x + w - 1, p.y + h - 1)
+        max_x = max(x for x, _ in far.values())
+        max_y = max(y for _, y in far.values())
+        return [c for c, (x, y) in far.items() if x == max_x or y == max_y]
+
     def choose(self) -> list[str]:
+        """A neighbourhood around a random free cell, or every other time around one on the extent's edge."""
         world = self.world
         placed = world.placements
         free = sorted(c for c in placed if is_free(world.netlist.cells[c]))
         if len(free) < 2:
             return []
-        root = self.rng.choice(free)
+        roots = self.edge_cells(free) if self.rng.random() < 0.5 else free
+        root = self.rng.choice(roots)
         rx, ry = placed[root].x, placed[root].y
         ordered = sorted(
             free, key=lambda c: (abs(placed[c].x - rx) + abs(placed[c].y - ry), c)

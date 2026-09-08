@@ -104,9 +104,18 @@ class LayoutMoves:
             self.swap,
             self.cluster,
             self.reroute,
+            self.reroute_all,
         )
         if settings["compaction_moves"]:
-            self.operators = (*self.operators, self.cut, self.pull, self.pull, self.cut)
+            self.operators = (
+                *self.operators,
+                self.cut,
+                self.pull,
+                self.press,
+                self.cut,
+                self.pull,
+                self.press,
+            )
         self.calls = 0
 
     def propose(self) -> tuple[str, Move | None]:
@@ -134,7 +143,42 @@ class LayoutMoves:
     ) -> tuple[str, Move | None]:
         if not moves:
             return name, None
+        if (
+            self.settings.get("screen_moves")
+            and name in SCREENED
+            and self.estimate(moves) > 0
+        ):
+            return name, None
         return name, lambda b, m=moves: relocate(b, m)
+
+    def estimate(self, moves: dict[str, tuple[int, int, int]]) -> int:
+        """How much longer the touched nets' half perimeters get; positive means the move is dropped unheard."""
+        placed = self.world.placements
+        before = 0
+        after = 0
+        for net in self.world.netlist.nets.values():
+            cells = [r.cell for r in net.pins()]
+            if not any(c in moves for c in cells):
+                continue
+            xs: list[int] = []
+            ys: list[int] = []
+            xs2: list[int] = []
+            ys2: list[int] = []
+            for c in cells:
+                if c in moves:
+                    xs2.append(moves[c][0])
+                    ys2.append(moves[c][1])
+                elif c in placed:
+                    xs2.append(placed[c].x)
+                    ys2.append(placed[c].y)
+                if c in placed:
+                    xs.append(placed[c].x)
+                    ys.append(placed[c].y)
+            if len(xs) >= 2:
+                before += max(xs) - min(xs) + max(ys) - min(ys)
+            if len(xs2) >= 2:
+                after += max(xs2) - min(xs2) + max(ys2) - min(ys2)
+        return after - before
 
     def shift(self) -> tuple[str, Move | None]:
         if not self.free:
@@ -196,12 +240,35 @@ class LayoutMoves:
 
         return "reroute", body
 
+    def reroute_all(self) -> tuple[str, Move | None]:
+        """Every net unrouted, then routed again in a random order; a channel one order wastes another frees."""
+        nets = sorted(self.world.netlist.nets)
+        if len(nets) < 2:
+            return "reroute_all", None
+        self.rng.shuffle(nets)
+
+        def body(builder: Any) -> Refusal | None:
+            for net_id in nets:
+                builder.unroute(net_id)
+            for net_id in nets:
+                refusal = builder.route(net_id)
+                if refusal is not None:
+                    return refusal
+            return None
+
+        return "reroute_all", body
+
     def cut(self) -> tuple[str, Move | None]:
         return self._relocation("cut", self.compaction.cut())
 
     def pull(self) -> tuple[str, Move | None]:
         return self._relocation("pull", self.compaction.pull())
 
+    def press(self) -> tuple[str, Move | None]:
+        return self._relocation("press", self.compaction.press())
+
+
+SCREENED = frozenset({"shift", "rotate", "swap", "cluster"})
 
 MOVES: dict[str, str] = {
     name: name
@@ -211,8 +278,10 @@ MOVES: dict[str, str] = {
         "swap",
         "cluster",
         "reroute",
+        "reroute_all",
         "cut",
         "pull",
+        "press",
         "repack",
     )
 }

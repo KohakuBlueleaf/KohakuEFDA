@@ -24,8 +24,10 @@ DEFAULTS: dict[str, Any] = {
     "replace_equal": 0.5,
     "jitter": 3.0,
     "closed_cost": 10000,
-    "center_weight": 0.2,
+    "origin_weight": 0.2,
     "corner_weight": 0.015,
+    "lookahead": 3,
+    "insert_failures": 8,
 }
 
 
@@ -120,12 +122,36 @@ class Search:
         )
 
     def insert(self, builder: Any, cell_id: str, anchors: list[Any]) -> bool:
+        """The first ``lookahead`` anchors that place are compared by routed wire cells; the cheapest stays. ``insert_failures`` refusals end the scan."""
+        lookahead = max(1, int(self.settings.get("lookahead", 1)))
+        patience = int(self.settings.get("insert_failures", 8))
+        best: tuple[int, Any] | None = None
+        tried = 0
+        refused = 0
         for anchor in anchors:
             if not builder.admits(cell_id, anchor.x, anchor.y, anchor.rot):
                 continue
+            mark = builder.mark()
             if builder.place(cell_id, anchor) is None:
-                self.proposals.occupy(cell_id, anchor.x, anchor.y, anchor.rot)
-                return True
+                cost = sum(
+                    len(seg.cells)
+                    for w in self.world.wires.values()
+                    for seg in w.segments
+                )
+                if best is None or cost < best[0]:
+                    best = (cost, anchor)
+                tried += 1
+            else:
+                refused += 1
+            builder.restore(mark)
+            if tried >= lookahead or refused >= patience:
+                break
+        if best is None:
+            return False
+        anchor = best[1]
+        if builder.place(cell_id, anchor) is None:
+            self.proposals.occupy(cell_id, anchor.x, anchor.y, anchor.rot)
+            return True
         return False
 
     def construct(self, builder: Any, trial: int) -> list[str]:

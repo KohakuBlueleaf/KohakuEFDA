@@ -3,10 +3,14 @@
 from typing import Any
 
 from kohakulayout.ir.geometry import footprint_cells
-from kohakulayout.solvers.local.compact import Anchors, relocate, standing_cells
+from kohakulayout.solvers.local.compact import (
+    SIDES,
+    Anchors,
+    press_candidates,
+    relocate,
+    standing_cells,
+)
 from kohakulayout.solvers.regional.search import neighbours_of
-
-SIDES = ((0, -1), (1, -1), (0, 1), (1, 1))
 
 
 class Shrink:
@@ -23,7 +27,7 @@ class Shrink:
         self.seen: set[tuple[str, tuple]] = set()
 
     def take(self, moves: Anchors) -> bool:
-        """Attempt the relocation; keep it only when the assessment ranks strictly better."""
+        """Attempt the relocation; keep it when the assessment ranks better, or ranks equal with fewer wire cells."""
         ctx = self.ctx
         key = (self.world.digest(), tuple(sorted(moves.items())))
         if key in self.seen:
@@ -38,9 +42,16 @@ class Shrink:
             ctx.restore(token)
             return False
         after = ctx.consider()
-        if after is None or ctx.rank(after, ctx.physics.objective) >= ctx.rank(
-            before, ctx.physics.objective
-        ):
+        if after is None:
+            ctx.restore(token)
+            return False
+        objective = ctx.physics.objective
+        better = ctx.rank(after, objective) < ctx.rank(before, objective)
+        plateau = (
+            ctx.rank(after, objective) == ctx.rank(before, objective)
+            and after.metrics["wire_cells"] < before.metrics["wire_cells"]
+        )
+        if not better and not plateau:
             ctx.restore(token)
             return False
         return True
@@ -66,33 +77,7 @@ class Shrink:
         return False
 
     def press(self, axis: int, step: int) -> bool:
-        world = self.world
-        placed = dict(world.placements)
-        cells_of = standing_cells(world)
-        order = sorted(placed, key=lambda c: (placed[c].x, placed[c].y)[axis] * -step)
-        taken = {
-            c
-            for cell_id in order
-            if cell_id not in self.movable
-            for c in cells_of[cell_id]
-        }
-        moves: Anchors = {}
-        for cell_id in order:
-            p = placed[cell_id]
-            spot = [p.x, p.y, p.rot]
-            if cell_id in self.movable:
-                cells = cells_of[cell_id]
-                while True:
-                    moved = [
-                        (x + step, y) if axis == 0 else (x, y + step) for x, y in cells
-                    ]
-                    if any(not world.in_build(c) or c in taken for c in moved):
-                        break
-                    spot[axis] += step
-                    cells = moved
-                taken.update(cells)
-                if spot[axis] != (p.x, p.y)[axis]:
-                    moves[cell_id] = (spot[0], spot[1], spot[2])
+        moves = press_candidates(self.world, self.movable, axis, step)
         return bool(moves) and self.take(moves)
 
     def nudge(self) -> bool:

@@ -3,7 +3,7 @@
 import random
 from typing import Any
 
-from kohakulayout.ir.geometry import rotate_size
+from kohakulayout.ir.geometry import bbox, rotate_size
 from kohakulayout.physics.protocol import Anchor
 from kohakulayout.solvers.regional.candidates import Proposals, is_free
 from kohakulayout.solvers.regional.search import clear, neighbours_of
@@ -50,21 +50,31 @@ class Spread:
                     out.append(member)
         return out
 
-    def lattice(self, gap: int) -> list[tuple[int, int]]:
+    def lattice(self, gap: int, offset: int = 0) -> list[tuple[int, int]]:
+        """Squares one footprint plus its attach ring apart, snaking row by row, shifted by ``offset`` cells."""
         world = self.world
         free = [
             world.footprint_of(c)
             for c, cell in world.netlist.cells.items()
             if is_free(cell)
         ]
-        pitch = max((max(fp.width, fp.height) for fp in free), default=1) + gap
-        width, height = world.fabric.width, world.fabric.height
-        cols, rows = max(1, width // pitch), max(1, height // pitch)
+        pitch = max((max(fp.width, fp.height) for fp in free), default=1) + 2 + gap
+        bx, by, width, height = self.build_box()
+        cols, rows = max(1, (width - offset) // pitch), max(
+            1, (height - offset) // pitch
+        )
         return [
-            (x * pitch, y * pitch)
+            (bx + offset + x * pitch, by + offset + y * pitch)
             for y in range(rows)
             for x in (range(cols) if y % 2 == 0 else reversed(range(cols)))
         ]
+
+    def build_box(self) -> tuple[int, int, int, int]:
+        """The build region's bounding box as ``(x, y, width, height)``; the grid when it is empty."""
+        cells = self.world.build_cells
+        if not cells:
+            return (0, 0, self.world.fabric.width, self.world.fabric.height)
+        return bbox(tuple(cells))
 
     def turns(self, cell_id: str, x: int, y: int) -> list[int]:
         """Rotations facing the placed partners first."""
@@ -131,7 +141,8 @@ class Spread:
             x, y = self.squares[index]
             for rot in self.turns(cell_id, x, y):
                 w, h = rotate_size(fp.width, fp.height, rot)
-                if x + w > self.world.fabric.width or y + h > self.world.fabric.height:
+                bx, by, bw, bh = self.build_box()
+                if x + w > bx + bw or y + h > by + bh:
                     continue
                 if (
                     builder.admits(cell_id, x, y, rot)
@@ -143,7 +154,12 @@ class Spread:
 
     def attempt(self, builder: Any, attempt: int, gaps: list[int]) -> list[str]:
         clear(builder)
-        self.squares, self.next_square = self.lattice(gaps[attempt % len(gaps)]), 0
+        self.squares, self.next_square = (
+            self.lattice(
+                gaps[attempt % len(gaps)], 2 if (attempt // len(gaps)) % 2 else 1
+            ),
+            0,
+        )
         self.order = self.traversal(attempt >= 2 * len(gaps))
         missed = [c for c in self.order if not self.stand(builder, c)]
         return [c for c in missed if not self.stand(builder, c)]

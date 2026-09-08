@@ -1,5 +1,6 @@
 """The exact sub-solver slot: a floorplan of rectangles proven optimal or infeasible; absence is a configuration answer."""
 
+from importlib import import_module
 from typing import Any, Protocol, runtime_checkable
 
 from kohakulayout.errors import NotAvailable
@@ -30,6 +31,12 @@ def register(occupant: type) -> type:
 
 
 def get(name: str, **kwargs: Any) -> Any:
+    """An occupant by name, its module imported on first use; a library that fails to import leaves it absent."""
+    if name not in EXACT and name.isidentifier():
+        try:
+            import_module(f"kohakulayout.solvers.structural.exact.{name}")
+        except ImportError:
+            pass
     cls = EXACT.get(name)
     if cls is None:
         raise NotAvailable(

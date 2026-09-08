@@ -104,7 +104,7 @@ def test_surrogate_orders_like_the_assessment() -> None:
 
 
 def test_exact_slot_names_its_absence() -> None:
-    if not exact_slot.EXACT:
+    if not exact_slot.available():
         with pytest.raises(NotAvailable, match="install ortools"):
             exact_slot.get("cpsat")
         return
@@ -125,7 +125,7 @@ def test_floorplan_params_and_exact_absent() -> None:
         router="default",
         budget=Budget(units=2000),
     )
-    if not exact_slot.EXACT:
+    if not exact_slot.available():
         with pytest.raises(NotAvailable):
             solver.run(ctx, exact="cpsat", steps=0)
     assert Fraction(solver.params[-2].default) == Fraction(1, 4)
