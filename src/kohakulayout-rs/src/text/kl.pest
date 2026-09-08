@@ -1,0 +1,106 @@
+// ============================================================
+// KohakuLayout text form  --  pest grammar
+// Mirrors ir/text/kl.lark rule for rule. PEG has no contextual lexer, so each
+// rule names the token it takes; the alternatives are ordered the way the
+// contextual lexer would resolve them (keywords and typed tokens before ids).
+//
+// Braces, never indentation: a block opens with "{" and closes with "}";
+// items inside are separated by ";" or newlines. Horizontal whitespace and
+// "#" comments are skipped; newlines end statements.
+// ============================================================
+
+WHITESPACE = _{ " " | "\t" }
+COMMENT = _{ "#" ~ (!NEWLINE ~ ANY)* }
+nl = _{ NEWLINE+ }
+
+file = { SOI ~ (nl | statement)* ~ EOI }
+statement = { (block | simple) ~ (nl | &EOI) }
+
+simple = _{ header | physics | fabric | region | carrier | param
+          | cell | pin | net | group | netattrs
+          | layout_hdr | place | instance | wire | unit | reserve
+          | assessment_hdr | metric | finding | complete | valid }
+
+// ---- problem and fabric
+header = { "kl" ~ INT }
+physics = { "physics" ~ PHYSICS_ID }
+fabric = { "fabric" ~ SIZE ~ opt* ~ attr* }
+region = { "region" ~ ID ~ region_expr ~ attr* }
+region_expr = { region_all | region_not | region_rects }
+region_all = { KW_ALL }
+region_not = { KW_NOT ~ ID }
+region_rects = { rect+ }
+rect = { "rect" ~ XY ~ SIZE }
+carrier = { "carrier" ~ ID ~ ID ~ rate? ~ opt* ~ attr* }
+param = { "param" ~ opt }
+rate = { RATE | INT }
+
+// ---- netlist
+cell = { "cell" ~ ID ~ ID ~ opt* ~ attr* }
+pin = { "pin" ~ PINREF ~ DIR ~ ID ~ opt* }
+net = { "net" ~ ID ~ ID ~ rate? ~ opt* ~ attr* ~ ":" ~ net_sources ~ "->" ~ net_sinks }
+net_sources = { PINREF* }
+net_sinks = { PINREF* }
+group = { "group" ~ ID ~ opt* ~ attr* ~ ":" ~ ID+ }
+netattrs = { "attrs" ~ attr+ }
+
+// ---- layout
+layout_hdr = { KW_LAYOUT ~ DIGEST? ~ attr* }
+place = { "place" ~ ID ~ XY ~ ROT }
+instance = { "instance" ~ ID ~ XY ~ ROT }
+wire = { "wire" ~ ID ~ opt* ~ ":" ~ segment ~ (";" ~ segment)* }
+segment = { segment_cells | segment_moves }
+segment_moves = { endpoint ~ mv* ~ "->" ~ endpoint }
+segment_cells = { "cells" ~ XY+ ~ "->" ~ endpoint }
+endpoint = { PINREF | at_cell }
+mv = { MOVE | at_cell }
+at_cell = { "@" ~ XY }
+unit = { "unit" ~ ID ~ ID ~ XY ~ ROT ~ opt* ~ attr* }
+reserve = { "reserve" ~ ID ~ ID ~ opt* ~ ":" ~ rect+ }
+
+// ---- assessment
+assessment_hdr = { KW_ASSESSMENT ~ DIGEST? }
+metric = { "metric" ~ ID ~ VALUE }
+finding = { "finding" ~ RULE ~ SEVERITY ~ SUBJECT ~ STRING ~ attr* }
+complete = { "complete" ~ BOOL }
+valid = { "valid" ~ BOOL }
+
+// ---- blocks
+block = _{ lib | module | macro_ }
+lib = { "lib" ~ ID ~ SIZE ~ opt* ~ attr* ~ "{" ~ sep? ~ (port ~ (sep ~ port)*)? ~ sep? ~ "}" }
+port = { ID ~ DIR ~ ID ~ MOVE ~ attr* }
+module = { "module" ~ ID ~ "{" ~ sep? ~ (module_item ~ (sep ~ module_item)*)? ~ sep? ~ "}" }
+module_item = _{ module_port | lib | module | macro_ | cell | pin | net | group | netattrs }
+module_port = { "port" ~ ID ~ DIR ~ ID ~ "=" ~ PINREF }
+macro_ = { "macro" ~ ID ~ ID ~ "{" ~ sep? ~ (macro_item ~ (sep ~ macro_item)*)? ~ sep? ~ "}" }
+macro_item = _{ place | wire | unit }
+sep = _{ (";" | NEWLINE)+ }
+
+opt = { OPT ~ (STRING | VALUE) }
+attr = { ATTR ~ (STRING | VALUE) }
+
+// ---- terminals
+KW_ALL = @{ "all" ~ !ID_CHAR }
+KW_NOT = @{ "not" ~ !ID_CHAR }
+KW_LAYOUT = @{ "layout" ~ !ID_CHAR }
+KW_ASSESSMENT = @{ "assessment" ~ !ID_CHAR }
+ID_CHAR = _{ ASCII_ALPHANUMERIC | "_" | "/" | "-" }
+DIR = @{ ("inout" | "in" | "out") ~ !ID_CHAR }
+SEVERITY = @{ ("error" | "warning" | "info") ~ !ID_CHAR }
+BOOL = @{ ("true" | "false") ~ !ID_CHAR }
+ROT = @{ "r" ~ ("0" | "90" | "180" | "270") ~ !ASCII_DIGIT }
+MOVE = @{ ("N" | "E" | "S" | "W") ~ ASCII_DIGIT+ ~ !ID_CHAR }
+XY = @{ "-"? ~ ASCII_DIGIT+ ~ "," ~ "-"? ~ ASCII_DIGIT+ }
+SIZE = @{ ASCII_DIGIT+ ~ "x" ~ ASCII_DIGIT+ }
+RATE = @{ ASCII_DIGIT+ ~ "/" ~ ASCII_DIGIT+ }
+INT = @{ "-"? ~ ASCII_DIGIT+ }
+PHYSICS_ID = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_" | "-")* ~ ("@" ~ (ASCII_ALPHANUMERIC | "_" | "." | "-")+)? }
+RULE = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_" | "." | "/" | "-")* }
+DIGEST = @{ ASCII_HEX_DIGIT{8,64} ~ !ID_CHAR }
+SUBJECT = @{ (("cell" | "net" | "unit" | "wire" | "instance" | "module" | "macro" | "region" | "carrier" | "field") ~ ":" ~ (!(" " | "\t" | NEWLINE) ~ ANY)+) | ("layout" ~ !ID_CHAR) }
+PINREF = @{ (ASCII_ALPHA | "_") ~ ID_CHAR* ~ "." ~ (ASCII_ALPHA | "_") ~ ID_CHAR* }
+OPT = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_" | "." | "-")* ~ "=" }
+ATTR = @{ "+" ~ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_" | "-")* ~ "." ~ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_" | "." | "-")* ~ "=" }
+ID = @{ (ASCII_ALPHA | "_") ~ ID_CHAR* }
+STRING = @{ "\"" ~ ("\\" ~ ANY | !("\"" | "\\") ~ ANY)* ~ "\"" }
+VALUE = @{ (!(" " | "\t" | ";" | "{" | "}" | "#" | "\"" | NEWLINE) ~ ANY)+ }

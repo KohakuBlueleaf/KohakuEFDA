@@ -1,0 +1,28 @@
+[package]
+name = "kohakulayout-rs"
+version = "0.1.0"
+edition = "2021"
+description = "The native twin of KohakuLayout: text form, canonical JSON, flatten, digest, and the occupancy kernel"
+license = "MIT"
+
+[lib]
+name = "kohakulayout_rs"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pest = "2"
+pest_derive = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+thiserror = "2"
+pyo3 = { version = "0.26", features = ["extension-module"], optional = true }
+wasm-bindgen = { version = "0.2", optional = true }
+
+[features]
+default = ["python"]
+python = ["pyo3"]
+wasm = ["wasm-bindgen"]
+
+[profile.release]
+opt-level = 3

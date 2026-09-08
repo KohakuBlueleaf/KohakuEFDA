@@ -1,0 +1,77 @@
+{
+  "bench_engine_attempt": {
+    "engine_attempt_place_us": 1402.9,
+    "engine_raw_place_us": 1243.3,
+    "engine_solve_aon_us": 35044.6
+  },
+  "bench_floorplan": {
+    "floorplan_area": 200,
+    "floorplan_attempts": 15,
+    "floorplan_complete": 1,
+    "floorplan_seconds": 0.21
+  },
+  "bench_flow": {
+    "flow_nets": 200,
+    "flow_per_net_us": 19.6,
+    "flow_rounds": 1
+  },
+  "bench_gates_inorder": {
+    "gates_assess_us": 85.2,
+    "gates_cells": 48,
+    "gates_inorder_place_us": 23489.8,
+    "gates_missing": 0
+  },
+  "bench_gates_power": {
+    "gates_plain_emitters": 0,
+    "gates_plain_inorder_per_cell_us": 4619.9,
+    "gates_power_emitters": 3,
+    "gates_power_inorder_per_cell_us": 4981.2
+  },
+  "bench_gates_route": {
+    "gates_route_cells": 18,
+    "gates_route_complete": 1,
+    "gates_route_jumpers": 37,
+    "gates_route_nets": 12,
+    "gates_route_per_cell_us": 50590.3,
+    "gates_route_per_net_us": 75885.4
+  },
+  "bench_gates_solvers": {
+    "anneal_area": 96,
+    "anneal_attempts": 1274,
+    "anneal_complete": 1,
+    "anneal_seconds": 4.04,
+    "baseline_area": 96,
+    "baseline_attempts": 35,
+    "baseline_complete": 1,
+    "baseline_seconds": 0.18,
+    "climb_area": 96,
+    "climb_attempts": 1286,
+    "climb_complete": 1,
+    "climb_seconds": 2.98,
+    "inorder_area": 120,
+    "inorder_attempts": 9,
+    "inorder_complete": 1,
+    "inorder_seconds": 0.03,
+    "regional_area": 144,
+    "regional_attempts": 62,
+    "regional_complete": 1,
+    "regional_seconds": 0.34
+  },
+  "bench_kernels": {
+    "kernel_native_us_per_op": 2.17,
+    "kernel_ops": 491,
+    "kernel_python_us_per_op": 1.9
+  },
+  "bench_null_place": {
+    "null_cells": 26,
+    "null_digest_us": 1513.5,
+    "null_place_us": 1774.4,
+    "null_refuse_us": 404.1,
+    "null_snapshot_us": 1434.6
+  },
+  "bench_service": {
+    "service_direct_ms": 21.5,
+    "service_local_ms": 38.9,
+    "service_process_ms": 426.7
+  }
+}
