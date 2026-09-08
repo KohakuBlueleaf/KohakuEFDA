@@ -1,0 +1,31 @@
+kl 1
+# A module instantiated twice, once as a macro with a fixed fragment, and a layout with an instance.
+physics gates@1
+fabric 30x12 layers=ground
+carrier wire ground
+lib XOR 3x3 { a in wire W0 ; b in wire W2 ; y out wire E1 }
+lib IN 1x1 { y out wire E0 }
+module HA {
+    port a in wire = x1.a
+    port b in wire = x1.b
+    port s out wire = x2.y
+    cell x1 XOR
+    cell x2 XOR
+    net m1 wire : x1.y -> x2.a
+}
+macro HA_FLAT HA {
+    place x1 0,0 r0
+    place x2 4,0 r0
+    wire m1 carrier=wire layer=ground : cells 3,1 -> @3,0
+}
+cell i1 IN at=edge side=W
+cell i2 IN at=edge side=W
+cell h0 HA
+cell h1 HA_FLAT
+net n1 wire : i1.y -> h0.a h1.a
+net n2 wire : i2.y -> h0.b h1.b
+
+layout
+place i1 0,1 r0
+place i2 0,3 r0
+instance h1 4,0 r90

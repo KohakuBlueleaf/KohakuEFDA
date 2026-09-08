@@ -1,0 +1,25 @@
+kl 1
+# The two-gate problem from the design set, with a hand-written layout.
+physics gates@1
+fabric 24x12 layers=ground,overhead entries=W,E
+carrier wire ground
+carrier clk overhead
+lib AND 3x3 { a in wire W0 ; b in wire W2 ; y out wire E1 }
+lib IN  1x1 { y out wire E0 }
+lib OUT 1x1 { a in wire W0 }
+cell a  IN  at=edge side=W
+cell b  IN  at=edge side=W
+cell g1 AND +endfield.zone=2
+cell y  OUT at=edge side=E
+net n1 wire : a.y -> g1.a
+net n2 wire : b.y -> g1.b
+net n3 wire 30 : g1.y -> y.a
+
+layout
+place a  0,2 r0
+place b  0,4 r0
+place g1 6,2 r0
+place y  12,3 r0
+wire n1 : a.y E4 -> g1.a
+wire n2 : b.y E4 -> g1.b
+wire n3 : g1.y E2 -> y.a

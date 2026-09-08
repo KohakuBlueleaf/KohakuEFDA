@@ -1,0 +1,17 @@
+kl 1
+physics gates@1
+fabric 30x12 layers=ground
+region build all
+carrier wire ground
+lib IN 1x1 { y out wire E0 }
+lib XOR 3x3 { a in wire W0 ; b in wire W2 ; y out wire E1 }
+cell h0/x1 XOR
+cell h0/x2 XOR
+cell h1/x1 XOR
+cell h1/x2 XOR
+cell i1 IN at=edge side=W
+cell i2 IN at=edge side=W
+net h0/m1 wire : h0/x1.y -> h0/x2.a
+net h1/m1 wire : h1/x1.y -> h1/x2.a
+net n1 wire : i1.y -> h0/x1.a h1/x1.a
+net n2 wire : i2.y -> h0/x1.b h1/x1.b

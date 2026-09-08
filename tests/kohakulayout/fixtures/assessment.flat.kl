@@ -1,0 +1,17 @@
+kl 1
+assessment 51c0a1b2
+metric area 39
+metric extent_h 3
+metric extent_w 13
+metric missing 0
+metric overflow 0
+metric placed 4
+metric routed 3
+metric units 0
+metric unrouted 0
+metric wire_cells 10
+metric wire_len 7/2
+finding gates.fanout error net:n7 "7 sinks, limit 4"
+finding gates.edge warning cell:a "an input off the west edge" +gates.side=W
+complete true
+valid false

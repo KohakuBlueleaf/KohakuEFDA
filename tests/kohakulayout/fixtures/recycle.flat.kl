@@ -1,0 +1,16 @@
+kl 1
+physics gates@1
+fabric 16x8 layers=ground
+region build all
+carrier wire ground
+lib MIX 3x3 { a in wire W0 ; b in wire W2 ; y out wire E1 }
+lib PASS 2x3 { a in wire W1 ; y out wire E1 }
+lib SINK 1x1 { a in wire W0 }
+lib SRC 1x1 { y out wire E0 }
+cell mix MIX
+cell out SINK
+cell src SRC
+cell stage PASS
+net back wire 4 : stage.y -> mix.b out.a
+net feed wire 10 : src.y -> mix.a
+net made wire 8 : mix.y -> stage.a

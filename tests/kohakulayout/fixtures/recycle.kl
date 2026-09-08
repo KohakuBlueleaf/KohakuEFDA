@@ -1,0 +1,16 @@
+kl 1
+# A flow-only fixture: a source feeds a mixer whose output passes through a stage and partly recycles.
+physics gates@1
+fabric 16x8 layers=ground
+carrier wire ground
+lib SRC 1x1 { y out wire E0 }
+lib MIX 3x3 { a in wire W0 ; b in wire W2 ; y out wire E1 }
+lib PASS 2x3 { a in wire W1 ; y out wire E1 }
+lib SINK 1x1 { a in wire W0 }
+cell src SRC
+cell mix MIX
+cell stage PASS
+cell out SINK
+net feed wire 10 : src.y -> mix.a
+net made wire 8 : mix.y -> stage.a
+net back wire 4 : stage.y -> mix.b out.a

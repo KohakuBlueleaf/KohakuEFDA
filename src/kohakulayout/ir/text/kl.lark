@@ -1,0 +1,119 @@
+// ============================================================
+// KohakuLayout text form  --  Lark grammar
+// Parser: LALR(1), lexer: contextual.
+//
+// Braces, never indentation: a block opens with "{" and closes with a "}"
+// line; items inside are separated by ";" or newlines, so an inline
+// block "{ a ; b }" and a multi-line block are the same thing. Horizontal
+// whitespace and "#" comments are ignored; newlines are tokens because
+// one statement is one line.
+//
+// Values after "key=" and after "metric <id>" are one VALUE token, typed
+// in the transformer (int, fraction, bool, id, comma list) so the grammar
+// stays small and the contextual lexer never has to choose between a
+// value and an id. Sides, rotations, coordinates and sizes have their own
+// terminals because they appear where an id never can.
+//
+// The pest grammar in kohakulayout-rs mirrors this file rule for rule.
+// ============================================================
+
+start: (_NL | statement)*
+
+?statement: simple _NL
+          | block _NL
+
+?simple: header | physics | fabric | region | carrier | param
+       | cell | pin | net | group | netattrs
+       | layout_hdr | place | instance | wire | unit | reserve
+       | assessment_hdr | metric | finding | complete | valid
+
+// ---- problem and fabric
+header: "kl" INT
+physics: "physics" PHYSICS_ID
+fabric: "fabric" SIZE opt* attr*
+region: "region" ID region_expr attr*
+?region_expr: "all"          -> region_all
+            | rect+          -> region_rects
+            | "not" ID       -> region_not
+rect: "rect" XY SIZE
+carrier: "carrier" ID ID rate? opt* attr*
+param: "param" opt
+?rate: RATE | INT
+
+// ---- netlist
+cell: "cell" ID ID opt* attr*
+pin: "pin" PINREF DIR ID opt*
+net: "net" ID ID rate? opt* attr* ":" net_sources "->" net_sinks
+net_sources: PINREF*
+net_sinks: PINREF*
+group: "group" ID opt* attr* ":" ID+
+netattrs: "attrs" attr+
+
+// ---- layout
+layout_hdr: "layout" DIGEST? attr*
+place: "place" ID XY ROT
+instance: "instance" ID XY ROT
+wire: "wire" ID opt* ":" segment (";" segment)*
+segment: endpoint move* "->" endpoint   -> segment_moves
+       | "cells" XY+ "->" endpoint      -> segment_cells
+?endpoint: PINREF
+         | "@" XY                       -> at_cell
+?move: MOVE
+     | "@" XY                           -> at_cell
+unit: "unit" ID ID XY ROT opt* attr*
+reserve: "reserve" ID ID opt* ":" rect+
+
+// ---- assessment
+assessment_hdr: "assessment" DIGEST?
+metric: "metric" ID VALUE
+finding: "finding" RULE SEVERITY SUBJECT STRING attr*
+complete: "complete" BOOL
+valid: "valid" BOOL
+
+// ---- blocks
+?block: lib | module | macro
+lib: "lib" ID SIZE opt* attr* "{" lib_items "}"
+lib_items: _sep?
+         | _sep? port (_sep port)* _sep?
+port: ID DIR ID MOVE attr*
+module: "module" ID "{" module_items "}"
+module_items: _sep?
+            | _sep? module_item (_sep module_item)* _sep?
+?module_item: module_port | cell | pin | net | group | netattrs | lib | module | macro
+module_port: "port" ID DIR ID "=" PINREF
+macro: "macro" ID ID "{" macro_items "}"
+macro_items: _sep?
+           | _sep? macro_item (_sep macro_item)* _sep?
+?macro_item: place | wire | unit
+_sep: (";" | _NL)+
+
+opt: OPT VALUE
+   | OPT STRING
+attr: ATTR VALUE
+    | ATTR STRING
+
+// ---- terminals
+DIR.3: "inout" | "in" | "out"
+SEVERITY.3: "error" | "warning" | "info"
+BOOL.3: "true" | "false"
+ROT.3: /r(0|90|180|270)\b/
+MOVE.2: /[NESW]\d+/
+XY.2: /-?\d+,-?\d+/
+SIZE.2: /\d+x\d+/
+RATE.2: /\d+\/\d+/
+INT: /-?\d+/
+PHYSICS_ID: /[A-Za-z_][A-Za-z0-9_-]*(@[A-Za-z0-9_.-]+)?/
+RULE.2: /[A-Za-z_][A-Za-z0-9_.\/-]*/
+DIGEST: /[0-9a-f]{8,64}/
+SUBJECT.2: /(cell|net|unit|wire|instance|module|macro|region|carrier|field):[^\s]+|layout\b/
+PINREF.2: /[A-Za-z_][A-Za-z0-9_\/-]*\.[A-Za-z_][A-Za-z0-9_\/-]*/
+OPT.2: /[A-Za-z_][A-Za-z0-9_.-]*=/
+ATTR.2: /\+[A-Za-z_][A-Za-z0-9_-]*\.[A-Za-z_][A-Za-z0-9_.-]*=/
+ID: /[A-Za-z_][A-Za-z0-9_\/-]*/
+STRING: /"(\\.|[^"\\])*"/
+VALUE.-1: /[^\s;{}#"]+/
+COMMENT: /#[^\n]*/
+_NL: /(\r?\n)+/
+
+%ignore /[ \t]+/
+%ignore COMMENT
