@@ -1,0 +1,36 @@
+kl 1
+# A bank of four buffers on one lane, as a module with a row fragment, instantiated twice.
+physics gates@1
+fabric 40x12 layers=ground,overhead entries=W,E
+carrier wire ground
+carrier clk overhead
+lib BUF 2x3 { a in wire W1 ; y out wire E1 }
+lib IN  1x1 { y out wire E0 }
+lib OUT 1x1 { a in wire W0 }
+module BANK {
+    port b1_a in wire = b1.a
+    port b2_a in wire = b2.a
+    port b3_a in wire = b3.a
+    port b4_a in wire = b4.a
+    port b1_y out wire = b1.y
+    port b2_y out wire = b2.y
+    port b3_y out wire = b3.y
+    port b4_y out wire = b4.y
+    cell b1 BUF
+    cell b2 BUF
+    cell b3 BUF
+    cell b4 BUF
+}
+macro BANK_ROW BANK {
+    place b1 0,0 r90
+    place b2 4,0 r90
+    place b3 8,0 r90
+    place b4 12,0 r90
+}
+cell i  IN  at=edge side=W
+cell o  OUT at=edge side=E
+cell k1 BANK_ROW
+cell k2 BANK_ROW
+net n1 wire : i.y -> k1.b1_a k1.b2_a k1.b3_a k1.b4_a
+net n2 wire : k1.b1_y k1.b2_y k1.b3_y k1.b4_y -> k2.b1_a k2.b2_a k2.b3_a k2.b4_a
+net n3 wire : k2.b1_y k2.b2_y k2.b3_y k2.b4_y -> o.a

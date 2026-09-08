@@ -1,0 +1,46 @@
+"""The kernel protocol: per-layer occupancy with holders, queries, and a byte-exact save and load.
+
+Two occupants must agree byte for byte: the pure Python grid and the native grid. A holder is
+a string such as ``cell:g1``, ``wire:n1``, ``unit:u1`` or ``reserve:ch1``.
+"""
+
+from collections.abc import Iterable, Mapping
+from typing import Protocol, runtime_checkable
+
+import numpy as np
+
+from kohakulayout.ir.geometry import XY
+
+Holder = str
+
+
+@runtime_checkable
+class Kernel(Protocol):
+    width: int
+    height: int
+    layers: tuple[str, ...]
+
+    def occupy(self, layer: str, cells: Iterable[XY], holder: Holder) -> None: ...
+    def free(self, layer: str, cells: Iterable[XY], holder: Holder) -> None: ...
+    def holders_at(self, layer: str, xy: XY) -> tuple[Holder, ...]: ...
+    def holders(
+        self, layer: str, cells: Iterable[XY]
+    ) -> tuple[tuple[Holder, ...], ...]: ...
+    def free_for(self, layer: str, cells: Iterable[XY]) -> bool: ...
+    def cells_of(self, holder: Holder) -> dict[str, frozenset[XY]]: ...
+    def holders_on(self, layer: str) -> tuple[Holder, ...]: ...
+    def holders_map(self, layer: str) -> Mapping[XY, tuple[Holder, ...]]: ...
+    def extent(
+        self, layer: str | None = None, mask: frozenset[XY] | None = None
+    ) -> tuple[int, int, int, int] | None: ...
+    def occupancy(self, layer: str) -> np.ndarray: ...
+    def integral(self, layer: str) -> np.ndarray: ...
+    def save(self) -> bytes: ...
+    def load(self, blob: bytes) -> None: ...
+    def clear(self) -> None: ...
+
+
+def holder_kind(holder: Holder) -> tuple[str, str]:
+    """``("cell", "g1")`` from ``"cell:g1"``."""
+    kind, _, ref = holder.partition(":")
+    return kind, ref

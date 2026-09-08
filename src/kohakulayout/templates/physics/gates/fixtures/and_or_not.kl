@@ -1,0 +1,24 @@
+kl 1
+# The circuit on the gates-first page: y = a & b | ~c, inputs west, output east.
+physics gates@1
+fabric 24x12 layers=ground,overhead entries=W,E
+carrier wire ground
+carrier clk overhead
+lib AND 3x3 { a in wire W0 ; b in wire W2 ; y out wire E1 }
+lib OR  3x3 { a in wire W0 ; b in wire W2 ; y out wire E1 }
+lib NOT 2x3 { a in wire W1 ; y out wire E1 }
+lib IN  1x1 { y out wire E0 }
+lib OUT 1x1 { a in wire W0 }
+cell a  IN  at=edge side=W
+cell b  IN  at=edge side=W
+cell c  IN  at=edge side=W
+cell g1 AND
+cell g2 NOT
+cell g3 OR
+cell y  OUT at=edge side=E
+net n1 wire : a.y -> g1.a
+net n2 wire : b.y -> g1.b
+net n3 wire : c.y -> g2.a
+net n4 wire : g1.y -> g3.a
+net n5 wire : g2.y -> g3.b
+net n6 wire : g3.y -> y.a
