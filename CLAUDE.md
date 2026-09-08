@@ -25,7 +25,6 @@ it there first. Never delegate that research to subagents.
 ```
 src/kohakuefda/          library: data/ model/ i18n/ flow/ plan/ layout/ route/ verify/ render/ cli/
 src/kohakuefda-viewer/   Vue 3 viewer (JavaScript only); builds into src/kohakuefda/web_dist/
-src/kohakuefda-rs/       Rust hot paths (later)
 src/kohakulayout/        KohakuLayout: the netlist-to-layout framework (design in .internal/kohakulayout/)
 src/kohakulayout-rs/     its native twin (pest, serde, pyo3; built with maturin into .venv)
 data/<versionId>/        normalised dataset + manifest (checked in); data/raw/ is ignored

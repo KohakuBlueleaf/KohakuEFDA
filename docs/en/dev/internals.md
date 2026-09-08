@@ -18,10 +18,10 @@ Read with `src/kohakuefda/` open. Concept pages explain why; this page says wher
 | `data/` | The manifest client, table fetch with a SHA manifest, the mirror, wiki names, the normalisers that build `Dataset`, the update classifier, the IndustrialPlanner importer. |
 | `flow/` | Lane sizing, plan nets, stability findings, the steady-state evaluator. |
 | `plan/` | Recipe graph, the HiGHS model, the planner, outcomes, alternatives, zone membership, one cell per machine, the netlist. |
-| `layout/` | World geometry and connectivity, fragments, depot access and bus arithmetic, the pylon cover, blocks, the board, the group rules, the live site where machines and their wires share one grid, the stage engine adapter, assembly, chunking, the stages, the pipeline. |
-| `framework/` | Immutable queries, transactions, snapshots, assessment, budgets and isolated execution; imports no concrete solver. |
-| `solvers/` | Registered strategies; baseline owns seeded spread retries and greedy shrink policy. |
-| `route/` | The occupancy grid, the A* pathfinder, the router. |
+| `layout/` | World geometry and connectivity, fragments, depot access and bus arithmetic, the pylon cover, blocks, the board, the stage's settings and solver table, chunking, the stages, the pipeline. |
+| `physics/` | The Endfield pack for KohakuLayout: fabric, library, carriers, fields, boundaries, flow, rules, objective and the facts the pack reads from `attrs`. |
+| `synth/` | The project netlist as a framework problem, the framework layout back as placement and layout, the studio's frames. |
+| `route/` | The occupancy grid every rule reads. |
 | `verify/` | Geometry rules, rate rules, the report. |
 | `render/` | Rich tables, the text grid, the PNG. |
 | `cli/` | Typer commands. |
@@ -40,11 +40,11 @@ Read with `src/kohakuefda/` open. Concept pages explain why; this page says wher
 
 ### Layout
 
-`layout/stages.py` builds the basement board and runs `layout/engine.py`. `layout/place.py` holds blocks and world pins; `layout/site.py` owns their shared routing grid and transactional placement. `solvers/baseline/spread.py` retries seeded flow orders and lattice gaps until a complete spread is found. `solvers/baseline/parallel.py` defines attempt slices and selects a worker snapshot; framework execution launches and cleans up the jobs. `solvers/baseline/shrink.py` proposes carve/press/nudge actions. Context owns rollback/publication, while framework assessment assembles, emits, measures and checks candidates. See the [framework reference](../framework/reference.md).
+`layout/stages.py` builds the basement board, turns the netlist into a framework problem with `synth/problem.py`, runs `kohakulayout.pipeline.solve` with the solver `layout/engine.py` names for the flat settings, and translates the framework layout back with `synth/layout.py`. `synth/frames.py` turns the framework's frames into the studio's. See the [KohakuLayout pages](../kohakulayout/README.md).
 
 ### Routing
 
-`route/router.py` decomposes nets into wires (`wires_of`, `assign`), routes them with `route/pathfinder.py` (`RouteGrid`, `astar`) under negotiated congestion (`Router.route`), builds trunks for many-to-many pipe nets, then writes units and segments (`Router.emit`). `route/grid.py` provides the occupancy every check starts from.
+The framework's router places every wire under the pack's carriers and rules. `synth/flows.py` reads the flows along each wire from the lane facts, and `synth/layout.py` cuts the wire into segments at its junctions, choosing each junction's splitter or converger and rotation from the flows meeting there. `route/grid.py` provides the occupancy every check starts from.
 
 ### Verification
 
@@ -58,6 +58,6 @@ Read with `src/kohakuefda/` open. Concept pages explain why; this page says wher
 
 - Rates are `Fraction`s per minute everywhere; floats only at the solver boundary and in renderers.
 - Registries and data tables over branching: sources, sinks, unit kinds and rule ids are dictionaries, not `if` chains.
-- Every knob a stage reads is a module-level constant or a stage parameter (`LAYOUT_DEFAULTS`, `ILLEGAL`, `ROUTE_ROUNDS`, `SNAP_DENOMINATOR`), so behaviour is configured, not patched.
+- Every knob a stage reads is a module-level constant or a stage parameter (`LAYOUT_DEFAULTS`, `ILLEGAL`, `SNAP_DENOMINATOR`), so behaviour is configured, not patched.
 - Every stochastic routine takes a seed.
 - Library code logs; it never prints.

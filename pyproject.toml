@@ -29,7 +29,7 @@ dependencies = [
 cpsat = ["ortools>=9.10"]
 # PNG rendering; the CLI text/rich renderers work without it.
 viz = ["matplotlib>=3.9"]
-# Building the Rust routing grid; the pure-Python search runs without it.
+# Building the KohakuLayout kernel twin; the Python kernel runs without it.
 native = ["maturin>=1.0,<2.0"]
 dev = ["pytest>=8.0", "ruff", "black", "maturin>=1.0,<2.0"]
 
@@ -55,15 +55,9 @@ include = ["kohakuefda*", "kohakulayout*"]
 [tool.setuptools.package-data]
 "kohakuefda.i18n" = ["*.json"]
 "kohakuefda.data.static" = ["*.json", "examples/*.toml"]
-"kohakuefda" = ["web_dist/**/*", "*.pyi", "*.pyd", "*.so", "*.dylib"]
+"kohakuefda" = ["web_dist/**/*"]
 "kohakulayout.ir.text" = ["*.lark"]
 "kohakulayout.templates.physics.gates" = ["fixtures/*.kl"]
-
-# The Rust extension is built on its own with `maturin develop --release`; the package installs
-# and runs without it, so the wheel is built by setuptools above.
-[tool.maturin]
-python-source = "src"
-module-name = "kohakuefda._native"
 
 [tool.black]
 target-version = ["py313"]

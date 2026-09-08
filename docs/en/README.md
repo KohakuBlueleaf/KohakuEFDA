@@ -26,10 +26,10 @@ The work happens in stages, each writing a JSON artifact the next one reads: a *
 
 ## Documentation structure
 
-### Solver framework
+### KohakuLayout
 
-[Overview](framework/README.md), [manual](framework/manual.md),
-[API reference](framework/reference.md), [Python/Rust boundary](framework/backends.md).
+[The framework pages](kohakulayout/README.md): the IR, physics packs, the engine, the
+solvers, the twin and the Endfield pack.
 
 ### Tutorials
 

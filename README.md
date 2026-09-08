@@ -46,36 +46,32 @@ npm install
 npm run build                    # writes src/kohakuefda/web_dist/
 ```
 
-### The native routing grid (optional, but you want it)
+### The KohakuLayout native twin (optional)
 
-The routing grid and its A\* have a Rust implementation. It is optional — without
-it the pure-Python search runs and gives the same layouts — but it is worth
-**about 10× the whole run**, so build it unless you have a reason not to.
+The layout stage runs on KohakuLayout, whose occupancy kernel, text form and A\*
+have a Rust twin. It is optional — without it the Python kernel runs and gives the
+same layouts — but it is several times faster, so build it unless you have a reason
+not to.
 
 The package's build backend is setuptools, so `pip install -e .` does *not* build
-the crate. Use maturin:
+the crate. Use maturin from the crate's directory:
 
 ```bash
-uv pip install -e ".[native]"    # installs maturin
-maturin develop --release        # builds the crate into the venv
+uv pip install -e ".[native]"                      # installs maturin
+cd src/kohakulayout-rs && maturin develop --release   # builds kohakulayout_rs into the venv
 ```
 
 Check it took:
 
 ```bash
-python -c "import kohakuefda.route.pathfinder as p; print(p.NATIVE)"   # True
+python -c "import kohakulayout_rs; print('ok')"
 ```
 
-Two things that bite on the way:
+One thing that bites on the way: **`Both VIRTUAL_ENV and CONDA_PREFIX are set`** —
+maturin refuses to guess. Unset one (`unset CONDA_PREFIX`) and run it again.
 
-- **`Both VIRTUAL_ENV and CONDA_PREFIX are set`** — maturin refuses to guess.
-  Unset one (`unset CONDA_PREFIX`) and run it again.
-- **`failed to copy … (os error 32)` on Windows** — a Python process is holding
-  the old extension open. The layout search runs worker processes; if one is
-  still alive from an interrupted run, stop it and rebuild.
-
-See [the native routing grid](docs/en/dev/native.md) for what moved into Rust and
-how it is held to the Python implementation.
+See [the KohakuLayout native twin](docs/en/dev/kohakulayout-twin.md) for what the
+crate holds and how it is held to the Python implementation.
 
 ## Quickstart
 
@@ -141,8 +137,9 @@ Optional elapsed-time limits can stop at different steps under different load.
 
 | Path | What |
 |---|---|
-| `src/kohakuefda/` | the library and CLI — `data model flow plan layout route verify render cli` |
-| `src/kohakuefda-rs/` | the Rust routing grid and A\* (PyO3, optional) |
+| `src/kohakuefda/` | the library and CLI — `data model flow plan physics synth layout route verify render cli` |
+| `src/kohakulayout/` | KohakuLayout, the netlist-to-layout framework the layout stage runs on |
+| `src/kohakulayout-rs/` | its Rust twin (PyO3, optional) |
 | `src/kohakuefda-viewer/` | the Studio web app (Vue 3, JavaScript) |
 | `data/<versionId>/` | the normalised dataset and its manifest, versioned by game hotfix |
 | `docs/` | public documentation, in `en`, `zh-TW` and `zh-CN` |
@@ -150,14 +147,14 @@ Optional elapsed-time limits can stop at different steps under different load.
 
 ## Documentation
 
-The [solver framework manual](docs/en/framework/README.md) describes the public
-solver/action API, contracts, checkpoints and Python/Rust organization.
+The [KohakuLayout pages](docs/en/kohakulayout/README.md) describe the framework the
+layout stage runs on: its IR, physics packs, engine, solvers and the Endfield pack.
 
 `docs/en/README.md` is the home. Tutorials and guides for getting a first plan
 out; concepts for the factory model, planning, cells and netlists, placement and
 routing, and verification; reference for the CLI, the scenario file, the
 artifacts and the rules; development notes including
-[the native routing grid](docs/en/dev/native.md) and the
+[the KohakuLayout native twin](docs/en/dev/kohakulayout-twin.md) and the
 [dependency graph](docs/en/dev/dependency-graph.md). `docs/zh-TW/` and
 `docs/zh-CN/` carry the localised landing pages.
 

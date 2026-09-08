@@ -1,7 +1,7 @@
-"""Equal-budget dense battery runs with separate post-search production evidence.
+"""Equal-budget dense battery runs through the layout stage, with post-search rate evidence.
 
 Construction/search uses the same seconds and action ceilings for every solver.
-Rate evaluation runs afterwards on the first observed and best routed artifacts;
+Rate evaluation runs afterwards on the first observed and best routed layouts;
 it never turns a partial diagnostic into a success or hides material findings.
 """
 
@@ -9,21 +9,21 @@ import json
 import platform
 import subprocess
 import time
-from dataclasses import asdict
 from pathlib import Path
 
 import typer
 from rich.console import Console
 
 from kohakuefda.flow.evaluate import evaluate
-from kohakuefda.framework import problem_of
-from kohakuefda.framework.runtime import Runner
+from kohakuefda.layout.board import board_of
+from kohakuefda.layout.engine import LayoutError, framework_id, solver_of
+from kohakuefda.layout.stages import StageError, layout_stage
 from kohakuefda.model.dataset import Dataset
 from kohakuefda.model.layout import Layout
 from kohakuefda.model.scenario import Scenario
 from kohakuefda.plan.netlist import build_netlist
 from kohakuefda.plan.planner import plan
-from kohakuefda.solvers import SOLVERS
+from kohakuefda.synth import problem_of
 from kohakuefda.util.logging import setup
 from kohakuefda.verify.rules.rates import rate_findings
 
@@ -36,12 +36,13 @@ SOLVER_NAMES = "baseline"
 SEEDS = "0,1,2"
 SECONDS = 60.0
 MAX_ACTIONS = 0
-BACKEND = "native"
+BACKEND = "auto"
 OUT = Path("out/dense-benchmarks")
 VERIFY_RATES = True
-SOLVER_SETTINGS = {}
 SOLVER_OPTIONS = "{}"
-WORLD = {"frame_every": 100000}
+FRAME_EVERY = 100_000
+FRAME_KEYS = ("kind", "phase", "elapsed", "sequence", "milestone", "outcome")
+
 console = Console()
 
 
@@ -51,10 +52,9 @@ def save_json(path: Path, value) -> None:
     )
 
 
-def rate_evidence(dataset, result, snapshot, directory: Path) -> dict:
-    """Evaluate one routed artifact after search and retain every rate finding."""
+def rate_evidence(dataset, result, layout: Layout, directory: Path) -> dict:
+    """Evaluate one routed layout after search and retain every rate finding."""
     started = time.monotonic()
-    layout = Layout.model_validate_json(snapshot.layout_json)
     evaluated = evaluate(dataset, layout)
     findings = rate_findings(dataset, result, evaluated)
     save_json(directory / "evaluation.json", evaluated.model_dump(mode="json"))
@@ -66,10 +66,23 @@ def rate_evidence(dataset, result, snapshot, directory: Path) -> dict:
     }
 
 
+def save_snapshot(directory: Path, layout: Layout, terms: dict, placement=None) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "layout.json").write_text(
+        layout.model_dump_json(indent=1), encoding="utf-8"
+    )
+    save_json(directory / "terms.json", terms)
+    if placement is not None:
+        (directory / "placement.json").write_text(
+            placement.model_dump_json(indent=1), encoding="utf-8"
+        )
+
+
 def run_case(
     dataset,
-    problem,
+    netlist,
     result,
+    problem_id,
     name,
     seed,
     settings,
@@ -77,84 +90,83 @@ def run_case(
     verify_rates,
     solver_options=None,
 ):
-    """Run a catalog solver and save first-observed, best and diagnostic evidence."""
-    first = None
-    first_elapsed = None
-    events = []
+    """Run one solver through the layout stage; save first-observed, best and diagnostic evidence."""
+    frames: list[dict] = []
+    first: dict | None = None
+    final: dict | None = None
 
-    def observe(event):
-        nonlocal first, first_elapsed
-        entry = {"kind": event.kind, "elapsed": event.elapsed}
-        if event.kind in (
-            "transition",
-            "constructed",
-            "progress",
-        ) or event.kind.startswith("workspace_"):
-            entry["payload"] = json.loads(event.payload_json)
-        events.append(entry)
-        if first is None and runner.context.best_routed is not None:
-            first = runner.context.best_routed
-            first_elapsed = event.elapsed
+    def observe(frame: dict) -> None:
+        nonlocal first, final
+        frames.append({k: frame[k] for k in FRAME_KEYS if k in frame})
+        if frame["kind"] == "final":
+            final = frame
+        elif first is None and frame.get("evidence", {}).get("routed"):
+            first = frame
 
-    solver = SOLVERS.get(name).build(
-        {**SOLVER_SETTINGS.get(name, {}), **(solver_options or {}).get(name, {})}
-    )
-    runner = Runner(
-        problem, settings={**settings, "seed": seed}, world=WORLD, observe=observe
-    )
-    solved = runner.run(solver, strict=False)
-    if first is None and solved.best_routed is not None:
-        first, first_elapsed = solved.best_routed, solved.elapsed
+    params = {
+        **settings,
+        "solver": name,
+        "seed": seed,
+        "frame_every": FRAME_EVERY,
+        "solver_options": json.dumps((solver_options or {}).get(name, {})),
+    }
+    started = time.monotonic()
+    error = None
+    placement = layout = None
+    try:
+        placement, layout = layout_stage(dataset, netlist, params, observe=observe)
+    except (LayoutError, StageError) as failure:
+        error = str(failure)
+    elapsed = time.monotonic() - started
+    outcome = (final or {}).get("outcome", {})
+    routed = bool(outcome.get("routed")) and layout is not None
+    if routed and first is None:
+        first = final
     row = {
         "solver": name,
         "seed": seed,
-        "problem_id": problem.id,
-        "status": solved.status,
-        "error": solved.error,
-        "search_seconds": solved.elapsed,
-        "work": dict(solved.work),
-        "settings": json.loads(solved.settings_json),
-        "routed": solved.best_routed is not None,
-        "first_observed_routed_seconds": first_elapsed,
+        "problem_id": problem_id,
+        "status": outcome.get("status", "error" if error else "unknown"),
+        "error": error,
+        "search_seconds": elapsed,
+        "work": dict(outcome.get("work", {})),
+        "settings": dict(outcome.get("settings", {})),
+        "routed": routed,
+        "first_observed_routed_seconds": first["elapsed"] if first else None,
         "first_verified_during_search_seconds": None,
         "verification_phase": "post-search",
         "rates": "not_checked",
         "verified": False,
-        "metrics": (
-            dict(solved.best_routed.assessment.metrics) if solved.best_routed else None
+        "metrics": dict(final["terms"]) if routed and final else None,
+    }
+    snapshots: dict[str, Layout | None] = {
+        "first": Layout.model_validate(first["layout"]) if first else None,
+        "best": layout if routed else None,
+        "diagnostic": (
+            Layout.model_validate(final["layout"]) if final and not routed else None
         ),
     }
-    snapshots = {
-        "first": first,
-        "best": solved.best_routed,
-        "diagnostic": solved.current,
-    }
-    for label, snapshot in snapshots.items():
-        if snapshot is None:
-            continue
-        target = directory / label
-        target.mkdir(parents=True, exist_ok=True)
-        save_json(target / "snapshot.json", asdict(snapshot))
-        (target / "layout.json").write_text(snapshot.layout_json, encoding="utf-8")
-        (target / "placement.json").write_text(
-            snapshot.placement_json, encoding="utf-8"
-        )
-        save_json(target / "assessment.json", asdict(snapshot.assessment))
-    save_json(directory / "events.json", events)
+    if first is not None:
+        save_snapshot(directory / "first", snapshots["first"], first["terms"])
+    if routed:
+        save_snapshot(directory / "best", layout, final["terms"], placement)
+    if snapshots["diagnostic"] is not None:
+        save_snapshot(directory / "diagnostic", snapshots["diagnostic"], final["terms"])
+    save_json(directory / "events.json", frames)
     save_json(directory / "result.json", row)
-    checked = {}
     if verify_rates:
+        checked: dict[str, dict] = {}
         for label in ("first", "best"):
             snapshot = snapshots[label]
             if snapshot is None:
                 continue
-            if snapshot.id not in checked:
-                checked[snapshot.id] = rate_evidence(
+            key = snapshot.model_dump_json()
+            if key not in checked:
+                checked[key] = rate_evidence(
                     dataset, result, snapshot, directory / label
                 )
-            evidence = checked[snapshot.id]
-            row[f"{label}_rate_check"] = evidence
-        if solved.best_routed:
+            row[f"{label}_rate_check"] = checked[key]
+        if routed:
             row["rates"] = row["best_rate_check"]["status"]
             row["verified"] = row["rates"] == "pass"
     save_json(directory / "result.json", row)
@@ -193,7 +205,7 @@ def main(
     verify_rates: bool = VERIFY_RATES,
     solver_options: str = SOLVER_OPTIONS,
 ) -> None:
-    """Benchmark selected comma-separated cases, catalog solvers and integer seeds."""
+    """Benchmark selected comma-separated cases, layout-stage solvers and integer seeds."""
     setup("WARNING")
     selected = cases.split(",")
     names = solvers.split(",")
@@ -210,10 +222,14 @@ def main(
         raise typer.BadParameter("solver-options maps solver names to settings objects")
     if set(options) - set(names):
         raise typer.BadParameter("solver-options includes an unselected solver")
-    for name in names:
-        SOLVERS.get(name).build(
-            {**SOLVER_SETTINGS.get(name, {}), **options.get(name, {})}
-        )
+    try:
+        for name in names:
+            framework_id(name)
+            solver_of(
+                {"solver": name, "solver_options": json.dumps(options.get(name, {}))}
+            )
+    except LayoutError as error:
+        raise typer.BadParameter(str(error)) from error
     if seconds < 0 or max_actions < 0 or not (seconds or max_actions):
         raise typer.BadParameter("set a positive seconds or action ceiling")
     if output.exists():
@@ -231,7 +247,6 @@ def main(
         "max_actions": max_actions,
         "backend": backend,
         "workers": 1,
-        "check_rates": False,
     }
     save_json(
         output / "manifest.json",
@@ -244,9 +259,9 @@ def main(
             "cases": selected,
             "solvers": names,
             "seeds": seed_values,
-            "settings": settings,
+            "settings": {**settings, "check_rates": False},
             "solver_options": options,
-            "timing": "Serial search; first routed timestamp is first observer notification. Rate checks are post-search, not time-to-first-verified search results.",
+            "timing": "Serial search; first routed timestamp is the first routed frame. Rate checks are post-search, not time-to-first-verified search results.",
         },
     )
     rows = []
@@ -256,7 +271,7 @@ def main(
         scenario = Scenario.from_toml(FIXTURES / SCENARIOS[case])
         result = plan(dataset, scenario)
         netlist = build_netlist(dataset, scenario, result)
-        problem = problem_of(dataset, netlist, result)
+        problem_id = problem_of(dataset, netlist, board_of(dataset, scenario)).digest()
         (directory / "scenario.toml").write_text(scenario.to_toml(), encoding="utf-8")
         result.save(directory / "plan.json")
         (directory / "netlist.json").write_text(
@@ -268,8 +283,9 @@ def main(
                 run_dir.mkdir(parents=True)
                 row = run_case(
                     dataset,
-                    problem,
+                    netlist,
                     result,
+                    problem_id,
                     name,
                     seed,
                     settings,

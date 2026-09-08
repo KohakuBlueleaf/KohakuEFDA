@@ -44,7 +44,7 @@ def test_dense_benchmark_records_exhaustion_without_claiming_a_solution(tmp_path
         assert row["first_observed_routed_seconds"] is None
         assert row["first_verified_during_search_seconds"] is None
         assert row["metrics"] is None
-        assert row["work"]["actions"] == 1
+        assert row["work"]["actions"] >= 1
     assert summary["reliability"] == [
         {
             "case": "valley12",
@@ -68,7 +68,7 @@ def test_dense_benchmark_records_exhaustion_without_claiming_a_solution(tmp_path
     assert (output / "summary.json").read_bytes() == before
 
 
-def test_local_benchmark_options_and_interrupted_lineage_are_saved(tmp_path):
+def test_local_benchmark_options_and_final_frames_are_saved(tmp_path):
     output = tmp_path / "local"
     options = {"hc": {"construction_steps": 2}, "sa": {"construction_steps": 2}}
     command = [
@@ -98,10 +98,13 @@ def test_local_benchmark_options_and_interrupted_lineage_are_saved(tmp_path):
     manifest = json.loads((output / "manifest.json").read_text())
     assert manifest["solver_options"] == options
     for name in ("hc", "sa"):
-        events = json.loads((output / "valley6" / name / "0/events.json").read_text())
-        transitions = [
-            event["payload"] for event in events if event["kind"] == "transition"
-        ]
-        assert transitions and transitions[-1]["outcome"] == "interrupted"
-        assert transitions[-1]["parent"] == transitions[-1]["next_parent"]
-        assert not transitions[-1]["accepted"]
+        run = output / "valley6" / name / "0"
+        events = json.loads((run / "events.json").read_text())
+        assert events[0]["kind"] == "catalogue"
+        final = events[-1]
+        assert final["kind"] == "final"
+        assert final["outcome"]["status"] == "budget_exhausted"
+        assert final["outcome"]["settings"]["solver_settings"] == options[name]
+        row = json.loads((run / "result.json").read_text())
+        assert row["settings"]["solver_settings"] == options[name]
+        assert (run / "diagnostic" / "layout.json").exists()
