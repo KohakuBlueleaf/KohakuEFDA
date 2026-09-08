@@ -1,0 +1,176 @@
+kl 1
+physics endfield@1
+fabric 60x60 layers=ground,sky entries=N,E,S,W +endfield.entry_area=10,10,50,50 +endfield.facts=LOG-01,LOG-02,REG-02,REG-03,DEP-12 +endfield.ring=10 +endfield.slots=, +endfield.square=40,40
+region area rect 10,10 40x40
+region build rect 10,10 40x40
+region ring rect 0,0 60x10 rect 0,10 10x40 rect 50,10 10x40 rect 0,50 60x10
+carrier belt ground 30
+carrier pipe sky 120
+param entry_area=10,10,50,50
+param ring=10
+param square=40,40
+attrs +endfield.basement=sky_king_flats +endfield.dataset=1.5.3@9764758-3 +endfield.depot_level=1 +endfield.entry=entry +endfield.level=2 +endfield.region=wuling
+lib entry 1x1 occludes=sky +endfield.facts=RES-09, +endfield.machine=entry +endfield.needs_power=false +endfield.power=0 { out0 out pipe E0 }
+lib furnance_1 3x3 occludes=sky +endfield.machine=furnance_1 +endfield.needs_power=true +endfield.power=5 {
+    in0 in belt N0 +endfield.index=0 +endfield.layer=0
+    in1 in belt N1 +endfield.index=1 +endfield.layer=0
+    in2 in belt N2 +endfield.index=2 +endfield.layer=0
+    in3 in pipe W1 +endfield.index=3 +endfield.layer=1
+    out0 out belt S0 +endfield.index=0 +endfield.layer=0
+    out1 out belt S1 +endfield.index=1 +endfield.layer=0
+    out2 out belt S2 +endfield.index=2 +endfield.layer=0
+    out3 out pipe E1 +endfield.index=3 +endfield.layer=1
+}
+lib grinder_1 3x3 occludes=sky +endfield.machine=grinder_1 +endfield.needs_power=true +endfield.power=5 {
+    in0 in belt N0 +endfield.index=0 +endfield.layer=0
+    in1 in belt N1 +endfield.index=1 +endfield.layer=0
+    in2 in belt N2 +endfield.index=2 +endfield.layer=0
+    out0 out belt S0 +endfield.index=0 +endfield.layer=0
+    out1 out belt S1 +endfield.index=1 +endfield.layer=0
+    out2 out belt S2 +endfield.index=2 +endfield.layer=0
+}
+lib liquid_cleaner_1 3x3 occludes=sky +endfield.machine=liquid_cleaner_1 +endfield.needs_power=true +endfield.power=50 { in0 in pipe W1 +endfield.index=0 +endfield.layer=1 }
+lib liquid_purifier_1 5x5 occludes=sky +endfield.machine=liquid_purifier_1 +endfield.needs_power=true +endfield.power=50 {
+    in0 in pipe W3 +endfield.index=0 +endfield.layer=1
+    in1 in pipe W1 +endfield.index=1 +endfield.layer=1
+    in2 in pipe W2 +endfield.index=2 +endfield.layer=1
+    in3 in belt N0 +endfield.index=3 +endfield.layer=0
+    in4 in belt N1 +endfield.index=4 +endfield.layer=0
+    in5 in belt N2 +endfield.index=5 +endfield.layer=0
+    in6 in belt N3 +endfield.index=6 +endfield.layer=0
+    in7 in belt N4 +endfield.index=7 +endfield.layer=0
+    out0 out pipe E3 +endfield.index=0 +endfield.layer=1
+    out1 out pipe E1 +endfield.index=1 +endfield.layer=1
+}
+lib loader_1 3x1 occludes=sky +endfield.machine=loader_1 +endfield.needs_power=false +endfield.power=0 { in0 in belt N1 +endfield.index=0 +endfield.layer=0 }
+lib log_hongs_bus 4x8 occludes=sky +endfield.machine=log_hongs_bus +endfield.needs_power=false +endfield.power=0 { }
+lib log_hongs_bus_source 4x4 occludes=sky +endfield.machine=log_hongs_bus_source +endfield.needs_power=false +endfield.power=0 { }
+lib mix_pool_1 5x5 occludes=sky +endfield.machine=mix_pool_1 +endfield.needs_power=true +endfield.power=50 {
+    in0 in belt N1 +endfield.index=0 +endfield.layer=0
+    in1 in belt N3 +endfield.index=1 +endfield.layer=0
+    in2 in pipe W3 +endfield.index=2 +endfield.layer=1
+    in3 in pipe W1 +endfield.index=3 +endfield.layer=1
+    out0 out belt S1 +endfield.index=0 +endfield.layer=0
+    out1 out belt S3 +endfield.index=1 +endfield.layer=0
+    out2 out pipe E3 +endfield.index=2 +endfield.layer=1
+    out3 out pipe E1 +endfield.index=3 +endfield.layer=1
+}
+lib unloader_1 3x1 occludes=sky +endfield.machine=unloader_1 +endfield.needs_power=false +endfield.power=0 { out0 out belt S1 +endfield.index=0 +endfield.layer=0 }
+cell c0_mix_pool_1 mix_pool_1 kind=recipe needs=power +endfield.machine=mix_pool_1 +endfield.pins=in__item_liquid_copper_enr__0:item_liquid_copper_enr:60/min,in__item_iron_powder__0:item_iron_powder:30/min,out__item_copper_enr__0:item_copper_enr:30/min,out__item_liquid_sewage__0:item_liquid_sewage:30/min +endfield.power=50 +endfield.recipe=pool_copper_enr_1
+pin c0_mix_pool_1.in__item_liquid_copper_enr__0 in pipe ports=in2|in3
+pin c0_mix_pool_1.in__item_iron_powder__0 in belt ports=in0|in1
+pin c0_mix_pool_1.out__item_copper_enr__0 out belt ports=out0|out1
+pin c0_mix_pool_1.out__item_liquid_sewage__0 out pipe ports=out3
+cell c10_grinder_1 grinder_1 kind=recipe needs=power +endfield.machine=grinder_1 +endfield.pins=in__item_copper_nugget__0:item_copper_nugget:30/min,out__item_copper_powder__0:item_copper_powder:30/min +endfield.power=5 +endfield.recipe=grinder_copper_powder_1
+pin c10_grinder_1.in__item_copper_nugget__0 in belt ports=in0|in1|in2
+pin c10_grinder_1.out__item_copper_powder__0 out belt ports=out0|out1|out2
+cell c11_grinder_1 grinder_1 kind=recipe needs=power +endfield.machine=grinder_1 +endfield.pins=in__item_copper_nugget__0:item_copper_nugget:30/min,out__item_copper_powder__0:item_copper_powder:30/min +endfield.power=5 +endfield.recipe=grinder_copper_powder_1
+pin c11_grinder_1.in__item_copper_nugget__0 in belt ports=in0|in1|in2
+pin c11_grinder_1.out__item_copper_powder__0 out belt ports=out0|out1|out2
+cell c12_furnance_1 furnance_1 kind=recipe needs=power +endfield.machine=furnance_1 +endfield.pins=in__item_copper_ore__0:item_copper_ore:30/min,in__item_liquid_water__0:item_liquid_water:30/min,out__item_copper_nugget__0:item_copper_nugget:30/min,out__item_liquid_sewage__0:item_liquid_sewage:30/min +endfield.power=5 +endfield.recipe=furnance_copper_nugget_1
+pin c12_furnance_1.in__item_copper_ore__0 in belt ports=in0|in1|in2
+pin c12_furnance_1.in__item_liquid_water__0 in pipe ports=in3
+pin c12_furnance_1.out__item_copper_nugget__0 out belt ports=out0|out1|out2
+pin c12_furnance_1.out__item_liquid_sewage__0 out pipe ports=out3
+cell c13_furnance_1 furnance_1 kind=recipe needs=power +endfield.machine=furnance_1 +endfield.pins=in__item_copper_ore__0:item_copper_ore:30/min,in__item_liquid_water__0:item_liquid_water:30/min,out__item_copper_nugget__0:item_copper_nugget:30/min,out__item_liquid_sewage__0:item_liquid_sewage:30/min +endfield.power=5 +endfield.recipe=furnance_copper_nugget_1
+pin c13_furnance_1.in__item_copper_ore__0 in belt ports=in0|in1|in2
+pin c13_furnance_1.in__item_liquid_water__0 in pipe ports=in3
+pin c13_furnance_1.out__item_copper_nugget__0 out belt ports=out0|out1|out2
+pin c13_furnance_1.out__item_liquid_sewage__0 out pipe ports=out3
+cell c14_furnance_1 furnance_1 kind=recipe needs=power +endfield.machine=furnance_1 +endfield.pins=in__item_copper_ore__0:item_copper_ore:30/min,in__item_liquid_water__0:item_liquid_water:30/min,out__item_copper_nugget__0:item_copper_nugget:30/min,out__item_liquid_sewage__0:item_liquid_sewage:30/min +endfield.power=5 +endfield.recipe=furnance_copper_nugget_1
+pin c14_furnance_1.in__item_copper_ore__0 in belt ports=in0|in1|in2
+pin c14_furnance_1.in__item_liquid_water__0 in pipe ports=in3
+pin c14_furnance_1.out__item_copper_nugget__0 out belt ports=out0|out1|out2
+pin c14_furnance_1.out__item_liquid_sewage__0 out pipe ports=out3
+cell c15_furnance_1 furnance_1 kind=recipe needs=power +endfield.machine=furnance_1 +endfield.pins=in__item_copper_ore__0:item_copper_ore:30/min,in__item_liquid_water__0:item_liquid_water:30/min,out__item_copper_nugget__0:item_copper_nugget:30/min,out__item_liquid_sewage__0:item_liquid_sewage:30/min +endfield.power=5 +endfield.recipe=furnance_copper_nugget_1
+pin c15_furnance_1.in__item_copper_ore__0 in belt ports=in0|in1|in2
+pin c15_furnance_1.in__item_liquid_water__0 in pipe ports=in3
+pin c15_furnance_1.out__item_copper_nugget__0 out belt ports=out0|out1|out2
+pin c15_furnance_1.out__item_liquid_sewage__0 out pipe ports=out3
+cell c16_dump liquid_cleaner_1 kind=dump needs=power +endfield.machine=liquid_cleaner_1 +endfield.pins=in__item_liquid_sewage__0:item_liquid_sewage:30/min, +endfield.power=50
+pin c16_dump.in__item_liquid_sewage__0 in pipe ports=in0
+cell c17_dump liquid_cleaner_1 kind=dump needs=power +endfield.machine=liquid_cleaner_1 +endfield.pins=in__item_liquid_sewage__0:item_liquid_sewage:30/min, +endfield.power=50
+pin c17_dump.in__item_liquid_sewage__0 in pipe ports=in0
+cell c18_dump liquid_cleaner_1 kind=dump needs=power +endfield.machine=liquid_cleaner_1 +endfield.pins=in__item_liquid_sewage__0:item_liquid_sewage:30/min, +endfield.power=50
+pin c18_dump.in__item_liquid_sewage__0 in pipe ports=in0
+cell c19_dump liquid_cleaner_1 kind=dump needs=power +endfield.machine=liquid_cleaner_1 +endfield.pins=in__item_liquid_sewage__0:item_liquid_sewage:30/min, +endfield.power=50
+pin c19_dump.in__item_liquid_sewage__0 in pipe ports=in0
+cell c1_liquid_purifier_1 liquid_purifier_1 kind=recipe needs=power +endfield.machine=liquid_purifier_1 +endfield.pins=in__item_liquid_copper__0:item_liquid_copper:120/min,out__item_liquid_copper_enr__0:item_liquid_copper_enr:30/min,out__item_liquid_acid__0:item_liquid_acid:30/min +endfield.power=50 +endfield.recipe=liquid_purifier_copper_enr_1
+pin c1_liquid_purifier_1.in__item_liquid_copper__0 in pipe ports=in0|in1
+pin c1_liquid_purifier_1.out__item_liquid_copper_enr__0 out pipe ports=out0
+pin c1_liquid_purifier_1.out__item_liquid_acid__0 out pipe ports=out1
+cell c20_dump liquid_cleaner_1 kind=dump needs=power +endfield.machine=liquid_cleaner_1 +endfield.pins=in__item_liquid_sewage__0:item_liquid_sewage:30/min, +endfield.power=50
+pin c20_dump.in__item_liquid_sewage__0 in pipe ports=in0
+cell c21_entry entry at=edge +endfield.machine=entry +endfield.pins=out__item_liquid_acid__0:item_liquid_acid:90/min, +endfield.power=0
+pin c21_entry.out__item_liquid_acid__0 out pipe ports=out0
+cell c22_entry entry at=edge +endfield.machine=entry +endfield.pins=out__item_liquid_water__0:item_liquid_water:120/min, +endfield.power=0
+pin c22_entry.out__item_liquid_water__0 out pipe ports=out0
+cell c23_port log_hongs_bus_source kind=depot at=cluster group=bus +endfield.machine=log_hongs_bus_source +endfield.pins=, +endfield.power=0
+cell c24_section log_hongs_bus kind=depot at=cluster group=bus +endfield.machine=log_hongs_bus +endfield.pins=, +endfield.power=0
+cell c25_unloader unloader_1 kind=unloader at=seat group=bus +endfield.config=item:item_copper_ore, +endfield.machine=unloader_1 +endfield.pins=out__item_copper_ore__0:item_copper_ore:30/min, +endfield.power=0
+pin c25_unloader.out__item_copper_ore__0 out belt ports=out0
+cell c26_unloader unloader_1 kind=unloader at=seat group=bus +endfield.config=item:item_copper_ore, +endfield.machine=unloader_1 +endfield.pins=out__item_copper_ore__0:item_copper_ore:30/min, +endfield.power=0
+pin c26_unloader.out__item_copper_ore__0 out belt ports=out0
+cell c27_unloader unloader_1 kind=unloader at=seat group=bus +endfield.config=item:item_copper_ore, +endfield.machine=unloader_1 +endfield.pins=out__item_copper_ore__0:item_copper_ore:30/min, +endfield.power=0
+pin c27_unloader.out__item_copper_ore__0 out belt ports=out0
+cell c28_unloader unloader_1 kind=unloader at=seat group=bus +endfield.config=item:item_copper_ore, +endfield.machine=unloader_1 +endfield.pins=out__item_copper_ore__0:item_copper_ore:30/min, +endfield.power=0
+pin c28_unloader.out__item_copper_ore__0 out belt ports=out0
+cell c29_unloader unloader_1 kind=unloader at=seat group=bus +endfield.config=item:item_iron_ore, +endfield.machine=unloader_1 +endfield.pins=out__item_iron_ore__0:item_iron_ore:15/min, +endfield.power=0
+pin c29_unloader.out__item_iron_ore__0 out belt ports=out0
+cell c2_grinder_1 grinder_1 kind=recipe needs=power +endfield.machine=grinder_1 +endfield.pins=in__item_iron_nugget__0:item_iron_nugget:30/min,out__item_iron_powder__0:item_iron_powder:30/min +endfield.power=5 +endfield.recipe=grinder_iron_powder_1
+pin c2_grinder_1.in__item_iron_nugget__0 in belt ports=in0|in1|in2
+pin c2_grinder_1.out__item_iron_powder__0 out belt ports=out0|out1|out2
+cell c30_loader loader_1 kind=loader at=seat group=bus +endfield.machine=loader_1 +endfield.pins=in__item_copper_enr__0:item_copper_enr:15/min, +endfield.power=0
+pin c30_loader.in__item_copper_enr__0 in belt ports=in0
+cell c3_mix_pool_1 mix_pool_1 kind=recipe needs=power +endfield.machine=mix_pool_1 +endfield.pins=in__item_copper_powder__0:item_copper_powder:30/min,in__item_liquid_acid__0:item_liquid_acid:30/min,out__item_liquid_copper__0:item_liquid_copper:30/min +endfield.power=50 +endfield.recipe=pool_liquid_copper_1
+pin c3_mix_pool_1.in__item_copper_powder__0 in belt ports=in0|in1
+pin c3_mix_pool_1.in__item_liquid_acid__0 in pipe ports=in2|in3
+pin c3_mix_pool_1.out__item_liquid_copper__0 out pipe ports=out2
+cell c4_mix_pool_1 mix_pool_1 kind=recipe needs=power +endfield.machine=mix_pool_1 +endfield.pins=in__item_copper_powder__0:item_copper_powder:30/min,in__item_liquid_acid__0:item_liquid_acid:30/min,out__item_liquid_copper__0:item_liquid_copper:30/min +endfield.power=50 +endfield.recipe=pool_liquid_copper_1
+pin c4_mix_pool_1.in__item_copper_powder__0 in belt ports=in0|in1
+pin c4_mix_pool_1.in__item_liquid_acid__0 in pipe ports=in2|in3
+pin c4_mix_pool_1.out__item_liquid_copper__0 out pipe ports=out2
+cell c5_mix_pool_1 mix_pool_1 kind=recipe needs=power +endfield.machine=mix_pool_1 +endfield.pins=in__item_copper_powder__0:item_copper_powder:30/min,in__item_liquid_acid__0:item_liquid_acid:30/min,out__item_liquid_copper__0:item_liquid_copper:30/min +endfield.power=50 +endfield.recipe=pool_liquid_copper_1
+pin c5_mix_pool_1.in__item_copper_powder__0 in belt ports=in0|in1
+pin c5_mix_pool_1.in__item_liquid_acid__0 in pipe ports=in2|in3
+pin c5_mix_pool_1.out__item_liquid_copper__0 out pipe ports=out2
+cell c6_mix_pool_1 mix_pool_1 kind=recipe needs=power +endfield.machine=mix_pool_1 +endfield.pins=in__item_copper_powder__0:item_copper_powder:30/min,in__item_liquid_acid__0:item_liquid_acid:30/min,out__item_liquid_copper__0:item_liquid_copper:30/min +endfield.power=50 +endfield.recipe=pool_liquid_copper_1
+pin c6_mix_pool_1.in__item_copper_powder__0 in belt ports=in0|in1
+pin c6_mix_pool_1.in__item_liquid_acid__0 in pipe ports=in2|in3
+pin c6_mix_pool_1.out__item_liquid_copper__0 out pipe ports=out2
+cell c7_furnance_1 furnance_1 kind=recipe needs=power +endfield.machine=furnance_1 +endfield.pins=in__item_iron_ore__0:item_iron_ore:30/min,out__item_iron_nugget__0:item_iron_nugget:30/min +endfield.power=5 +endfield.recipe=furnance_iron_nugget_1
+pin c7_furnance_1.in__item_iron_ore__0 in belt ports=in0|in1|in2
+pin c7_furnance_1.out__item_iron_nugget__0 out belt ports=out0|out1|out2
+cell c8_grinder_1 grinder_1 kind=recipe needs=power +endfield.machine=grinder_1 +endfield.pins=in__item_copper_nugget__0:item_copper_nugget:30/min,out__item_copper_powder__0:item_copper_powder:30/min +endfield.power=5 +endfield.recipe=grinder_copper_powder_1
+pin c8_grinder_1.in__item_copper_nugget__0 in belt ports=in0|in1|in2
+pin c8_grinder_1.out__item_copper_powder__0 out belt ports=out0|out1|out2
+cell c9_grinder_1 grinder_1 kind=recipe needs=power +endfield.machine=grinder_1 +endfield.pins=in__item_copper_nugget__0:item_copper_nugget:30/min,out__item_copper_powder__0:item_copper_powder:30/min +endfield.power=5 +endfield.recipe=grinder_copper_powder_1
+pin c9_grinder_1.in__item_copper_nugget__0 in belt ports=in0|in1|in2
+pin c9_grinder_1.out__item_copper_powder__0 out belt ports=out0|out1|out2
+net n0_item_liquid_copper_enr_0 pipe 30 kind=lane +endfield.item=item_liquid_copper_enr +endfield.lanes=c1_liquid_purifier_1:out__item_liquid_copper_enr__0:c0_mix_pool_1:in__item_liquid_copper_enr__0:30/min, +endfield.net=n0_item_liquid_copper_enr +endfield.rate=30/min +endfield.via_depot_ok=false : c1_liquid_purifier_1.out__item_liquid_copper_enr__0 -> c0_mix_pool_1.in__item_liquid_copper_enr__0
+net n10_item_copper_ore_0 belt 30 kind=lane +endfield.item=item_copper_ore +endfield.lanes=c25_unloader:out__item_copper_ore__0:c12_furnance_1:in__item_copper_ore__0:30/min, +endfield.net=n10_item_copper_ore +endfield.rate=30/min +endfield.via_depot_ok=false : c25_unloader.out__item_copper_ore__0 -> c12_furnance_1.in__item_copper_ore__0
+net n10_item_copper_ore_1 belt 30 kind=lane +endfield.item=item_copper_ore +endfield.lanes=c26_unloader:out__item_copper_ore__0:c13_furnance_1:in__item_copper_ore__0:30/min, +endfield.net=n10_item_copper_ore +endfield.rate=30/min +endfield.via_depot_ok=false : c26_unloader.out__item_copper_ore__0 -> c13_furnance_1.in__item_copper_ore__0
+net n10_item_copper_ore_2 belt 30 kind=lane +endfield.item=item_copper_ore +endfield.lanes=c27_unloader:out__item_copper_ore__0:c14_furnance_1:in__item_copper_ore__0:30/min, +endfield.net=n10_item_copper_ore +endfield.rate=30/min +endfield.via_depot_ok=false : c27_unloader.out__item_copper_ore__0 -> c14_furnance_1.in__item_copper_ore__0
+net n10_item_copper_ore_3 belt 30 kind=lane +endfield.item=item_copper_ore +endfield.lanes=c28_unloader:out__item_copper_ore__0:c15_furnance_1:in__item_copper_ore__0:30/min, +endfield.net=n10_item_copper_ore +endfield.rate=30/min +endfield.via_depot_ok=false : c28_unloader.out__item_copper_ore__0 -> c15_furnance_1.in__item_copper_ore__0
+net n11_item_liquid_water_0 pipe 120 kind=lane +endfield.item=item_liquid_water +endfield.lanes=c22_entry:out__item_liquid_water__0:c12_furnance_1:in__item_liquid_water__0:30/min,c22_entry:out__item_liquid_water__0:c13_furnance_1:in__item_liquid_water__0:30/min,c22_entry:out__item_liquid_water__0:c14_furnance_1:in__item_liquid_water__0:30/min,c22_entry:out__item_liquid_water__0:c15_furnance_1:in__item_liquid_water__0:30/min +endfield.net=n11_item_liquid_water +endfield.rate=120/min +endfield.via_depot_ok=false : c22_entry.out__item_liquid_water__0 -> c12_furnance_1.in__item_liquid_water__0 c13_furnance_1.in__item_liquid_water__0 c14_furnance_1.in__item_liquid_water__0 c15_furnance_1.in__item_liquid_water__0
+net n1_item_iron_powder_0 belt 15 kind=lane +endfield.item=item_iron_powder +endfield.lanes=c2_grinder_1:out__item_iron_powder__0:c0_mix_pool_1:in__item_iron_powder__0:15/min, +endfield.net=n1_item_iron_powder +endfield.rate=15/min +endfield.via_depot_ok=true : c2_grinder_1.out__item_iron_powder__0 -> c0_mix_pool_1.in__item_iron_powder__0
+net n2_item_copper_enr_0 belt 15 kind=lane +endfield.item=item_copper_enr +endfield.lanes=c0_mix_pool_1:out__item_copper_enr__0:c30_loader:in__item_copper_enr__0:15/min, +endfield.net=n2_item_copper_enr +endfield.rate=15/min +endfield.via_depot_ok=false : c0_mix_pool_1.out__item_copper_enr__0 -> c30_loader.in__item_copper_enr__0
+net n3_item_liquid_sewage_0 pipe 27 kind=lane +endfield.item=item_liquid_sewage +endfield.lanes=c0_mix_pool_1:out__item_liquid_sewage__0:c16_dump:in__item_liquid_sewage__0:27/min, +endfield.net=n3_item_liquid_sewage +endfield.rate=27/min +endfield.via_depot_ok=false : c0_mix_pool_1.out__item_liquid_sewage__0 -> c16_dump.in__item_liquid_sewage__0
+net n3_item_liquid_sewage_1 pipe 27 kind=lane +endfield.item=item_liquid_sewage +endfield.lanes=c12_furnance_1:out__item_liquid_sewage__0:c17_dump:in__item_liquid_sewage__0:27/min, +endfield.net=n3_item_liquid_sewage +endfield.rate=27/min +endfield.via_depot_ok=false : c12_furnance_1.out__item_liquid_sewage__0 -> c17_dump.in__item_liquid_sewage__0
+net n3_item_liquid_sewage_2 pipe 27 kind=lane +endfield.item=item_liquid_sewage +endfield.lanes=c13_furnance_1:out__item_liquid_sewage__0:c18_dump:in__item_liquid_sewage__0:27/min, +endfield.net=n3_item_liquid_sewage +endfield.rate=27/min +endfield.via_depot_ok=false : c13_furnance_1.out__item_liquid_sewage__0 -> c18_dump.in__item_liquid_sewage__0
+net n3_item_liquid_sewage_3 pipe 27 kind=lane +endfield.item=item_liquid_sewage +endfield.lanes=c14_furnance_1:out__item_liquid_sewage__0:c19_dump:in__item_liquid_sewage__0:27/min, +endfield.net=n3_item_liquid_sewage +endfield.rate=27/min +endfield.via_depot_ok=false : c14_furnance_1.out__item_liquid_sewage__0 -> c19_dump.in__item_liquid_sewage__0
+net n3_item_liquid_sewage_4 pipe 27 kind=lane +endfield.item=item_liquid_sewage +endfield.lanes=c15_furnance_1:out__item_liquid_sewage__0:c20_dump:in__item_liquid_sewage__0:27/min, +endfield.net=n3_item_liquid_sewage +endfield.rate=27/min +endfield.via_depot_ok=false : c15_furnance_1.out__item_liquid_sewage__0 -> c20_dump.in__item_liquid_sewage__0
+net n4_item_liquid_copper_0 pipe 120 kind=lane +endfield.item=item_liquid_copper +endfield.lanes=c3_mix_pool_1:out__item_liquid_copper__0:c1_liquid_purifier_1:in__item_liquid_copper__0:30/min,c4_mix_pool_1:out__item_liquid_copper__0:c1_liquid_purifier_1:in__item_liquid_copper__0:30/min,c5_mix_pool_1:out__item_liquid_copper__0:c1_liquid_purifier_1:in__item_liquid_copper__0:30/min,c6_mix_pool_1:out__item_liquid_copper__0:c1_liquid_purifier_1:in__item_liquid_copper__0:30/min +endfield.net=n4_item_liquid_copper +endfield.rate=120/min +endfield.via_depot_ok=false : c3_mix_pool_1.out__item_liquid_copper__0 c4_mix_pool_1.out__item_liquid_copper__0 c5_mix_pool_1.out__item_liquid_copper__0 c6_mix_pool_1.out__item_liquid_copper__0 -> c1_liquid_purifier_1.in__item_liquid_copper__0
+net n5_item_liquid_acid_0 pipe 30 kind=lane +endfield.item=item_liquid_acid +endfield.lanes=c1_liquid_purifier_1:out__item_liquid_acid__0:c3_mix_pool_1:in__item_liquid_acid__0:30/min, +endfield.net=n5_item_liquid_acid +endfield.rate=30/min +endfield.via_depot_ok=false : c1_liquid_purifier_1.out__item_liquid_acid__0 -> c3_mix_pool_1.in__item_liquid_acid__0
+net n5_item_liquid_acid_1 pipe 90 kind=lane +endfield.item=item_liquid_acid +endfield.lanes=c21_entry:out__item_liquid_acid__0:c4_mix_pool_1:in__item_liquid_acid__0:30/min,c21_entry:out__item_liquid_acid__0:c5_mix_pool_1:in__item_liquid_acid__0:30/min,c21_entry:out__item_liquid_acid__0:c6_mix_pool_1:in__item_liquid_acid__0:30/min +endfield.net=n5_item_liquid_acid +endfield.rate=90/min +endfield.via_depot_ok=false : c21_entry.out__item_liquid_acid__0 -> c4_mix_pool_1.in__item_liquid_acid__0 c5_mix_pool_1.in__item_liquid_acid__0 c6_mix_pool_1.in__item_liquid_acid__0
+net n6_item_iron_nugget_0 belt 15 kind=lane +endfield.item=item_iron_nugget +endfield.lanes=c7_furnance_1:out__item_iron_nugget__0:c2_grinder_1:in__item_iron_nugget__0:15/min, +endfield.net=n6_item_iron_nugget +endfield.rate=15/min +endfield.via_depot_ok=true : c7_furnance_1.out__item_iron_nugget__0 -> c2_grinder_1.in__item_iron_nugget__0
+net n7_item_copper_powder_0 belt 30 kind=lane +endfield.item=item_copper_powder +endfield.lanes=c8_grinder_1:out__item_copper_powder__0:c3_mix_pool_1:in__item_copper_powder__0:30/min, +endfield.net=n7_item_copper_powder +endfield.rate=30/min +endfield.via_depot_ok=true : c8_grinder_1.out__item_copper_powder__0 -> c3_mix_pool_1.in__item_copper_powder__0
+net n7_item_copper_powder_1 belt 30 kind=lane +endfield.item=item_copper_powder +endfield.lanes=c9_grinder_1:out__item_copper_powder__0:c4_mix_pool_1:in__item_copper_powder__0:30/min, +endfield.net=n7_item_copper_powder +endfield.rate=30/min +endfield.via_depot_ok=true : c9_grinder_1.out__item_copper_powder__0 -> c4_mix_pool_1.in__item_copper_powder__0
+net n7_item_copper_powder_2 belt 30 kind=lane +endfield.item=item_copper_powder +endfield.lanes=c10_grinder_1:out__item_copper_powder__0:c5_mix_pool_1:in__item_copper_powder__0:30/min, +endfield.net=n7_item_copper_powder +endfield.rate=30/min +endfield.via_depot_ok=true : c10_grinder_1.out__item_copper_powder__0 -> c5_mix_pool_1.in__item_copper_powder__0
+net n7_item_copper_powder_3 belt 30 kind=lane +endfield.item=item_copper_powder +endfield.lanes=c11_grinder_1:out__item_copper_powder__0:c6_mix_pool_1:in__item_copper_powder__0:30/min, +endfield.net=n7_item_copper_powder +endfield.rate=30/min +endfield.via_depot_ok=true : c11_grinder_1.out__item_copper_powder__0 -> c6_mix_pool_1.in__item_copper_powder__0
+net n8_item_iron_ore_0 belt 15 kind=lane +endfield.item=item_iron_ore +endfield.lanes=c29_unloader:out__item_iron_ore__0:c7_furnance_1:in__item_iron_ore__0:15/min, +endfield.net=n8_item_iron_ore +endfield.rate=15/min +endfield.via_depot_ok=false : c29_unloader.out__item_iron_ore__0 -> c7_furnance_1.in__item_iron_ore__0
+net n9_item_copper_nugget_0 belt 30 kind=lane +endfield.item=item_copper_nugget +endfield.lanes=c12_furnance_1:out__item_copper_nugget__0:c8_grinder_1:in__item_copper_nugget__0:30/min, +endfield.net=n9_item_copper_nugget +endfield.rate=30/min +endfield.via_depot_ok=true : c12_furnance_1.out__item_copper_nugget__0 -> c8_grinder_1.in__item_copper_nugget__0
+net n9_item_copper_nugget_1 belt 30 kind=lane +endfield.item=item_copper_nugget +endfield.lanes=c13_furnance_1:out__item_copper_nugget__0:c9_grinder_1:in__item_copper_nugget__0:30/min, +endfield.net=n9_item_copper_nugget +endfield.rate=30/min +endfield.via_depot_ok=true : c13_furnance_1.out__item_copper_nugget__0 -> c9_grinder_1.in__item_copper_nugget__0
+net n9_item_copper_nugget_2 belt 30 kind=lane +endfield.item=item_copper_nugget +endfield.lanes=c14_furnance_1:out__item_copper_nugget__0:c10_grinder_1:in__item_copper_nugget__0:30/min, +endfield.net=n9_item_copper_nugget +endfield.rate=30/min +endfield.via_depot_ok=true : c14_furnance_1.out__item_copper_nugget__0 -> c10_grinder_1.in__item_copper_nugget__0
+net n9_item_copper_nugget_3 belt 30 kind=lane +endfield.item=item_copper_nugget +endfield.lanes=c15_furnance_1:out__item_copper_nugget__0:c11_grinder_1:in__item_copper_nugget__0:30/min, +endfield.net=n9_item_copper_nugget +endfield.rate=30/min +endfield.via_depot_ok=true : c15_furnance_1.out__item_copper_nugget__0 -> c11_grinder_1.in__item_copper_nugget__0
+group bus : c23_port c24_section c25_unloader c26_unloader c27_unloader c28_unloader c29_unloader c30_loader

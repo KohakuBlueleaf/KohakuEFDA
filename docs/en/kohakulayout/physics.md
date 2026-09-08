@@ -38,6 +38,12 @@ construction and overrides only what its game has.
 - **gates-power** (`GatesPowerPhysics`): the gates pack with a `power` field every gate needs
   and a `VDD` emitter that provides it in a square reach; the cover planner places emitters
   inside the placing transaction.
+- **endfield** (`kohakuefda.physics`, in the KohakuEFDA project, not in the framework): the
+  first project pack, for the Automated Industry Complex of Arknights: Endfield. Belts and
+  pipes on two layers with bridges and junction units, a pylon emitter, a bus with seats and
+  a cluster, gas zones, outside inputs on the border; every rule cites the project's game
+  knowledge by fact id. It takes no dataset: footprints ride in the netlist library and the
+  basement in the fabric params.
 
 ## Writing one
 
