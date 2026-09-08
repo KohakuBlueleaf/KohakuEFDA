@@ -63,6 +63,17 @@ const sidebarStructure = {
     "framework/reference.md",
     "framework/backends.md",
   ],
+  kohakulayout: [
+    "kohakulayout/README.md",
+    "kohakulayout/ir.md",
+    "kohakulayout/physics.md",
+    "kohakulayout/state.md",
+    "kohakulayout/engine.md",
+    "kohakulayout/solvers.md",
+    "kohakulayout/service.md",
+    "kohakulayout/utils-and-flow.md",
+    "kohakulayout/conformance.md",
+  ],
   dev: [
     "dev/README.md",
     "dev/internals.md",
@@ -70,6 +81,7 @@ const sidebarStructure = {
     "dev/testing.md",
     "dev/frontend.md",
     "dev/native.md",
+    "dev/kohakulayout-twin.md",
     "dev/assumptions.md",
   ],
 }
@@ -93,6 +105,7 @@ function sidebar(labels) {
     },
     { text: labels.reference, items: sidebarStructure.reference },
     { text: labels.framework, items: sidebarStructure.framework },
+    { text: labels.kohakulayout, items: sidebarStructure.kohakulayout },
     { text: labels.dev, items: sidebarStructure.dev },
   ]
 }
@@ -109,6 +122,7 @@ const enLabels = {
   verification: "Verification",
   reference: "Reference",
   framework: "Solver framework",
+  kohakulayout: "KohakuLayout",
   dev: "Development",
 }
 
@@ -124,6 +138,7 @@ const zhTWLabels = {
   verification: "驗證",
   reference: "參考",
   framework: "求解器框架",
+  kohakulayout: "KohakuLayout 佈局框架",
   dev: "開發",
 }
 
@@ -139,6 +154,7 @@ const zhCNLabels = {
   verification: "验证",
   reference: "参考",
   framework: "求解器框架",
+  kohakulayout: "KohakuLayout 布局框架",
   dev: "开发",
 }
 
