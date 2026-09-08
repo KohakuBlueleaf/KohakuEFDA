@@ -19,7 +19,7 @@ from kohakulayout.ir import (
     Unit,
     Wire,
 )
-from kohakulayout.ir.base import digest_of
+from kohakulayout.ir.base import digest_of_text
 from kohakulayout.ir.geometry import ROTATIONS, XY, attach_cell, footprint_cells
 from kohakulayout.physics.fields import reach_cells
 from kohakulayout.physics.protocol import Anchor, Occupant, UnitPlacement
@@ -63,6 +63,8 @@ class World:
         self.instance_anchors: dict[str, Placement] = {}
         self.checker: Any = None
         self.seq = 0
+        self.revision = 0
+        self._digest: tuple[int, str] | None = None
         self._tx: Transaction | None = None
         self._unit_seq = 0
 
@@ -253,12 +255,14 @@ class World:
     def _record(self, undo: Any) -> None:
         self._require_tx().record(undo)
         self.seq += 1
+        self.revision += 1
 
     def mark(self) -> int:
         return self._require_tx().mark()
 
     def rollback_to(self, mark: int) -> None:
         self._require_tx().rollback_to(mark)
+        self.revision += 1
 
     # ---------------------------------------------------------- occupancy
     def _occupy(
@@ -392,14 +396,24 @@ class World:
                 stage="region", subject=f"unit:{spot.kind}", detail="leaves the grid"
             )
         occupant = Occupant(kind="unit", unit_kind=spot.kind)
+        owners = self.open_attach_owners()
+        mine = spot.owner.removeprefix("net:")
         for layer in layers:
             for xy in cells:
+                owner = owners.get(layer, {}).get(xy)
+                if owner is not None and owner != mine:
+                    return Refusal(
+                        stage="port_shut",
+                        subject=f"unit:{spot.kind}",
+                        detail=f"covers the attach cell {xy} of a pin of {owner}",
+                    )
                 blocker = self.may_occupy(layer, xy, occupant)
                 if blocker is not None:
                     return Refusal(
                         stage="overlap",
                         subject=f"unit:{spot.kind}",
                         detail=f"{blocker} holds {xy} on {layer}",
+                        attrs={"kl": {"holder": blocker}},
                     )
         if unit_id is None:
             unit_id = self.next_unit_id()
@@ -533,7 +547,10 @@ class World:
         return freeze(self, hierarchical)
 
     def digest(self) -> str:
-        return digest_of(self.freeze().canonical())
+        """The digest of the frozen layout, kept until the next mutation."""
+        if self._digest is None or self._digest[0] != self.revision:
+            self._digest = (self.revision, digest_of_text(self.freeze().to_json()))
+        return self._digest[1]
 
     def snapshot(self) -> Token:
         return Token(
@@ -561,6 +578,7 @@ class World:
         self.reservations = {r.tag: r for r in token.reservations}
         self.membership = dict(token.membership)
         self.seq = token.seq
+        self.revision += 1
         if self.checker is not None:
             self.checker.on_restore(self, token, kernel)
 
@@ -569,4 +587,5 @@ class World:
         if self._tx is not None and self._tx.open:
             raise StateError("load inside an open transaction")
         load(self, layout)
+        self.revision += 1
         self.forget_routes()

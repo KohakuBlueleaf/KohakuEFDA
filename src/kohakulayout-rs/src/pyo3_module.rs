@@ -128,6 +128,22 @@ impl PyGrid {
         let text = String::from_utf8(blob).map_err(err)?;
         self.inner.load(&text).map_err(err)
     }
+
+    /// A* from any source to any target under the rules JSON; the found path as JSON, or None.
+    fn astar(
+        &self,
+        layer: &str,
+        sources: Vec<(i64, i64)>,
+        targets: Vec<(i64, i64)>,
+        rules: &str,
+        avoid: Vec<(i64, i64)>,
+    ) -> PyResult<Option<String>> {
+        let rules: crate::kernel::astar::Rules = serde_json::from_str(rules).map_err(err)?;
+        Ok(
+            crate::kernel::astar::find(&self.inner, layer, &sources, &targets, &avoid, &rules)
+                .map(|f| serde_json::to_string(&f).unwrap()),
+        )
+    }
 }
 
 #[pymodule]

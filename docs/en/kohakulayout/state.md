@@ -39,9 +39,13 @@ occupant is a negotiated-congestion path finder with rip-up: A* on one layer ove
 kernel's holder map, where another net's wire is a crossing when the pack allows one and
 the other wire runs straight through, shareable when the carriers say so, and otherwise a
 wall or, with rip-up on, a priced obstacle the router rips and re-routes afterwards. Nets
-with many terminals grow as trees nearest-first; junctions follow the pack's rule (free,
-a unit, or forbidden); reservations are corridors for their own carrier and walls for any
-other; run limits place repeaters. Everything the router writes goes through `set_wire`
+with many terminals grow as trees: the sources join first into a trunk, then the sinks
+branch from the last join or from one another, so every cell carries flow one way;
+junctions follow the pack's rule (free, a unit, or forbidden) and a join prefers a cell
+where the junction unit can stand; reservations are corridors for their own carrier and
+walls for any other; a unit a route needs may take a field emitter's cell, and the
+emitter is placed again for every cell it left short; run limits place repeaters, and without a repeater only a run over
+the limit is refused. Everything the router writes goes through `set_wire`
 and `place_unit`, so it rolls back with the attempt.
 
 ## Kernels

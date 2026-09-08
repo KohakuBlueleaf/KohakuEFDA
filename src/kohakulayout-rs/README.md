@@ -13,6 +13,7 @@ a Python function byte for byte and is held to it by `tests/kohakulayout/parity/
 | `src/text/parser.rs`, `assemble.rs`, `writer.rs` | text to statements to levels, and levels to canonical text |
 | `src/text/levels.rs` | the JSON boundary: parse, write, flatten, canonical, digest |
 | `src/kernel/grid.rs` | the occupancy grid with `PyKernel`'s exact `save()` bytes |
+| `src/kernel/astar.rs` | the path search over the grid, the pack's answers handed in as tables; `pathfinder.find`'s twin |
 | `src/pyo3_module.rs` | `kohakulayout_rs`: `parse_kl`, `write_kl`, `flatten`, `canonical`, `digest`, `Grid` |
 
 ## Building

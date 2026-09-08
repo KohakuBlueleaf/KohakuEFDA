@@ -6,6 +6,7 @@ set to ``python`` disables every wrapper; ``native`` makes a missing module an e
 """
 
 import os
+from typing import Any
 
 from kohakulayout._rust import HAS_RUST, kohakulayout_rs
 from kohakulayout.errors import NotAvailable
@@ -59,3 +60,21 @@ def rust_digest(level_json: str) -> str | None:
         return kohakulayout_rs.digest(level_json)
     except Exception:  # noqa: BLE001
         return None
+
+
+def rust_astar(
+    grid: Any,
+    layer: str,
+    sources: list,
+    targets: list,
+    rules: Any,
+    avoid: list | None = None,
+) -> str | None:
+    """The native path search on a native grid: the found path as JSON, ``none``, or None to use Python."""
+    if not native_wanted() or not hasattr(grid, "astar"):
+        return None
+    try:
+        answer = grid.astar(layer, sources, targets, rules(), avoid or [])
+    except Exception:  # noqa: BLE001
+        return None
+    return "none" if answer is None else answer

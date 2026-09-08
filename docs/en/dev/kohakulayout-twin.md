@@ -33,6 +33,7 @@ framework runs unchanged on its Python paths.
 | `Level.digest()` | canonicalises (flattening a netlist or problem) and hashes | `digest_of(canonical())` |
 | `Netlist.flatten()` | flattens through the twin | the Python flatten |
 | `make_kernel("auto")` | the `Grid` handle behind the `Kernel` protocol | `PyKernel` |
+| `pathfinder.find` | the A* over a native grid, with the pack's crossing, sharing and reservation answers handed in as tables built once per search | the Python search |
 
 `KOHAKULAYOUT_BACKEND=python` disables the twin everywhere; `native` makes a missing module
 an error, so a parity failure can be reproduced on either side.
@@ -43,6 +44,8 @@ an error, so a parity failure can be reproduced on either side.
 - Sixty seeded random problems and layouts from the test generator: the same on both sides.
 - The kernel: random operation sequences and every recorded gates run replayed into both
   kernels give identical `save()` bytes and identical query answers.
+- The search: every path search of three seeded gates runs answers the same on both sides,
+  cells, cost, crossings and rips.
 
 `python scripts/dev/kl_check.py bench` requires the module, runs the parity suite, then
 compares every bench against `tests/kohakulayout/bench/ledger.json`.

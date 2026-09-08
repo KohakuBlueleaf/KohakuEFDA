@@ -62,3 +62,12 @@ def write_value(value: Any) -> str:
     if isinstance(value, list | tuple):
         return ",".join(write_scalar(v) for v in value)
     return write_scalar(value)
+
+
+def write_loose_value(value: Any) -> str:
+    """For attrs and params, which the reader types by content: one element keeps a trailing comma and none is a lone comma, so a list reads back as a list."""
+    if isinstance(value, list | tuple):
+        if len(value) == 1:
+            return write_scalar(value[0]) + ","
+        return write_value(value) or ","
+    return write_scalar(value)

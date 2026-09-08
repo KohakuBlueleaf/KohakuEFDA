@@ -294,11 +294,18 @@ class Netlist(Level):
 
     # ------------------------------------------------------------ hierarchy
     def flatten(self) -> "Netlist":
-        """Every instance expanded, ids joined with ``/``, port nets merged, definitions dropped."""
+        """Every instance expanded, ids joined with ``/``, port nets merged, definitions dropped; entries in id order."""
         if self.is_flat:
-            if not self.modules and not self.macros:
-                return self
-            return self.model_copy(update={"modules": {}, "macros": {}})
+            return self.model_copy(
+                update={
+                    "library": dict(sorted(self.library.items())),
+                    "cells": dict(sorted(self.cells.items())),
+                    "nets": dict(sorted(self.nets.items())),
+                    "groups": dict(sorted(self.groups.items())),
+                    "modules": {},
+                    "macros": {},
+                }
+            )
         native = rust_flatten(self.to_json())
         if native is not None:
             return Netlist.from_json(native)

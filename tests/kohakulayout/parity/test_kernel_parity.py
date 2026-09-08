@@ -1,10 +1,13 @@
 """The two kernels agree byte for byte: random operations, and every gates run replayed from its log."""
 
 import random
+from contextlib import contextmanager
 from importlib.resources import files
+from unittest.mock import patch
 
 import pytest
 
+from kohakulayout import _rust_bridge as bridge
 from kohakulayout.engine import Budget, Context
 from kohakulayout.ir import Netlist
 from kohakulayout.solvers import get
@@ -17,6 +20,7 @@ from kohakulayout.state.kernel import (
     make_kernel,
     replay,
 )
+from kohakulayout.state.router import pathfinder, trees
 from kohakulayout.templates.physics.gates import (
     GatesPhysics,
     from_expressions,
@@ -96,3 +100,36 @@ def test_a_native_world_solves_the_toy() -> None:
         .read_text()
     )
     assert Netlist.parse(text).digest()
+
+
+@pytest.mark.parametrize("seed", [3, 4, 5])
+def test_native_search_finds_what_python_finds(seed: int) -> None:
+    """Every search of a whole run answers the same on both sides: cells, cost, crossings and rips."""
+    netlist = random_circuit(seed, inputs=4, gates=8)
+    prob = problem(netlist, width=48, height=24)
+    ctx = Context(prob, seed=seed, budget=Budget(units=4000), kernel="native")
+    searches: list[tuple] = []
+    original = pathfinder.find
+
+    def both(search, sources, targets, avoid=frozenset()):
+        native = original(search, sources, targets, avoid)
+        search.grid = None
+        with _python_only():
+            python = original(search, sources, targets, avoid)
+        searches.append((native, python))
+        return native
+
+    with patch.object(pathfinder, "find", both), patch.object(trees, "find", both):
+        get("inorder").run(ctx)
+    assert len(searches) > 20
+    assert [n for n, _ in searches] == [p for _, p in searches]
+
+
+@contextmanager
+def _python_only():
+    was = bridge.BACKEND
+    bridge.BACKEND = "python"
+    try:
+        yield
+    finally:
+        bridge.BACKEND = was

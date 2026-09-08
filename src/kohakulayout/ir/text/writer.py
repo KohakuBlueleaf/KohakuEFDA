@@ -11,7 +11,7 @@ from kohakulayout.ir.layout import Layout, Wire
 from kohakulayout.ir.netlist import Cell, Macro, Module, Net, Netlist, Pin, PinRef
 from kohakulayout.ir.problem import Problem
 from kohakulayout.ir.text.moves import moves_from_cells
-from kohakulayout.ir.text.values import quote, write_value
+from kohakulayout.ir.text.values import quote, write_loose_value, write_value
 
 INDENT = "    "
 
@@ -22,7 +22,7 @@ def _opt(key: str, value: Any) -> str:
 
 def _attrs(attrs: dict[str, dict[str, Any]]) -> list[str]:
     return [
-        f"+{ns}.{key}={write_value(value)}"
+        f"+{ns}.{key}={write_loose_value(value)}"
         for ns in sorted(attrs)
         for key, value in sorted(attrs[ns].items())
     ]
@@ -329,7 +329,7 @@ def write(level: Level, context: Any = None) -> str:
             lines.append(f"physics {level.physics}")
         lines += fabric_lines(level.fabric)
         for key in sorted(level.params):
-            lines.append(f"param {_opt(key, level.params[key])}")
+            lines.append(f"param {key}={write_loose_value(level.params[key])}")
         lines += scope_lines(
             level.netlist,
             level.physics.split("@")[0] if level.physics else level.netlist.pack,

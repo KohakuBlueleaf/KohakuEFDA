@@ -34,7 +34,7 @@ class Context:
         problem: Problem,
         physics: Any = None,
         seed: int = 0,
-        kernel: str = "python",
+        kernel: str = "auto",
         router: Any = "default",
         checker: Any = None,
         budget: Budget | None = None,

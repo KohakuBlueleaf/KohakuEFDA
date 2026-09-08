@@ -5,8 +5,8 @@
 
 The framework's subpackages import one way, from ``errors`` up to ``cli``; a module may
 import its own tier or a lower one. ``utils`` imports only ``ir`` and ``errors``. Nothing in
-``kohakulayout`` imports ``kohakuefda``, and nothing in ``kohakuefda`` imports
-``kohakulayout`` until milestone 13. In-function imports need a try/except ImportError
+``kohakulayout`` imports ``kohakuefda``, and ``kohakuefda`` imports only the framework's
+public modules (milestone 13 on). In-function imports need a try/except ImportError
 guard or an entry in ``scripts/dev/kl_deps_allowlist.json`` with a reason.
 """
 
@@ -171,9 +171,10 @@ def check_project() -> list[str]:
         rel = str(path.relative_to(ROOT))
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
         for target, lineno, _, _ in imports_of(tree):
-            if target.split(".")[0] == PKG:
+            parts = target.split(".")
+            if parts[0] == PKG and any(part.startswith("_") for part in parts[1:]):
                 violations.append(
-                    f"{rel}:{lineno}: project imports the framework before milestone 13: {target}"
+                    f"{rel}:{lineno}: project imports a private framework module: {target}"
                 )
     return violations
 

@@ -31,7 +31,7 @@ def solve(
     plugins: Any = None,
     progress: Any = None,
     router: Any = "default",
-    kernel: str = "python",
+    kernel: str = "auto",
     checker: Any = None,
     passes: tuple[Any, ...] = DEFAULT_PASSES,
     run: str | None = None,

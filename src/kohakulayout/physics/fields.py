@@ -19,6 +19,14 @@ def reach_cells(emitter: Emitter, x: int, y: int) -> frozenset[XY]:
     )
 
 
+def reach_extent(emitter: Emitter) -> int:
+    """How far the reach stretches from the anchor at most, for a square or a mask."""
+    reach = emitter.reach
+    if reach.shape == "mask":
+        return max((max(abs(dx), abs(dy)) for dx, dy in reach.cells), default=0)
+    return reach.radius + max(emitter.footprint.width, emitter.footprint.height) // 2
+
+
 def satisfied(
     need_cells: tuple[XY, ...], covered: frozenset[XY], partial: bool
 ) -> bool:
@@ -84,7 +92,7 @@ class GreedyCover:
         fp = emitter.footprint
         target_x = sum(c[0] for c in cells) // len(cells)
         target_y = sum(c[1] for c in cells) // len(cells)
-        r = emitter.reach.radius + max(fp.width, fp.height)
+        r = reach_extent(emitter) + max(fp.width, fp.height)
         candidates = sorted(
             (
                 (x, y)
@@ -93,7 +101,10 @@ class GreedyCover:
             ),
             key=lambda xy: abs(xy[0] - target_x) + abs(xy[1] - target_y),
         )
-        shut = world.open_attach_cells().get(fp.layer, frozenset())
+        open_cells = world.open_attach_cells()
+        shut = frozenset().union(
+            *(open_cells.get(layer, frozenset()) for layer in world.layers_for(fp))
+        )
         for x, y in candidates:
             if not satisfied(cells, reach_cells(emitter, x, y), emitter.reach.partial):
                 continue

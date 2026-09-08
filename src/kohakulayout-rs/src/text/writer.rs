@@ -7,7 +7,7 @@ use serde_json::Value;
 
 use super::assemble::attach;
 use super::moves::moves_from_cells;
-use super::values::{quote, write_metric, write_value};
+use super::values::{quote, write_loose_value, write_metric, write_value};
 use crate::ir::geometry::{rects_from_cells, XY};
 use crate::ir::model::{
     Assessment, Attrs, Cell, Fabric, Layout, Macro, Module, Net, Netlist, Pin, PinRef, Problem,
@@ -33,7 +33,7 @@ fn attrs(attrs: &Attrs) -> Vec<String> {
     let mut out = Vec::new();
     for (ns, values) in attrs {
         for (key, value) in values {
-            out.push(format!("+{ns}.{key}={}", write_value(value)));
+            out.push(format!("+{ns}.{key}={}", write_loose_value(value)));
         }
     }
     out
@@ -451,7 +451,7 @@ pub fn write_problem(problem: &Problem) -> String {
     }
     lines.extend(fabric_lines(&problem.fabric));
     for (key, value) in &problem.params {
-        lines.push(format!("param {}", opt(key, value)));
+        lines.push(format!("param {key}={}", write_loose_value(value)));
     }
     let pack = if problem.physics.is_empty() {
         problem.netlist.pack.clone()

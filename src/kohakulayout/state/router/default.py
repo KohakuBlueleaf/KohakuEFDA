@@ -15,8 +15,11 @@ from kohakulayout.state.router.units import crossings, junctions, repeaters
 class DefaultRouter:
     id = "default"
 
-    def __init__(self, ripup: int = 3, max_rips: int = 12, **costs: Any) -> None:
+    def __init__(
+        self, ripup: int = 3, max_rips: int = 12, rounds: int = 3, **costs: Any
+    ) -> None:
         self.ripup = ripup
+        self.rounds = rounds
         self.max_rips = max_rips
         self._rips_left = 0
         self.costs = Costs(**costs)
@@ -53,47 +56,99 @@ class DefaultRouter:
     def _route(
         self, world: Any, net_id: str, depth: int, protected: frozenset[str]
     ) -> Refusal | None:
+        """Plan, rip, commit and re-route the displaced; at the top a displaced net that cannot return protects itself and the round repeats."""
         net = world.netlist.nets[net_id]
-        allow_rip = depth < self.ripup and self._rips_left > 0
-        plan = grow(
-            world, net, self.search(world, net, allow_rip, protected | {net_id})
-        )
-        if isinstance(plan, Refusal):
-            return plan
-        self._rips_left -= len(plan.rips)
-        for victim in sorted(plan.rips):
-            for segment in plan.segments:
-                for cell in segment.cells:
-                    self.history[(segment.layer, cell)] = (
-                        self.history.get((segment.layer, cell), 0) + 1
+        blocked: frozenset[str] = frozenset()
+        last: Refusal | None = None
+        for _ in range(self.rounds if depth == 0 else 1):
+            allow_rip = depth < self.ripup and self._rips_left > 0
+            plan = grow(
+                world,
+                net,
+                self.search(world, net, allow_rip, protected | blocked | {net_id}),
+            )
+            if isinstance(plan, Refusal):
+                return plan if last is None else last
+            mark = world.mark()
+            self._rips_left -= len(plan.rips)
+            for victim in sorted(plan.rips):
+                for segment in plan.segments:
+                    for cell in segment.cells:
+                        self.history[(segment.layer, cell)] = (
+                            self.history.get((segment.layer, cell), 0) + 1
+                        )
+                world.unroute(victim)
+            refusal = self.commit(
+                world, net, plan, allow_rip, protected | blocked | {net_id}
+            )
+            if refusal is not None:
+                return refusal
+            failed = None
+            for victim in sorted(plan.rips):
+                again = self._route(world, victim, depth + 1, protected | {net_id})
+                if again is not None:
+                    failed = victim
+                    last = refuse(
+                        net_id,
+                        f"displaced {victim}, which could not be re-routed: {again.detail}",
                     )
-            world.unroute(victim)
-        refusal = self.commit(world, net, plan)
-        if refusal is not None:
-            return refusal
-        for victim in sorted(plan.rips):
-            again = self._route(world, victim, depth + 1, protected | {net_id})
-            if again is not None:
-                return refuse(
-                    net_id,
-                    f"displaced {victim}, which could not be re-routed: {again.detail}",
-                )
-        return None
+                    break
+            if failed is None:
+                return None
+            world.rollback_to(mark)
+            blocked = blocked | {failed}
+        return last
 
-    def commit(self, world: Any, net: Any, plan: Plan) -> Refusal | None:
-        unit_ids: list[str] = []
-        for placed in (
-            crossings(world, net, plan.crossings),
-            junctions(world, net, plan.junctions),
-            repeaters(world, net, plan.segments),
-        ):
-            if isinstance(placed, Refusal):
-                return placed
-            unit_ids.extend(placed)
+    def commit(
+        self,
+        world: Any,
+        net: Any,
+        plan: Plan,
+        allow_rip: bool = False,
+        protected: frozenset[str] = frozenset(),
+    ) -> Refusal | None:
+        """Place the plan's units and the wire; a wire under a unit is ripped and joins the victims when ripping is allowed."""
+        makers = (
+            lambda: crossings(world, net, plan.crossings),
+            lambda: junctions(world, net, plan.junctions),
+            lambda: repeaters(world, net, plan.segments),
+        )
+        mark = world.mark()
+        while True:
+            unit_ids: list[str] = []
+            failed: Refusal | None = None
+            for make in makers:
+                placed = make()
+                if isinstance(placed, Refusal):
+                    failed = placed
+                    break
+                unit_ids.extend(placed)
+            if failed is None:
+                break
+            victim = self.wire_under(failed)
+            if (
+                victim is None
+                or not allow_rip
+                or self._rips_left <= 0
+                or victim in protected
+                or victim in plan.rips
+            ):
+                return failed
+            world.rollback_to(mark)
+            world.unroute(victim)
+            plan.rips.add(victim)
+            self._rips_left -= 1
+            mark = world.mark()
         world.set_wire(
             Wire(net=net.id, segments=tuple(plan.segments), units=tuple(unit_ids))
         )
         return None
+
+    @staticmethod
+    def wire_under(refusal: Refusal) -> str | None:
+        """The net whose wire blocks a unit, from the refusal the world attached."""
+        holder = refusal.attrs.get("kl", {}).get("holder", "")
+        return holder[5:] if holder.startswith("wire:") else None
 
     def unroute(self, world: Any, net_id: str) -> None:
         world.unroute(net_id)

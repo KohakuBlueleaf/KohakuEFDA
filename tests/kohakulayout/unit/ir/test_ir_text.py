@@ -115,3 +115,32 @@ def test_layout_needs_its_problem_for_pin_endpoints() -> None:
     assert isinstance(
         parse_text("kl 1\nlib G 1x1 { y out wire E0 }\ncell a G\n").netlist, Netlist
     )
+
+
+def test_lists_of_one_and_none_read_back_as_lists() -> None:
+    from kohakulayout.ir import Fabric, Footprint, Netlist, Problem, Region
+    from kohakulayout.ir.text import parse_text
+
+    fabric = Fabric(
+        width=4,
+        height=4,
+        regions={
+            "build": Region.of(
+                "build", frozenset((x, y) for y in range(4) for x in range(4))
+            )
+        },
+        attrs={"x": {"one": ["a"], "none": [], "two": [1, 2]}},
+    )
+    problem = Problem(
+        physics="null@0",
+        fabric=fabric,
+        netlist=Netlist(
+            pack="null", library={"a": Footprint(id="a", width=1, height=1)}
+        ),
+        params={"one": [3], "none": [], "flag": True},
+    )
+    text = problem.text()
+    again = parse_text(text).problem
+    assert again.fabric.attrs["x"] == {"one": ["a"], "none": [], "two": [1, 2]}
+    assert again.params == {"one": [3], "none": [], "flag": True}
+    assert again.digest() == problem.digest()

@@ -14,7 +14,8 @@ The engine gives a solver everything a search needs and owns nothing about how t
 
 `Context(problem, physics, seed, kernel, router, checker, budget, plugins, progress, run,
 execution)` builds the world and holds the seeded random generator that is the only
-randomness a solver may use. Its surface:
+randomness a solver may use. `kernel` defaults to `auto`: the native twin when it is
+built, else the Python kernel. Its surface:
 
 | call | what it does |
 |---|---|

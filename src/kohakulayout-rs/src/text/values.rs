@@ -138,6 +138,15 @@ pub fn write_metric(value: &Value) -> String {
     write_value(value)
 }
 
+/// For attrs and params, which the reader types by content: one element keeps a trailing comma, none is a lone comma.
+pub fn write_loose_value(value: &Value) -> String {
+    match value {
+        Value::Array(items) if items.len() == 1 => format!("{},", write_scalar(&items[0])),
+        Value::Array(items) if items.is_empty() => ",".to_string(),
+        _ => write_value(value),
+    }
+}
+
 pub fn write_value(value: &Value) -> String {
     match value {
         Value::Array(items) => items.iter().map(write_scalar).collect::<Vec<_>>().join(","),

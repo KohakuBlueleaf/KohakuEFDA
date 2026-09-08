@@ -107,13 +107,31 @@ def jsonable(data: Any) -> Any:
     return data
 
 
+def _json_default(value: Any) -> Any:
+    if isinstance(value, Fraction):
+        return rate_text(value)
+    if isinstance(value, set | frozenset):
+        return sorted(jsonable(v) for v in value)
+    raise TypeError(f"{type(value).__name__} is not JSON")
+
+
 def canonical_json(data: Any) -> str:
     """Sorted keys, no whitespace, unicode kept: the bytes every digest is computed on."""
-    return json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return json.dumps(
+        data,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        default=_json_default,
+    )
 
 
 def digest_of(data: Any) -> str:
-    return hashlib.sha256(canonical_json(data).encode("utf-8")).hexdigest()
+    return digest_of_text(canonical_json(data))
+
+
+def digest_of_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def register_text_codec(writer: Callable, parser: Callable) -> None:
@@ -157,7 +175,7 @@ class Level(Model):
         return native if native is not None else digest_of(self.canonical())
 
     def to_json(self) -> str:
-        return canonical_json(self.content())
+        return canonical_json({"level": self.level, **self.model_dump(mode="python")})
 
     @classmethod
     def from_json(cls, text: str) -> Self:
