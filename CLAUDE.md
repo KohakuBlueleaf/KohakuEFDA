@@ -26,6 +26,8 @@ it there first. Never delegate that research to subagents.
 src/kohakuefda/          library: data/ model/ i18n/ flow/ plan/ layout/ route/ verify/ render/ cli/
 src/kohakuefda-viewer/   Vue 3 viewer (JavaScript only); builds into src/kohakuefda/web_dist/
 src/kohakuefda-rs/       Rust hot paths (later)
+src/kohakulayout/        KohakuLayout: the netlist-to-layout framework (design in .internal/kohakulayout/)
+src/kohakulayout-rs/     its native twin (pest, serde, pyo3; built with maturin into .venv)
 data/<versionId>/        normalised dataset + manifest (checked in); data/raw/ is ignored
 scripts/dev/             comment_budget.py and other dev tools
 tests/                   flat pytest; tests/fixtures/ is test-owned data
@@ -98,3 +100,51 @@ overlap (ENV-01, ENV-02); the Planting Unit needs no plots (PLT-04); mining is
 out of scope (solids come from the depot, RES-02); targets are absolute
 units/min and degrade when infeasible; only area and machine count cost;
 "basement" means the Core AIC Area (REG-02, REG-04).
+
+## KohakuLayout (`src/kohakulayout/`)
+
+The netlist-to-layout framework built beside the project. Design set:
+`.internal/kohakulayout/` (README, then pages 00 to 12; `12-impl-plan.md` holds the
+milestone table). Progress: `.internal/kohakulayout/progress/` (`status.md` live per sub-step, `rounds.md` the round log); measurements: `.internal/kohakulayout/results/`. The framework
+never imports the project; the project imports the framework only from milestone 13.
+
+**The loop.** One milestone, one full loop: implement the milestone in full, all at
+once, then review and audit everything at once, behaviour and cost, then the tests and
+the gate, and only then measure. A bad gate starts a new loop for that milestone, never
+a patch. Items inside one milestone have no priority order that lets one be skipped.
+
+**Round end.** Every round ends with recall (the plan page for the milestone and these
+rules), record (`progress/status.md` and `progress/rounds.md`: what was built, which gate
+ran, what was measured, what is next) and reconcile (every divergence from the design set or rule violation
+fixed now or listed with a reason). The final text block then carries:
+
+```
+## Kohaku Second Principle — Goal
+- [x] M0 … - [ ] M12   (the current state of every milestone)
+following kohaku first principle
+```
+
+`.claude/hooks/kl_round_end.py` blocks a stop whose last block lacks it, once;
+`.claude/hooks/kl_post_edit.py` reports the file rules after every edit;
+`.claude/hooks/kl_post_compact.py` points the next turn back at the plan.
+
+**Rules on top of the project's.**
+
+- Nested, never flat: a directory with more than about twelve siblings is a smell.
+- A file is at most 600 lines (hard cap 1000); split before it grows.
+- Import order, one way: `errors` → `ir` → `utils` (imports `ir` only) → `physics` →
+  `state` → `flow` → `verify` → `engine` → `solvers` → `pipeline` → `service` →
+  `templates` → `cli`. `scripts/dev/kl_deps.py` fails a violation, a cycle, an
+  in-function import without an allowlist reason, or any `kohakuefda` import.
+- No game, pack or project name inside the framework. Vocabulary lives in `kind` and
+  in namespaced `attrs`; the framework never reads either.
+- Fixtures are `.kl` files under `tests/kohakulayout/fixtures/`; the fast tier verifies
+  them before any test reads them.
+- Python is the reference. Rust is a twin behind parity tests, and every accelerated
+  function falls back to Python when the module is absent or raises.
+- Gates: `python scripts/dev/kl_check.py fast|unit|journey|bench|full`; every check is
+  bounded and a stall is reported as STALLED, not as a failure.
+- Tests have three shapes: unit (one source file, one test file), integration (one
+  package, one class of complete workflows), journey (through the service). Behaviour
+  asserts, real collaborators; the only seam is the process boundary.
+- Shell paths are absolute; the working directory is never trusted.

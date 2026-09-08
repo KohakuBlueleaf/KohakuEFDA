@@ -21,6 +21,7 @@ dependencies = [
     "typer>=0.15",
     "rich>=13.7",
     "httpx>=0.27",
+    "lark>=1.2",
 ]
 
 [project.optional-dependencies]
@@ -35,20 +36,28 @@ dev = ["pytest>=8.0", "ruff", "black", "maturin>=1.0,<2.0"]
 [project.urls]
 Homepage = "https://github.com/KohakuBlueleaf/KohakuEFDA"
 
+[project.entry-points."kohakulayout.physics"]
+gates = "kohakulayout.templates.physics.gates:GatesPhysics"
+gates-power = "kohakulayout.templates.physics.gates:GatesPowerPhysics"
+null = "kohakulayout.templates.physics.null:NullPhysics"
+
 [project.scripts]
 kohakuefda = "kohakuefda.cli.__main__:main"
+kl = "kohakulayout.cli:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["kohakuefda*"]
+include = ["kohakuefda*", "kohakulayout*"]
 
 [tool.setuptools.package-data]
 "kohakuefda.i18n" = ["*.json"]
 "kohakuefda.data.static" = ["*.json", "examples/*.toml"]
 "kohakuefda" = ["web_dist/**/*", "*.pyi", "*.pyd", "*.so", "*.dylib"]
+"kohakulayout.ir.text" = ["*.lark"]
+"kohakulayout.templates.physics.gates" = ["fixtures/*.kl"]
 
 # The Rust extension is built on its own with `maturin develop --release`; the package installs
 # and runs without it, so the wheel is built by setuptools above.
@@ -73,3 +82,7 @@ extend-immutable-calls = ["typer.Option", "typer.Argument"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "journey: end-to-end runs through the service",
+    "bench: ledger benchmarks",
+]
