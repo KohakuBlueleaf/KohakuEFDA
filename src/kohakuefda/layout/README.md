@@ -1,13 +1,11 @@
 # layout/
 
-Physical geometry, groups, occupancy-facing placement, assembly and stage adapters.
-Search strategies live in `solvers/`; safe solver services live in `framework/`.
-The default layout stage runs standard `hc` on the native backend for 600 seconds,
-with seed 0, no action cap, and construction/improvement caps of 1,000,000 each.
-HC's `until_budget=true` makes the time budget authoritative while both phases are
-enabled. A zero phase cap skips that phase; it does not mean unlimited search.
-Library solver defaults remain independently configurable. The baseline is still
-available explicitly and constructs a routed spread before greedy compaction.
+Physical geometry, the board, blocks, the stage's settings and solver table, chunking,
+the stages and the pipeline. The layout stage is a consumer of KohakuLayout: it turns
+the netlist into a framework problem (`synth/`), runs the framework solver the project
+name maps to, and translates the layout back. The default stage runs `hc` (the
+framework's `climb`) on the `auto` kernel for 600 seconds with seed 0; `seconds` and
+`max_actions` both at 0 stop after `DEFAULT_UNITS` charged actions.
 
 ## Files
 
@@ -18,18 +16,16 @@ available explicitly and constructs a routed spread before greedy compaction.
 | `fragments.py` | Translate, rotate and place fragments |
 | `depot_via.py` | Bus slots, attachment and depot capacity arithmetic |
 | `coverage.py` | Pylon coverage and zone geometry |
-| `place.py` | Mutable backend blocks and placement artifact conversion |
+| `place.py` | `Block` (a cell's size, ports and anchor) and the placement artifact conversion |
 | `board.py` | Basement, ring, fixed cells, slots and independently retained entry border |
-| `groups.py` | Mandatory group constraints |
-| `site.py` | Coupled placement/routing, batched footprint updates, unique wired-pin checks and clipped occupied bounds |
-| `engine.py` | Solver composition, Runner adapter and target-valid versus workspace-only final evidence |
-| `assemble.py` | Emitted layout and routing pins with immutable cached port-access geometry |
+| `config.py` | `settings_of` (overrides typed by their defaults, unknown names refused), `Entry` and `Catalog` (the studio's solver table), `ConfigurationError` |
+| `engine.py` | The stage's flat settings, the project's solver names over the framework's solvers, typed solver options, the budget, the studio's catalogue |
 | `chunk.py` | Blueprint module partitioning |
-| `stages.py` | Four stage APIs and strict shared/solver parameter validation before execution |
+| `stages.py` | Four stage APIs; the layout stage runs the framework on the synth's problem and translates the layout back |
 | `pipeline.py` | Scenario-to-artifacts orchestration and recorded frames |
 
 ## Dependencies
 
 - Physical modules: `model`, `route`, existing geometry collaborators.
-- Stage adapters: `framework`, `solvers`, `plan`, `flow`, `verify`.
+- Stage adapters: `synth`, `plan`, `flow`, `verify`, `kohakulayout` (`engine`, `pipeline`, `solvers`).
 - External: `numpy`.

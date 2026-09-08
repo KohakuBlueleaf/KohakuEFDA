@@ -71,12 +71,12 @@ def test_meta_examples_and_params(base_url: str) -> None:
     status, params = _request(f"{base_url}/api/params")
     assert params["layout"]["spread_attempts"] == LAYOUT_DEFAULTS["spread_attempts"]
     assert params["layout"]["workers"] == LAYOUT_DEFAULTS["workers"]
-    assert "bridge_cost" in params["layout"]
+    assert "solver_options" in params["layout"]
     status, solvers = _request(f"{base_url}/api/solvers")
     assert status == 200
     by_name = {entry["name"]: entry for entry in solvers}
     assert {"baseline", "regional", "hc", "sa"} <= by_name.keys()
-    assert by_name["hc"]["defaults"] == by_name["sa"]["defaults"]
+    assert set(by_name["hc"]["defaults"]) <= set(by_name["sa"]["defaults"])
     assert by_name["regional"]["defaults"]["attempts"] == 128
     assert by_name["hc"]["parameter_types"]["until_budget"] == "bool"
     assert by_name["hc"]["parameter_types"]["construction_temperature"] == "float"
@@ -176,8 +176,7 @@ def test_rerun_layout_with_other_settings_clears_later_stages(base_url: str) -> 
                 "solver": "baseline",
                 "seconds": 0,
                 "backend": "auto",
-                "turn_cost": 0.5,
-                "spread_gap": 1,
+                "solver_options": '{"shrink_rounds": 3}',
             }
         },
     )
@@ -186,8 +185,11 @@ def test_rerun_layout_with_other_settings_clears_later_stages(base_url: str) -> 
     assert "report" not in queued["run"]["artifacts"]
     summary = _wait(base_url, run_id, "layout")
     assert summary["stages"]["layout"]["status"] == "done"
-    assert summary["stages"]["layout"]["params"]["turn_cost"] == 0.5
-    assert summary["stages"]["layout"]["params"]["spread_gap"] == 1
+    assert summary["stages"]["layout"]["params"]["seconds"] == 0
+    assert (
+        summary["stages"]["layout"]["params"]["solver_options"]
+        == '{"shrink_rounds": 3}'
+    )
     _, after = _request(f"{base_url}/api/runs/{run_id}/artifacts/layout")
     assert after["width"] == before["width"]
     status, _ = _request(

@@ -5,7 +5,7 @@ Studio, the artifact files of a directory, the dataset, the icons, and a JSON
 API that runs a scenario stage by stage (plan, netlist, layout, verify) with
 checkpoints, tunable parameters, recorded frames, a live event stream that
 resumes after the last sequence seen, requirements and outcomes. `/api/solvers`
-exposes the application solver catalog (`kohakuefda.solvers`); the server never
+exposes the layout stage's solver catalogue (`kohakuefda.layout.engine`); the server never
 loads arbitrary Python code from HTTP settings. Catalog entries include parameter
 types and parallel capability for typed controls. Invalid solver options are
 rejected before a stage is queued.

@@ -40,8 +40,8 @@ def test_stage_order_and_parameter_defaults() -> None:
     assert STAGES == ("plan", "netlist", "layout", "verify")
     params = params_of("layout", {"workers": "2", "seed": 3})
     assert params["workers"] == 2 and params["seed"] == 3
-    assert params["spread_gap"] == 0 and params["w_wire"] == 1.0
-    assert params["pylon"] == "power_diffuser_1" and params["entry_sides"] == "NW"
+    assert params["solver"] == "hc" and params["seconds"] == 600.0
+    assert params["max_actions"] == 0 and params["solver_options"] == "{}"
     with pytest.raises(StageError):
         params_of("layout", {"bogus": 1})
     with pytest.raises(StageError):

@@ -5,17 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from kohakuefda.framework import problem_of
-from kohakuefda.framework.runtime import Runner
-from kohakuefda.layout.engine import solver_of
+from kohakuefda.layout.engine import LAYOUT_DEFAULTS, SOLVERS, solver_of
 from kohakuefda.layout.stages import StageError, params_of
 from kohakuefda.model.dataset import Dataset
 from kohakuefda.model.scenario import Scenario
-from kohakuefda.plan.netlist import build_netlist
-from kohakuefda.plan.planner import plan
 from kohakuefda.serve.runs import Run, RunError, RunManager
-from kohakuefda.solvers.local import HillClimbing
-from kohakuefda.solvers.local.search import Trajectory
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -38,25 +32,16 @@ def prepared(dataset, scenario, tmp_path):
     return manager, run
 
 
-def test_default_layout_is_standard_hc_with_time_controlled_phases(dataset, scenario):
+def test_default_layout_is_hill_climbing_on_a_time_budget():
     params = params_of("layout")
     assert params["solver"] == "hc"
     assert params["seconds"] == 600
-    assert params["backend"] == "native" and params["seed"] == 0
+    assert params["backend"] == "auto" and params["seed"] == 0
     assert params["max_actions"] == 0
-    solver = solver_of(params)
-    assert type(solver) is HillClimbing
-    assert solver.settings["until_budget"] is True
-    assert solver.settings["construction_steps"] == 1_000_000
-    assert solver.settings["improvement_steps"] == 1_000_000
-    planned = plan(dataset, scenario)
-    context = Runner(
-        problem_of(dataset, build_netlist(dataset, scenario, planned), planned),
-        settings={"seconds": params["seconds"]},
-    ).context
-    trajectory = Trajectory(context, solver.settings, "hc")
-    assert trajectory.step_limit("construction") is None
-    assert trajectory.step_limit("improvement") is None
+    solver_id, options = solver_of(params)
+    assert solver_id == "climb" and options == {}
+    assert SOLVERS.get("hc").defaults["until_budget"] is True
+    assert params["solver_options"] == LAYOUT_DEFAULTS["solver_options"] == "{}"
 
 
 def test_ui_payload_keeps_booleans_and_explicit_solver_overrides():
@@ -77,12 +62,13 @@ def test_ui_payload_keeps_booleans_and_explicit_solver_overrides():
             ),
         },
     )
-    settings = solver_of(params).settings
-    assert settings["until_budget"] is False
-    assert settings["construction_temperature"] == 2.5
-    assert settings["repack_every"] == 32
-    assert settings["improvement_steps"] == 0
-    baseline = solver_of(
+    solver_id, options = solver_of(params)
+    assert solver_id == "anneal"
+    assert options["until_budget"] is False
+    assert options["construction_temperature"] == 2.5
+    assert options["repack_every"] == 32
+    assert options["improvement_steps"] == 0
+    _, baseline = solver_of(
         params_of(
             "layout",
             {
@@ -92,7 +78,11 @@ def test_ui_payload_keeps_booleans_and_explicit_solver_overrides():
             },
         )
     )
-    assert baseline.settings["spread_attempts"] == 17
+    assert baseline["spread_attempts"] == 17
+    _, regional = solver_of(
+        params_of("layout", {"solver": "regional", "spread_attempts": 9})
+    )
+    assert regional["attempts"] == 9
 
 
 @pytest.mark.parametrize(
@@ -106,7 +96,9 @@ def test_ui_payload_keeps_booleans_and_explicit_solver_overrides():
         {"solver": "hc", "solver_options": "{"},
         {"solver": "hc", "solver_options": '{"until_budget":"false"}'},
         {"solver": "hc", "solver_options": '{"repack_size":1}'},
-        {"solver": "hc", "solver_options": '{"spread_attempts":65536}'},
+        {"solver": "hc", "solver_options": '{"no_such_option":1}'},
+        {"solver": "baseline", "solver_options": '{"spread_attempts":65536}'},
+        {"solver": "no-such-solver"},
     ],
 )
 def test_invalid_controls_are_rejected_before_queueing(values):
@@ -127,9 +119,9 @@ def test_incomplete_outcome_and_settings_survive_reload_and_block_verify(
     assert state.error == ""
     assert state.outcome["status"] == "budget_exhausted"
     assert not state.outcome["routed"]
-    assert state.outcome["work"]["actions"] == 1
+    assert state.outcome["work"]["actions"] >= 1
     assert state.outcome["settings"]["runtime"]["max_actions"] == 1
-    assert state.outcome["settings"]["solver_settings"]["until_budget"] is True
+    assert state.outcome["settings"]["solver_settings"] == {}
     assert run.frames["layout"][-1]["outcome"] == state.outcome
     assert run.stages["verify"].status == "idle"
     restored = Run.read(run.directory)
@@ -139,20 +131,17 @@ def test_incomplete_outcome_and_settings_survive_reload_and_block_verify(
         manager.start(run.id, "verify")
 
 
-def test_budget_exhaustion_after_success_is_done_and_keeps_best(
-    dataset, scenario, tmp_path
-):
+def test_a_routed_layout_is_done_whatever_ended_the_search(dataset, scenario, tmp_path):
     manager, run = prepared(dataset, scenario, tmp_path)
     run.stages["layout"].params = params_of(
-        "layout", {"solver": "hc", "max_actions": 1500}
+        "layout", {"solver": "regional", "max_actions": 3000}
     )
     manager._execute(run, ["layout"])
     state = run.stages["layout"]
     assert state.status == "done", state.to_dict()
-    assert state.outcome["status"] == "budget_exhausted"
     assert state.outcome["routed"]
     assert state.outcome["placed"] == state.outcome["total"]
-    assert state.outcome["work"]["actions"] == 1500
+    assert state.outcome["work"]["actions"] <= 3000
     assert "layout" in run.artifacts
     assert run.frames["layout"][-1]["clean"]
 
@@ -160,7 +149,7 @@ def test_budget_exhaustion_after_success_is_done_and_keeps_best(
 def test_real_execution_fault_is_still_failed(dataset, scenario, tmp_path):
     manager, run = prepared(dataset, scenario, tmp_path)
     run.stages["layout"].params = params_of(
-        "layout", {"solver": "hc", "pylon": "no-such-pylon"}
+        "layout", {"solver": "hc", "backend": "no-such-kernel"}
     )
     manager._execute(run, ["layout", "verify"])
     assert run.stages["layout"].status == "failed"

@@ -20,13 +20,13 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from kohakuefda.data.icons import IconIndex
+from kohakuefda.layout.engine import SOLVERS
 from kohakuefda.layout.stages import DEFAULTS, STAGES, StageError
 from kohakuefda.model.dataset import Dataset
 from kohakuefda.model.scenario import PlanMode, Scenario
 from kohakuefda.plan.alternatives import alternatives, bannable
 from kohakuefda.plan.outcomes import outcomes, requirements
 from kohakuefda.serve.runs import RunError, RunManager
-from kohakuefda.solvers import SOLVERS
 
 log = logging.getLogger(__name__)
 Response = tuple[int, dict | list]

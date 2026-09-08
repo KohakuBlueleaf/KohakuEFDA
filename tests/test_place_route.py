@@ -8,15 +8,14 @@ from pathlib import Path
 import pytest
 
 from kohakuefda.flow.evaluate import evaluate
-from kohakuefda.layout.assemble import assemble, world_pins
+from kohakuefda.layout.depot_via import BUS_PORT, BUS_SECTION
 from kohakuefda.layout.pipeline import layout_scenario
-from kohakuefda.layout.place import Block
+from kohakuefda.layout.stages import layout_stage
 from kohakuefda.model.basement import Region
 from kohakuefda.model.cells import Netlist, NetSpec, PinRef
 from kohakuefda.model.dataset import Dataset
 from kohakuefda.model.scenario import BasementRef, Scenario
-from kohakuefda.plan.machines import brick_cell
-from kohakuefda.route.router import route_layout
+from kohakuefda.plan.machines import brick_cell, bus_part, parked_core
 from kohakuefda.verify.rules.geometry import check_layout
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -38,19 +37,14 @@ def dataset() -> Dataset:
     return Dataset.load(DATASET)
 
 
-def _crossing_netlist(dataset: Dataset) -> tuple[list[Block], Netlist]:
-    """Two unloaders above two loaders on the bottom row, wired diagonally so the belts
-    must cross: no belt can pass below the loaders' ports."""
-    src_a = brick_cell(dataset, "ua", "unloader", ORE, Fraction(30))
-    src_b = brick_cell(dataset, "ub", "unloader", SAND, Fraction(30))
-    dst_a = brick_cell(dataset, "la", "loader", ORE, Fraction(30))
-    dst_b = brick_cell(dataset, "lb", "loader", SAND, Fraction(30))
-    blocks = [Block.of_cell(c, dataset) for c in (src_a, src_b, dst_a, dst_b)]
-    positions = {"ua": (2, 2), "ub": (12, 2), "la": (12, 14), "lb": (2, 14)}
-    for block in blocks:
-        block.x, block.y = positions[block.id]
-        if block.kind == "loader":
-            block.rotation = 180
+def _pair_netlist(dataset: Dataset) -> Netlist:
+    """Two unloaders feeding two loaders on a Wuling bus, each pair its own belt net."""
+    port = bus_part(dataset, "port", BUS_PORT)
+    section = bus_part(dataset, "sec", BUS_SECTION)
+    src_a = brick_cell(dataset, "ua", "unloader", ORE, Fraction(30), "free")
+    src_b = brick_cell(dataset, "ub", "unloader", SAND, Fraction(30), "free")
+    dst_a = brick_cell(dataset, "la", "loader", ORE, Fraction(30), "free")
+    dst_b = brick_cell(dataset, "lb", "loader", SAND, Fraction(30), "free")
     nets = [
         NetSpec(
             id="n_ore",
@@ -74,30 +68,39 @@ def _crossing_netlist(dataset: Dataset) -> tuple[list[Block], Netlist]:
         ),
     ]
     scenario = Scenario(targets={}, basement=WULING)
-    netlist = Netlist(
+    return Netlist(
         dataset_version=dataset.version.id,
         scenario=scenario,
         plan_status="ok",
-        cells=[src_a, src_b, dst_a, dst_b],
+        cells=[port, section, src_a, src_b, dst_a, dst_b, parked_core(dataset, "core")],
         nets=nets,
     )
-    return blocks, netlist
 
 
-def test_router_crosses_with_a_bridge_and_delivers(dataset: Dataset) -> None:
-    blocks, netlist = _crossing_netlist(dataset)
-    layout = assemble(dataset, blocks, dataset.version.id, WULING, 16, 16)
-    route_layout(dataset, layout, world_pins(blocks), netlist)
-    errors = [
-        f
-        for f in check_layout(dataset, layout)
-        if f.severity == "error" and f.rule != "geom.depot_bus"
-    ]
+def test_stage_seats_the_pair_on_the_bus_and_delivers(dataset: Dataset) -> None:
+    netlist = _pair_netlist(dataset)
+    _, layout = layout_stage(
+        dataset,
+        netlist,
+        {
+            "solver": "regional",
+            "seconds": 0,
+            "max_actions": 6000,
+            "backend": "auto",
+            "workers": 1,
+        },
+    )
+    assert len(layout.machines) == len(netlist.cells)
+    errors = [f for f in check_layout(dataset, layout) if f.severity == "error"]
     assert errors == [], errors
-    assert any(u.unit_id == "log_connector" for u in layout.units)
     result = evaluate(dataset, layout)
-    assert result.machines["la:m0"].inputs == {ORE: 30}
-    assert result.machines["lb:m0"].inputs == {SAND: 30}
+    assert result.converged
+    loaders = {
+        m.id: dict(result.machines[m.id].inputs)
+        for m in layout.machines
+        if m.id.startswith("l")
+    }
+    assert loaders == {"la:m0": {ORE: 30}, "lb:m0": {SAND: 30}}
 
 
 @pytest.mark.parametrize("name", BENCHMARKS)
@@ -108,7 +111,7 @@ def test_benchmark_lays_out_clean_and_at_rate(
     result = layout_scenario(
         dataset,
         scenario,
-        {"solver": "baseline", "seconds": 0, "backend": "auto", "workers": 1},
+        {"solver": "regional", "seconds": 0, "backend": "auto", "workers": 1},
     )
     assert result.layout is not None, result.report.findings
     laid = [

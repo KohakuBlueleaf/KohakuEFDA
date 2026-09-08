@@ -23,7 +23,7 @@ CORE = "sp_hub_1"
 PYLON = "power_diffuser_1"
 CORE_REACH = 0
 LAYOUT = {
-    "solver": "baseline",
+    "solver": "regional",
     "seconds": 0,
     "backend": "auto",
     "workers": 1,

@@ -14,8 +14,10 @@ CLI and the viewer are thin consumers. Dependency direction is one-way:
 | `i18n/`   | UI message bundles (`en`, `zh-TW`, `zh-CN`) and name lookup helpers        |
 | `flow/`   | Steady-state flow graph, lane sizing, stability analysis, evaluation        |
 | `plan/`   | Recipe selection, LP/MILP planner, cellization, netlist                     |
-| `layout/` | Cell templates, basement geometry, placement, legalisation, chunking        |
-| `route/`  | Two-layer occupancy grid and negotiated-congestion routing                  |
+| `physics/` | The Endfield pack: what the grid means, stated to KohakuLayout through its hooks |
+| `synth/`  | The project netlist as a KohakuLayout problem, and the framework layout back    |
+| `layout/` | Basement geometry, the stage over KohakuLayout, its settings and solver names, chunking |
+| `route/`  | The occupancy grid the verify rules read                                      |
 | `verify/` | Rule checker over plans and layouts, report model                           |
 | `render/` | Rich tables, text grids, PNG, viewer bundle                                 |
 | `cli/`    | `kohakuefda` command (typer + rich)                                         |
