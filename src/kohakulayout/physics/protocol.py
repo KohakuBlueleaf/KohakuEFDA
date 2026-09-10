@@ -35,8 +35,11 @@ class Occupant(Model):
 
 
 class CrossingRule(Model):
+    """How a wire of one carrier crosses another's: never, freely, or through a unit; ``bent`` lets it cross where the other wire enters the cell across it and bends."""
+
     mode: Literal["forbidden", "free", "unit"] = "forbidden"
     unit: Footprint | None = None
+    bent: bool = False
 
 
 class JunctionRule(Model):

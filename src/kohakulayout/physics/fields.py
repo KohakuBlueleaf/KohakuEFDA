@@ -1,5 +1,6 @@
 """Stage 2 defaults: no emitters, the greedy cover planner that ships as the slot's occupant, and a per-kind dispatch."""
 
+from functools import lru_cache
 from typing import Any
 
 from kohakulayout.ir import Cell
@@ -9,11 +10,44 @@ from kohakulayout.physics.protocol import Emitter, Reach, UnitPlacement
 
 def reach_cells(emitter: Emitter, x: int, y: int) -> frozenset[XY]:
     """The cells an emitter placed at ``(x, y)`` covers."""
-    reach = emitter.reach
-    if reach.shape == "mask":
-        return frozenset((x + dx, y + dy) for dx, dy in reach.cells)
-    r = reach.radius
-    cx, cy = x + emitter.footprint.width // 2, y + emitter.footprint.height // 2
+    shape = _shape_of(emitter)
+    if len(shape) == 1:
+        return _shifted(shape[0], x, y)
+    ox, oy, r = shape
+    return _square(x + ox, y + oy, r)
+
+
+Shape = tuple[int, int, int] | tuple[tuple[XY, ...]]
+_SHAPES: dict[int, tuple[Emitter, Shape]] = {}
+
+
+def _shape_of(emitter: Emitter) -> Shape:
+    """A reach read once per emitter: a square's centre offset and radius, or a mask's offsets alone."""
+    key = id(emitter)
+    hit = _SHAPES.get(key)
+    if hit is None or hit[0] is not emitter:
+        reach = emitter.reach
+        shape: Shape = (
+            (tuple((dx, dy) for dx, dy in reach.cells),)
+            if reach.shape == "mask"
+            else (
+                emitter.footprint.width // 2,
+                emitter.footprint.height // 2,
+                reach.radius,
+            )
+        )
+        _SHAPES[key] = (emitter, shape)
+        return shape
+    return hit[1]
+
+
+@lru_cache(maxsize=8192)
+def _shifted(offsets: tuple[XY, ...], x: int, y: int) -> frozenset[XY]:
+    return frozenset((x + dx, y + dy) for dx, dy in offsets)
+
+
+@lru_cache(maxsize=8192)
+def _square(cx: int, cy: int, r: int) -> frozenset[XY]:
     return frozenset(
         (cx + dx, cy + dy) for dy in range(-r, r + 1) for dx in range(-r, r + 1)
     )
@@ -51,7 +85,7 @@ class DefaultFields:
 
 
 class GreedyCover:
-    """The cover planner slot's default occupant: for each need, the first free anchor whose reach covers it.
+    """The cover planner slot's default occupant: for each need, the first free anchor whose reach covers it, off every open attach cell while one exists.
 
     A pack composes it with its emitters; the world calls it inside the placement's
     transaction and treats an uncovered need as a ``field`` refusal.
@@ -93,34 +127,42 @@ class GreedyCover:
         target_x = sum(c[0] for c in cells) // len(cells)
         target_y = sum(c[1] for c in cells) // len(cells)
         r = reach_extent(emitter) + max(fp.width, fp.height)
+        xs = [c[0] for c in cells]
+        ys = [c[1] for c in cells]
         candidates = sorted(
             (
                 (x, y)
-                for y in range(target_y - r, target_y + r + 1)
-                for x in range(target_x - r, target_x + r + 1)
+                for y in range(min(ys) - r, max(ys) + r + 1)
+                for x in range(min(xs) - r, max(xs) + r + 1)
             ),
             key=lambda xy: abs(xy[0] - target_x) + abs(xy[1] - target_y),
         )
-        open_cells = world.open_attach_cells()
+        open_cells = {
+            layer: frozenset(owners)
+            for layer, owners in world.open_attach_owners().items()
+        }
         shut = frozenset().union(
             *(open_cells.get(layer, frozenset()) for layer in world.layers_for(fp))
         )
+        partial = emitter.reach.partial
+        forbidden = emitter.overlap == "forbidden"
+        fallback: XY | None = None
         for x, y in candidates:
-            if not satisfied(cells, reach_cells(emitter, x, y), emitter.reach.partial):
+            reached = reach_cells(emitter, x, y)
+            if not satisfied(cells, reached, partial):
                 continue
             if not world.free_footprint(fp, x, y, 0):
                 continue
-            if any(c in shut for c in footprint_cells(x, y, fp.width, fp.height, 0)):
+            own = footprint_cells(x, y, fp.width, fp.height, 0)
+            if forbidden and world.field_coverage(emitter.kind) & reached:
                 continue
-            if emitter.overlap == "forbidden" and world.field_coverage(
-                emitter.kind
-            ) & reach_cells(emitter, x, y):
+            if not all(world.in_build(c) for c in own):
                 continue
-            if all(
-                world.in_build(c) for c in footprint_cells(x, y, fp.width, fp.height, 0)
-            ):
-                return (x, y)
-        return None
+            if any(c in shut for c in own):
+                fallback = fallback or (x, y)
+                continue
+            return (x, y)
+        return fallback
 
 
 class KindCover:

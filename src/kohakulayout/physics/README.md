@@ -7,10 +7,10 @@ with defaults. A pack subclasses `BasePhysics` and overrides what its game has.
 
 | file | what it is |
 |---|---|
-| `protocol.py` | the data shapes (`Occupant`, `CrossingRule`, `JunctionRule`, `Reach`, `Emitter`, `Anchor`, `UnitPlacement`) and the hook protocols |
+| `protocol.py` | the data shapes (`Occupant`, `CrossingRule`, `JunctionRule`, `Reach`, `Emitter`, `Anchor`, `UnitPlacement`) and the hook protocols; `CrossingRule.bent` lets the crossed wire turn on the cell |
 | `base.py` | `BasePhysics`: every default; `fabric` and `library` are required |
 | `carriers.py` | stage 1 defaults: exclusive cells, no crossing, no junction, no run limit |
-| `fields.py` | stage 2 defaults, `GreedyCover, KindCover (one planner per field kind, greedy for the rest)` (the cover planner slot's occupant), reach helpers |
+| `fields.py` | stage 2 defaults, `GreedyCover, KindCover (one planner per field kind, greedy for the rest)` (the cover planner slot's occupant: the nearest free anchor over the need's bounding box plus the reach, off every open attach cell while one exists), reach helpers (`reach_cells` reads an emitter's reach once and keeps the shifted squares and masks it hands out) |
 | `boundaries.py` | stage 3 defaults: free anchors in the build region, nothing extra illegal, edge entries |
 | `flow.py` | stage 4 defaults: even split, proportional capped merge |
 | `rules.py` | `FunctionRule` and `run_rules` |
