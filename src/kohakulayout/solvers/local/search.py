@@ -13,13 +13,17 @@ from kohakulayout.solvers.local.policy import (
     layout_delta,
     temperature,
 )
+from kohakulayout.solvers.regional.search import Search
 
 
 class Trajectory:
-    def __init__(self, ctx: Any, settings: dict[str, Any], method: str) -> None:
+    def __init__(
+        self, ctx: Any, settings: dict[str, Any], method: str, search: type = Search
+    ) -> None:
         self.ctx = ctx
         self.settings = settings
         self.method = method
+        self.search = search
         self.accept_rng = ctx.rng
         self.board_area = ctx.world.fabric.width * ctx.world.fabric.height
         self.frontier = Frontier(ctx.world)
@@ -55,7 +59,7 @@ class Trajectory:
     # ------------------------------------------------------- construction
     def construct(self) -> bool:
         ctx = self.ctx
-        moves = ConstructionMoves(ctx, self.settings)
+        moves = ConstructionMoves(ctx, self.settings, self.search)
         self.phase_work = ctx.budget.used
         parent = metrics(ctx.world)
         parent_potential = self.potential()
@@ -94,7 +98,7 @@ class Trajectory:
     # -------------------------------------------------------- improvement
     def improve(self) -> None:
         ctx = self.ctx
-        moves = LayoutMoves(ctx, self.settings)
+        moves = LayoutMoves(ctx, self.settings, self.search)
         self.phase_work = ctx.budget.used
         parent = metrics(ctx.world)
         token = ctx.snapshot()

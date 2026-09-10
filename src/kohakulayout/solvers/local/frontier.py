@@ -50,7 +50,7 @@ class Frontier(Proposals):
                 continue
             fp = world.footprint_of(cell_id)
             targets = self.targets(cell_id)
-            for cells in targets.values():
+            for _, cells in targets:
                 key = tuple(cells)
                 if key not in distances:
                     distances[key] = endpoint_distances(self.width, self.height, key)
@@ -66,7 +66,7 @@ class Frontier(Proposals):
                 overlap, xx, yy = cache[w, h]
                 distance = np.zeros_like(overlap)
                 offsets = self.offsets(cell_id, rot)
-                for pin_id, cells in targets.items():
+                for pin_id, cells in targets:
                     offset = offsets.get(pin_id)
                     if offset is None:
                         distance += span

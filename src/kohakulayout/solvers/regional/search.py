@@ -26,6 +26,7 @@ DEFAULTS: dict[str, Any] = {
     "closed_cost": 10000,
     "origin_weight": 0.2,
     "corner_weight": 0.015,
+    "extent_weight": 1.0,
     "lookahead": 3,
     "insert_failures": 8,
 }
@@ -48,20 +49,33 @@ def clear(builder: Any) -> None:
 
 
 class Search:
-    """The regional constructor over a context; ``run`` reaches a complete state or reports what is missing."""
+    """The regional constructor over a context; ``run`` reaches a complete state or reports what is missing.
+
+    A project's own construction subclasses this: ``defaults`` carries its settings,
+    ``proposer`` its anchor ranking, ``neighbourhood`` which cells count as neighbours,
+    and ``priority`` its insertion order.
+    """
+
+    defaults: dict[str, Any] = DEFAULTS
+    proposer: type = Proposals
 
     def __init__(self, ctx: Any, settings: dict[str, Any] | None = None) -> None:
         self.ctx = ctx
-        self.settings = {**DEFAULTS, **(settings or {})}
+        self.settings = {**self.defaults, **(settings or {})}
         self.world = ctx.world
         self.cells = self.world.netlist.cells
         self.rng = random.Random(ctx.rng.randrange(2**32))
-        self.proposals = Proposals(self.world, self.settings)
-        self.neighbours = neighbours_of(self.world.netlist)
+        self.proposals = self.proposer(self.world, self.settings)
+        self.neighbours = self.neighbourhood(self.world.netlist)
         self.pressure: dict[str, float] = dict.fromkeys(self.cells, 0.0)
         self.best_count = 0
         self.best_token: Any = None
         self.best_missing: list[str] = []
+
+    @staticmethod
+    def neighbourhood(netlist: Any) -> dict[str, list[str]]:
+        """Which cells count as each cell's neighbours: every cell sharing a net, unless a subclass says otherwise."""
+        return neighbours_of(netlist)
 
     # ----------------------------------------------------------- regions
     def region(self, trial: int) -> set[str]:
@@ -109,6 +123,7 @@ class Search:
 
     # ------------------------------------------------------ construction
     def priority(self, cell_id: str, placed: Any, jitter: dict[str, float]) -> tuple:
+        """Pinned cells first, then cells with a placed neighbour, by pressure, degree, size and jitter."""
         n = sum(j in placed for j in self.neighbours[cell_id])
         fp = self.world.footprint_of(cell_id)
         pinned = self.cells[cell_id].constraint.kind != "free"
@@ -122,7 +137,7 @@ class Search:
         )
 
     def insert(self, builder: Any, cell_id: str, anchors: list[Any]) -> bool:
-        """The first ``lookahead`` anchors that place are compared by routed wire cells; the cheapest stays. ``insert_failures`` refusals end the scan."""
+        """The first ``lookahead`` anchors that place are compared by routed wire cells; the cheapest stays, and with a lookahead of one the first that places stays as it is. ``insert_failures`` refusals end the scan."""
         lookahead = max(1, int(self.settings.get("lookahead", 1)))
         patience = int(self.settings.get("insert_failures", 8))
         best: tuple[int, Any] | None = None
@@ -130,6 +145,14 @@ class Search:
         refused = 0
         for anchor in anchors:
             if not builder.admits(cell_id, anchor.x, anchor.y, anchor.rot):
+                continue
+            if lookahead == 1:
+                if builder.place(cell_id, anchor) is None:
+                    self.proposals.occupy(cell_id, anchor.x, anchor.y, anchor.rot)
+                    return True
+                refused += 1
+                if refused >= patience:
+                    return False
                 continue
             mark = builder.mark()
             if builder.place(cell_id, anchor) is None:
@@ -177,11 +200,12 @@ class Search:
         return failed
 
     def retain(self, failed: list[str]) -> None:
+        """Pressure decays and the failed cells gain some; a new best by placed count is kept, and offered to the context so a budget that ends mid-trial still returns it."""
         for cell_id in self.cells:
             self.pressure[cell_id] *= self.settings["pressure_decay"]
         for cell_id in failed:
             self.pressure[cell_id] += self.settings["failure_pressure"]
-        count = len(self.world.placements) - len(self.world.unrouted())
+        count = len(self.world.placements)
         if count > self.best_count or (
             count == self.best_count
             and self.rng.random() < self.settings["replace_equal"]
@@ -191,6 +215,7 @@ class Search:
             self.best_missing = [
                 c for c in self.cells if c not in self.world.placements
             ]
+            self.ctx.consider(self.best_token)
 
     def complete(self) -> bool:
         return (

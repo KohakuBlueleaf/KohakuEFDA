@@ -29,8 +29,11 @@ def _param(name: str, value: Any) -> Param:
 
 @register
 class Regional(BaseSolver):
+    """Regional construction then shrinking; a project's solver subclasses it with its own ``search``."""
+
     id = "regional"
     resume = "continues"
+    search: type = Search
     params = (
         *(_param(k, v) for k, v in DEFAULTS.items()),
         Param(name="shrink_rounds", type="int", default=200),
@@ -48,7 +51,7 @@ class Regional(BaseSolver):
             and not ctx.world.unrouted()
         ):
             return
-        Search(ctx, {k: self.opts[k] for k in DEFAULTS}).run()
+        self.search(ctx, {k: self.opts[k] for k in self.search.defaults}).run()
 
     def improve(self, ctx: Any) -> None:
         if ctx.world.unrouted() or len(ctx.world.placements) != len(

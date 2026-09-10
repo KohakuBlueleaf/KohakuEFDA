@@ -6,6 +6,7 @@ from kohakulayout.errors import SolverError
 from kohakulayout.solvers.base import BaseSolver
 from kohakulayout.solvers.local.search import Trajectory
 from kohakulayout.solvers.protocol import Param
+from kohakulayout.solvers.regional.search import Search
 from kohakulayout.solvers.registry import register
 
 PARAMS: tuple[Param, ...] = (
@@ -141,11 +142,12 @@ POSITIVE = (
 
 
 class LocalSolver(BaseSolver):
-    """Construct from the current state, then improve; the best is archived independently."""
+    """Construct from the current state, then improve; the best is archived independently; a project's solver subclasses it with its own construction ``search``."""
 
     id = "local"
     method = "climb"
     resume = "continues"
+    search: type = Search
     params = PARAMS
 
     def validate(self) -> None:
@@ -172,7 +174,7 @@ class LocalSolver(BaseSolver):
 
     def construct(self, ctx: Any) -> None:
         self.validate()
-        self.trajectory = Trajectory(ctx, self.opts, self.method)
+        self.trajectory = Trajectory(ctx, self.opts, self.method, self.search)
         self.trajectory.construct()
 
     def improve(self, ctx: Any) -> None:

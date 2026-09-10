@@ -8,7 +8,6 @@ from kohakulayout.ir import Refusal
 from kohakulayout.solvers.local.compact import CompactionMoves, relocate
 from kohakulayout.solvers.local.repack import RepackMoves
 from kohakulayout.solvers.regional.candidates import is_free
-from kohakulayout.solvers.regional.search import DEFAULTS as REGIONAL_DEFAULTS
 from kohakulayout.solvers.regional.search import Search
 
 Move = Callable[[Any], Any]
@@ -17,16 +16,13 @@ Move = Callable[[Any], Any]
 class ConstructionMoves:
     """Reuse the regional insertion and region operators without its best-prefix policy."""
 
-    def __init__(self, ctx: Any, settings: dict[str, Any]) -> None:
+    def __init__(
+        self, ctx: Any, settings: dict[str, Any], search: type = Search
+    ) -> None:
         self.ctx = ctx
         self.settings = settings
-        self.repair = Search(
-            ctx,
-            {
-                **REGIONAL_DEFAULTS,
-                "candidates": settings["candidates"],
-                "gap": settings["gap"],
-            },
+        self.repair = search(
+            ctx, {k: settings[k] for k in search.defaults if k in settings}
         )
         self.repair.rng = random.Random(ctx.rng.randrange(2**32))
 
@@ -76,7 +72,9 @@ class ConstructionMoves:
 class LayoutMoves:
     """A shared mixture of local, route and compaction moves over a complete layout."""
 
-    def __init__(self, ctx: Any, settings: dict[str, Any]) -> None:
+    def __init__(
+        self, ctx: Any, settings: dict[str, Any], search: type = Search
+    ) -> None:
         self.ctx = ctx
         self.world = ctx.world
         self.settings = settings
@@ -84,14 +82,11 @@ class LayoutMoves:
         self.free = tuple(
             sorted(c for c, cell in self.world.netlist.cells.items() if is_free(cell))
         )
-        self.neighbours: dict[str, set[str]] = {c: set() for c in self.free}
-        for net in self.world.netlist.nets.values():
-            cells = [r.cell for r in net.pins()]
-            for a in cells:
-                if a in self.neighbours:
-                    self.neighbours[a].update(
-                        b for b in cells if b != a and b in self.neighbours
-                    )
+        related = search.neighbourhood(self.world.netlist)
+        self.neighbours: dict[str, set[str]] = {
+            c: {b for b in related.get(c, ()) if b in self.free and b != c}
+            for c in self.free
+        }
         self.compaction = CompactionMoves(self.world, settings, self.rng)
         self.repacking = (
             RepackMoves(self.world, settings, self.rng)

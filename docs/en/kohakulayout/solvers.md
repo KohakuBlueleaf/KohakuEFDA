@@ -28,8 +28,8 @@ whether a resumed run reaches the same layout (`exact`) or only promises to fini
 |---|---|---|
 | `inorder` | null solver | cells in flow order, each at the first anchor the world admits; the instrument every measurement is read against |
 | `baseline` | coordinate | a first-complete spread on a lattice of squares with widening gaps (parallel slices through the execution slot when workers are given), then greedy shrinking: carve an empty line, press toward a side, nudge toward partners |
-| `regional` | coordinate | seeded frontier construction on a clearance map, ranked by how close each cell's pins land to the pins they must reach and by how much the bounding box would grow, each insertion choosing among a few routed anchors, with restarts, regional withdrawal and refill, and the best prefix retained; then shrinking |
-| `climb` | coordinate | construction by regional repair accepted on the gap delta, then hill climbing over shift, rotate, swap, cluster, reroute, reroute-all, cut, pull, press and repack moves, accepted on an area-first delta with a bounded wire tie-break |
+| `regional` | coordinate | seeded frontier construction on a clearance map, the first cells pulled to the build box's origin corner, ranked by how close each cell's pins land to the pins they must reach (through any port a pin may use) and by how much the bounding box would grow, on windows whose own attach cells are clear, pinned cells first, each insertion taking the first ranked anchor that places and routes, with restarts, regional withdrawal and refill, and the best routed prefix retained; then shrinking |
+| `climb` | coordinate | construction by regional repair (with the regional settings the solver carries: `candidates`, `gap`) accepted on the gap delta, then hill climbing over shift, rotate, swap, cluster, reroute, reroute-all, cut, pull, press and repack moves, accepted on an area-first delta with a bounded wire tie-break |
 | `anneal` | coordinate | the same trajectory with simulated-annealing acceptance and geometric cooling by charged work |
 | `floorplan` | structural | a floorplan over macro instances and free leaves: the rows representation packs items with channels between rows that become reservations, mutations are screened by a surrogate (area plus a half-perimeter wire estimate) and legalised through the builder; an exact packing (CP-SAT or HiGHS, optional) can seed it |
 | `skeleton` | template | the copyable minimal solver, with one improvement idea |
@@ -39,7 +39,12 @@ whether a resumed run reaches the same layout (`exact`) or only promises to fini
 Parts a solver composes from are registered, not imported by name: `solvers` (by id),
 `anchors` (every, facing, frontier, group), the move names, `representations` (rows,
 coordinate), `exact` (cpsat, milp when their libraries import), `screens`, `repack`
-actions. A project adds its own without editing the catalog.
+actions. A project adds its own without editing the catalog, and a project's construction
+plugs into the regional and local solvers as a subclass: `Regional.search` and
+`LocalSolver.search` name the construction search, whose `defaults`, `proposer` (the anchor
+ranking with its `pull` and `attach_clear`), `neighbourhood` (which cells count as
+neighbours, for the insertion order and the local moves alike) and `priority` are the
+override points.
 
 ## Level-3 conformance
 

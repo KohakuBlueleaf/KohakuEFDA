@@ -28,9 +28,7 @@ def test_proposals_rank_toward_targets_and_respect_the_pack() -> None:
     ranked = proposals.ranked("y", 0, random.Random(1))
     assert ranked and all(a.x == 15 for a in ranked)
     assert proposals.offsets("g1", 0) == {"a": (-1, 0), "b": (-1, 2), "y": (3, 1)}
-    assert set(proposals.targets("y")) == {"a"} and proposals.targets("y")["a"] == [
-        (7, 2)
-    ]
+    assert proposals.targets("y") == [("a", [(7, 2)])]
     assert ranked[0].y in (1, 2, 3)
     assert set(ANCHORS) == {"every", "facing", "frontier", "group"}
     facing = list(anchors_for("facing", ctx.world, "y", random.Random(0)))
