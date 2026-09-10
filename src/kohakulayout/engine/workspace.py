@@ -69,6 +69,7 @@ class Workspace:
                     for s in w.segments
                 ),
                 units=w.units,
+                ports=w.ports,
             )
             for k, w in layout.wires.items()
         }

@@ -43,18 +43,18 @@ class Budget:
         return self.seconds is not None and self.elapsed >= self.seconds
 
     def charge(self, units: int = 1) -> None:
-        """Spend ``units``; raises :class:`BudgetExhausted` once the cap or the clock is passed."""
-        self.used += units
-        self.charges += 1
-        if self.units is not None and self.used > self.units:
+        """Spend ``units``; a charge that would pass a cap is refused with :class:`BudgetExhausted` and the tally stays within it; the clock is checked after."""
+        if self.units is not None and self.used + units > self.units:
             raise BudgetExhausted(
                 f"budget of {self.units} units spent; raise units to continue"
             )
         for cap in self._caps:
-            if self.used > cap:
+            if self.used + units > cap:
                 raise BudgetExhausted(
                     f"scoped budget spent at {self.used} units; widen the scope's limit"
                 )
+        self.used += units
+        self.charges += 1
         if self.seconds is not None and self.elapsed > self.seconds:
             raise BudgetExhausted(
                 f"budget of {self.seconds:g} seconds spent; raise seconds to continue"

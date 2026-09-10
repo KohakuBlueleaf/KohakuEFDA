@@ -26,7 +26,7 @@ built, else the Python kernel. Its surface:
 | `consider(token)` / `accept(token)` / `restore_best()` | the best archive: valid first, then complete, then the fewest gaps, then the objective's energy |
 | `frame(phase, layout)` | a `Frame` through the sampler to the progress sink |
 | `checkpoint()` / `resume(checkpoint)` | the world, the rng state, the budget spend and the best, as one JSON artifact |
-| `scope(component, units)` | a phase name and an optional budget cap |
+| `scope(component, units)` | a phase name and an optional budget cap; a charge that would pass a cap is refused and the tally stays within it |
 | `gather(tasks)` | the execution slot: in process, or a process pool |
 
 ## Builder

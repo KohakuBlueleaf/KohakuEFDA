@@ -1,4 +1,4 @@
-"""The budget: caps, scopes, the clock, and the one-charge overshoot."""
+"""The budget: caps that hold, scopes, and the clock."""
 
 import pytest
 
@@ -13,15 +13,15 @@ def test_units_cap_names_its_knob() -> None:
     assert budget.remaining == 0 and budget.exhausted()
     with pytest.raises(BudgetExhausted, match="raise units"):
         budget.charge()
-    assert budget.used == 4 and budget.charges == 4
+    assert budget.used == 3 and budget.charges == 3
 
 
 def test_scoped_limit_leaves_the_outer_budget() -> None:
     budget = Budget(units=10)
     with budget.limit(2), pytest.raises(BudgetExhausted, match="scope"):
         budget.charge(3)
-    assert budget.remaining == 7
-    budget.charge(7)
+    assert budget.remaining == 10
+    budget.charge(10)
     assert budget.exhausted()
 
 
