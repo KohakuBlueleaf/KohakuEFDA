@@ -3,9 +3,10 @@
 from typing import Any
 
 from kohakulayout.ir import Refusal, Segment
-from kohakulayout.ir.geometry import XY, footprint_cells
+from kohakulayout.ir.geometry import XY
 from kohakulayout.physics.protocol import UnitPlacement
-from kohakulayout.state.chain import cover
+from kohakulayout.state.chain import recover
+from kohakulayout.state.kernel import holder_kind
 from kohakulayout.state.router.protocol import refuse
 
 DISPLACEMENTS = 4
@@ -24,35 +25,6 @@ def emitter_at(world: Any, refusal: Refusal) -> str | None:
     return unit.id
 
 
-def recover(world: Any) -> Refusal | None:
-    """Cover again every placed cell a displaced emitter left short of a need."""
-    fields = world.physics.fields
-    emitters = {e.kind: e for e in fields.emitters()}
-    for cell_id, placement in list(world.placements.items()):
-        cell = world.netlist.cells[cell_id]
-        needs = [k for k in fields.needs(cell) if k in emitters]
-        if not needs:
-            continue
-        fp = world.footprint_of(cell_id)
-        cells = footprint_cells(
-            placement.x, placement.y, fp.width, fp.height, placement.rot
-        )
-        short = False
-        for kind in needs:
-            covered = world.field_coverage(kind)
-            hit = (
-                any(c in covered for c in cells)
-                if emitters[kind].reach.partial
-                else all(c in covered for c in cells)
-            )
-            short = short or not hit
-        if short:
-            refusal = cover(world, cell, cells)
-            if refusal is not None:
-                return refusal
-    return None
-
-
 def place(world: Any, net_id: str, footprint: Any, xy: XY, what: str) -> str | Refusal:
     """Place a unit the route needs; a field emitter in its way is removed and the fields covered again."""
     unit_id = world.next_unit_id()
@@ -60,16 +32,16 @@ def place(world: Any, net_id: str, footprint: Any, xy: XY, what: str) -> str | R
         kind=footprint.id, footprint=footprint, x=xy[0], y=xy[1], owner=f"net:{net_id}"
     )
     refusal = world.place_unit(spot, unit_id)
-    displaced = 0
-    while refusal is not None and displaced < DISPLACEMENTS:
+    gone: list[Any] = []
+    while refusal is not None and len(gone) < DISPLACEMENTS:
         emitter = emitter_at(world, refusal)
         if emitter is None:
             break
+        gone.append(world.units[emitter])
         world.remove_unit(emitter)
-        displaced += 1
         refusal = world.place_unit(spot, unit_id)
-    if refusal is None and displaced:
-        refusal = recover(world)
+    if refusal is None and gone:
+        refusal = recover(world, gone)
     if refusal is not None:
         return refuse(
             net_id, f"cannot place the {what} {footprint.id} at {xy}: {refusal.detail}"
@@ -77,16 +49,26 @@ def place(world: Any, net_id: str, footprint: Any, xy: XY, what: str) -> str | R
     return unit_id
 
 
+def unit_at(world: Any, layer: str, xy: XY, footprint_id: str) -> bool:
+    """Whether a unit of this footprint still stands on the cell; a reused crossing may have gone with a ripped net."""
+    for holder in world.kernel.holders_at(layer, xy):
+        kind, ref = holder_kind(holder)
+        if kind == "unit" and world.units[ref].footprint == footprint_id:
+            return True
+    return False
+
+
 def crossings(
     world: Any, net: Any, plan_crossings: list[tuple[XY, str, bool]]
 ) -> list[str] | Refusal:
     out: list[str] = []
+    layer = world.carrier_layer(net.carrier)
     for xy, other_id, reuse in plan_crossings:
-        if reuse:
-            continue
         other = world.netlist.nets[other_id]
         rule = world.physics.carriers.crossing(net.carrier, other.carrier)
         if rule.mode != "unit" or rule.unit is None:
+            continue
+        if reuse and unit_at(world, layer, xy, rule.unit.id):
             continue
         placed = place(world, net.id, rule.unit, xy, "crossing unit")
         if isinstance(placed, Refusal):
@@ -116,6 +98,7 @@ def junctions(
 
 
 def repeaters(world: Any, net: Any, segments: list[Segment]) -> list[str] | Refusal:
+    """A repeater on every run longer than the carrier's limit, on the last cell before the limit that holds no unit; a refusal when no such cell is left."""
     limit = world.physics.carriers.run_limit(net.carrier)
     footprint = world.physics.carriers.repeater(net.carrier)
     if limit is None:
@@ -128,12 +111,24 @@ def repeaters(world: Any, net: Any, segments: list[Segment]) -> list[str] | Refu
                 f"a {net.carrier!r} run of {longest} exceeds the limit of {limit} and no repeater exists",
             )
         return []
+    layer = world.carrier_layer(net.carrier)
     out: list[str] = []
     for segment in segments:
         cells = segment.cells
         start = 0
         while len(cells) - start > limit:
-            index = min(start + limit, len(cells) - 2)
+            last = min(start + limit, len(cells) - 2)
+            index = next(
+                (
+                    i
+                    for i in range(last, start, -1)
+                    if not any(
+                        holder_kind(h)[0] == "unit"
+                        for h in world.kernel.holders_at(layer, cells[i])
+                    )
+                ),
+                start,
+            )
             if index <= start:
                 return refuse(
                     net.id,
@@ -147,4 +142,12 @@ def repeaters(world: Any, net: Any, segments: list[Segment]) -> list[str] | Refu
     return out
 
 
-__all__ = ["crossings", "emitter_at", "junctions", "place", "recover", "repeaters"]
+__all__ = [
+    "crossings",
+    "emitter_at",
+    "junctions",
+    "place",
+    "recover",
+    "repeaters",
+    "unit_at",
+]

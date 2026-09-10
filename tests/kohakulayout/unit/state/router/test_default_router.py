@@ -136,12 +136,12 @@ def test_clk_routes_on_its_own_layer_to_the_edge() -> None:
     assert check.failures == []
 
 
-def test_route_refuses_unplaced_pins_and_names_the_router() -> None:
+def test_route_waits_for_a_placed_sink_and_names_the_router() -> None:
     world = World(cross_problem(), GatesPhysics(), router=DefaultRouter())
     with world.transaction():
         world.place("a", 0, 3)
         refusal = world.route("n1")
-        assert refusal.stage == "route" and "not placed" in refusal.detail
+        assert refusal.stage == "route" and "no placed sink" in refusal.detail
     assert isinstance(make_router("default", ripup=1), DefaultRouter)
     with pytest.raises(StateError, match="no router"):
         make_router("nowhere")

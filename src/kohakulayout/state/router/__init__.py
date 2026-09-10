@@ -1,6 +1,7 @@
 """The router slot: protocol, the default occupant and its parts."""
 
 from kohakulayout.state.router.default import DefaultRouter
+from kohakulayout.state.router.lanes import LaneRouter
 from kohakulayout.state.router.pathfinder import Found, Search, find
 from kohakulayout.state.router.protocol import (
     ROUTERS,
@@ -19,6 +20,7 @@ __all__ = [
     "Costs",
     "DefaultRouter",
     "Found",
+    "LaneRouter",
     "Plan",
     "Router",
     "Search",

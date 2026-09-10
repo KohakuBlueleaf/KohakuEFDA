@@ -99,3 +99,52 @@ def test_forbidden_junctions_refuse_fanout() -> None:
     assert "junction" in refusal.detail
     with pytest.raises(KeyError):
         world.placements["o1"]
+
+
+def merge_split_problem():
+    cells = {
+        "a": Cell(id="a", kind="IN", footprint="IN"),
+        "b": Cell(id="b", kind="IN", footprint="IN"),
+        "o0": Cell(id="o0", kind="OUT", footprint="OUT"),
+        "o1": Cell(id="o1", kind="OUT", footprint="OUT"),
+    }
+    nets = {
+        "n": Net(
+            id="n",
+            carrier="wire",
+            sources=(PinRef(cell="a", pin="y"), PinRef(cell="b", pin="y")),
+            sinks=(PinRef(cell="o0", pin="a"), PinRef(cell="o1", pin="a")),
+        )
+    }
+    return problem(
+        Netlist(pack="gates", library=dict(LIBRARY), cells=cells, nets=nets),
+        width=14,
+        height=8,
+    )
+
+
+def test_a_trunk_reaches_a_sink_first_then_sources_merge_and_sinks_split() -> None:
+    physics = GatesPhysics()
+    physics.carriers = UnitJunctions()
+    physics.unit_footprints = lambda: {
+        "SPLIT": UnitJunctions.SPLIT,
+        **GatesPhysics().unit_footprints(),
+    }
+    world = World(merge_split_problem(), physics, router=DefaultRouter())
+    check = StateCheck().mount(world)
+    with world.transaction() as tx:
+        assert world.place("a", 0, 1) is None
+        assert world.place("b", 0, 5) is None
+        assert world.place("o0", 13, 1) is None
+        assert world.place("o1", 13, 5) is None
+        tx.commit()
+    wire = world.wires["n"]
+    assert len(wire.segments) == 3
+    trunk = wire.segments[0].cells
+    assert trunk[0] == world.attach_cell("a", "y")
+    assert trunk[-1] in (world.attach_cell("o0", "a"), world.attach_cell("o1", "a"))
+    assert wire.segments[1].cells[-1] == world.attach_cell("b", "y")
+    spots = [(world.units[u].x, world.units[u].y) for u in wire.units]
+    assert len(spots) == 2 and len(set(spots)) == 2
+    assert wire.segments[1].cells[0] in spots and wire.segments[2].cells[0] in spots
+    assert check.failures == []

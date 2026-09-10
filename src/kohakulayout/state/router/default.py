@@ -1,13 +1,20 @@
-"""The default router: negotiated congestion with rip-up, trees, crossing units, sharing, reservations."""
+"""The default router: negotiated congestion in passes with a rising present cost, trees, crossing units, sharing, reservations."""
 
 from typing import Any
 
 from kohakulayout.ir import Refusal, Wire
 from kohakulayout.ir.geometry import XY
+from kohakulayout.state.chain import recover
 from kohakulayout.state.router.pathfinder import Search
 from kohakulayout.state.router.protocol import Costs, refuse, register
 from kohakulayout.state.router.reservations import walls
-from kohakulayout.state.router.trees import Plan, grow
+from kohakulayout.state.router.trees import (
+    DEFAULT_POLICY,
+    Plan,
+    TreePolicy,
+    grow,
+    seed_of,
+)
 from kohakulayout.state.router.units import crossings, junctions, repeaters
 
 
@@ -16,15 +23,26 @@ class DefaultRouter:
     id = "default"
 
     def __init__(
-        self, ripup: int = 3, max_rips: int = 12, rounds: int = 3, **costs: Any
+        self, passes: int = 40, growth: float = 1.5, max_rips: int = 400, **costs: Any
     ) -> None:
-        self.ripup = ripup
-        self.rounds = rounds
+        self.passes = passes
+        self.growth = growth
         self.max_rips = max_rips
         self._rips_left = 0
         self.costs = Costs(**costs)
         self.history: dict[tuple[str, XY], int] = {}
         self._walls: dict[tuple[int, str], tuple[Any, frozenset[XY]]] = {}
+        self.policy: TreePolicy = DEFAULT_POLICY
+
+    def plan(self, world: Any, net: Any, search: Search, seed: Any) -> Plan | Refusal:
+        """The tree a net will become: the framework's growth under this router's tree policy; an override point."""
+        return grow(world, net, search, seed, self.policy)
+
+    def order(
+        self, world: Any, cell_id: str, pending: list[str], grown: set[str]
+    ) -> list[str]:
+        """The order the nets a placement touches route in: the widest span first; a router with a policy of its own overrides it."""
+        return sorted(dict.fromkeys(pending), key=world.span, reverse=True)
 
     def walls_for(self, world: Any, carrier: str) -> frozenset[XY]:
         key = (id(world.fabric), carrier)
@@ -35,69 +53,94 @@ class DefaultRouter:
         return cached[1]
 
     def search(
-        self, world: Any, net: Any, allow_rip: bool, protected: frozenset[str]
+        self,
+        world: Any,
+        net: Any,
+        present: int,
+        protected: frozenset[str],
+        allow_rip: bool = True,
     ) -> Search:
+        """The search for one net at this pass's present cost: a displaced cell costs ``present`` times one plus its history, while rips are allowed and left."""
         return Search(
             world=world,
             net_id=net.id,
             carrier=net.carrier,
             layer=world.carrier_layer(net.carrier),
-            costs=self.costs,
+            costs=self.costs.model_copy(update={"ripup": present}),
             walls=self.walls_for(world, net.carrier),
             history=self.history,
-            allow_rip=allow_rip,
+            allow_rip=allow_rip and self._rips_left > 0,
             protected=protected,
         )
 
     def route(self, world: Any, net_id: str) -> Refusal | None:
+        """Negotiated congestion: route the net at the present cost, ripping what stands in its way; the displaced re-route in the same pass without displacing anyone; every pass raises the present cost until nothing stays displaced; a pass that displaced nothing and still failed, or the last pass, rolls the whole route back. A net that already has a wire keeps its tree and grows to the pins off it."""
         self._rips_left = self.max_rips
-        return self._route(world, net_id, 0, frozenset())
-
-    def _route(
-        self, world: Any, net_id: str, depth: int, protected: frozenset[str]
-    ) -> Refusal | None:
-        """Plan, rip, commit and re-route the displaced; at the top a displaced net that cannot return protects itself and the round repeats."""
-        net = world.netlist.nets[net_id]
-        blocked: frozenset[str] = frozenset()
+        mark = world.mark()
+        present = max(1, self.costs.ripup)
+        pending = [net_id]
         last: Refusal | None = None
-        for _ in range(self.rounds if depth == 0 else 1):
-            allow_rip = depth < self.ripup and self._rips_left > 0
-            plan = grow(
-                world,
-                net,
-                self.search(world, net, allow_rip, protected | blocked | {net_id}),
-            )
-            if isinstance(plan, Refusal):
-                return plan if last is None else last
-            mark = world.mark()
-            self._rips_left -= len(plan.rips)
-            for victim in sorted(plan.rips):
-                for segment in plan.segments:
-                    for cell in segment.cells:
-                        self.history[(segment.layer, cell)] = (
-                            self.history.get((segment.layer, cell), 0) + 1
-                        )
-                world.unroute(victim)
-            refusal = self.commit(
-                world, net, plan, allow_rip, protected | blocked | {net_id}
-            )
-            if refusal is not None:
-                return refusal
-            failed = None
-            for victim in sorted(plan.rips):
-                again = self._route(world, victim, depth + 1, protected | {net_id})
-                if again is not None:
-                    failed = victim
-                    last = refuse(
-                        net_id,
-                        f"displaced {victim}, which could not be re-routed: {again.detail}",
-                    )
-                    break
-            if failed is None:
+        seeds: dict[str, Any] = {}
+        if net_id in world.wires:
+            seeds[net_id] = seed_of(world, world.netlist.nets[net_id])
+            world.unroute(net_id)
+        for _ in range(self.passes):
+            queue = list(pending)
+            position = 0
+            failed: list[str] = []
+            contested = False
+            while position < len(queue):
+                current = queue[position]
+                position += 1
+                if current in world.wires:
+                    continue
+                net = world.netlist.nets[current]
+                search = self.search(
+                    world, net, present, frozenset({current}), current == net_id
+                )
+                plan = self.plan(world, net, search, seeds.get(current))
+                if isinstance(plan, Refusal):
+                    failed.append(current)
+                    last = plan
+                    continue
+                self._rips_left -= len(plan.rips)
+                contested = contested or bool(plan.rips)
+                if plan.rips:
+                    self.remember(world, plan)
+                for victim in sorted(plan.rips):
+                    world.unroute(victim)
+                refusal = self.commit(
+                    world, net, plan, search.allow_rip, frozenset({current})
+                )
+                if refusal is not None:
+                    failed.append(current)
+                    last = refusal
+                contested = contested or bool(plan.rips)
+                for victim in sorted(plan.rips):
+                    if victim not in world.wires and victim not in queue[position:]:
+                        queue.append(victim)
+            if not failed:
                 return None
-            world.rollback_to(mark)
-            blocked = blocked | {failed}
-        return last
+            if not contested:
+                break
+            pending = failed
+            present = max(present + 1, int(present * self.growth))
+        world.rollback_to(mark)
+        detail = last.detail if last is not None else ""
+        return refuse(net_id, f"not routed: {detail}")
+
+    def remember(self, world: Any, plan: Plan) -> None:
+        """Charge history on the plan's cells another wire held, so a contested cell prices higher next time; the world's undo log reverts the charge with a rollback."""
+        mine = f"wire:{plan.net_id}"
+        for segment in plan.segments:
+            for cell in segment.cells:
+                holders = world.kernel.holders_at(segment.layer, cell)
+                if not any(h.startswith("wire:") and h != mine for h in holders):
+                    continue
+                key = (segment.layer, cell)
+                before = self.history.get(key, 0)
+                self.history[key] = before + 1
+                world.record(lambda k=key, b=before: self.history.__setitem__(k, b))
 
     def commit(
         self,
@@ -107,14 +150,17 @@ class DefaultRouter:
         allow_rip: bool = False,
         protected: frozenset[str] = frozenset(),
     ) -> Refusal | None:
-        """Place the plan's units and the wire; a wire under a unit is ripped and joins the victims when ripping is allowed."""
+        """Place the plan's units and the wire, the field emitters the path displaces removed first and the cover redone after; a wire under a unit is ripped and joins the victims when ripping is allowed."""
         makers = (
             lambda: crossings(world, net, plan.crossings),
             lambda: junctions(world, net, plan.junctions),
             lambda: repeaters(world, net, plan.segments),
         )
+        gone = [world.units[u] for u in sorted(plan.displaced) if u in world.units]
         mark = world.mark()
         while True:
+            for emitter in sorted(plan.displaced):
+                world.remove_unit(emitter)
             unit_ids: list[str] = []
             failed: Refusal | None = None
             for make in makers:
@@ -140,8 +186,17 @@ class DefaultRouter:
             self._rips_left -= 1
             mark = world.mark()
         world.set_wire(
-            Wire(net=net.id, segments=tuple(plan.segments), units=tuple(unit_ids))
+            Wire(
+                net=net.id,
+                segments=tuple(plan.segments),
+                units=tuple(unit_ids),
+                ports=dict(plan.ports),
+            )
         )
+        if gone:
+            short = recover(world, gone)
+            if short is not None:
+                return refuse(net.id, f"displaced an emitter: {short.detail}")
         return None
 
     @staticmethod

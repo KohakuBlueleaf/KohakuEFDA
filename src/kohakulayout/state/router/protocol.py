@@ -15,6 +15,8 @@ class Terminal(Model):
     layer: str
     carrier: str
     direction: str = "in"
+    options: tuple[tuple[str, XY], ...] = ()
+    bound: bool = True
 
 
 class Costs(Model):
@@ -24,11 +26,16 @@ class Costs(Model):
     share: int = 0
     corridor: int = 0
     ripup: int = 40
+    displace: int = 4
     max_steps: int = 200_000
+    detour: float = 0.0
+    slack: float = 0.0
 
 
 @runtime_checkable
 class Router(Protocol):
+    """What the world asks of a router: ``route``; one may also carry ``order(world, cell_id, pending, grown)``, the order the nets one placement touches route in, the widest span first without it."""
+
     id: str
 
     def route(self, world: Any, net_id: str) -> Refusal | None: ...
@@ -57,23 +64,33 @@ def refuse(net_id: str, detail: str) -> Refusal:
 
 
 def terminals(world: Any, net: Any) -> tuple[Terminal, ...] | Refusal:
-    """Every pin's attach cell, sources first; a refusal when a pin's cell is not placed."""
+    """Every placed pin with the ports it may still take, sources first; a refusal when no placed pin feeds the net or none takes from it, or a placed pin has no open port."""
     layer = world.carrier_layer(net.carrier)
     out: list[Terminal] = []
     for direction, refs in (("out", net.sources), ("in", net.sinks)):
         for ref in refs:
-            cell = world.attach_cell(ref.cell, ref.pin)
-            if cell is None:
-                return refuse(net.id, f"pin {ref} is not placed")
+            if ref.cell not in world.placements:
+                continue
+            options = world.open_ports(ref.cell, ref.pin)
+            if not options:
+                return refuse(net.id, f"pin {ref} has no open port")
+            pin = world.netlist.pin(ref)
             out.append(
                 Terminal(
                     ref=ref,
-                    cell=cell,
+                    cell=options[0][1],
                     layer=layer,
                     carrier=net.carrier,
                     direction=direction,
+                    options=options,
+                    bound=pin is None or len(pin.ports) <= 1,
                 )
             )
+    fed = net.outside is not None or any(t.direction == "out" for t in out)
+    if not fed:
+        return refuse(net.id, "no placed source feeds it yet")
+    if not any(t.direction == "in" for t in out):
+        return refuse(net.id, "no placed sink takes from it yet")
     return tuple(out)
 
 
