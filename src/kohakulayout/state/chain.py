@@ -4,11 +4,15 @@ Every check names its stage from the chain (legal, region, overlap, port_shut, f
 the physics orders them through ``diagnose``.
 """
 
+from collections.abc import Iterable
 from typing import Any
 
-from kohakulayout.ir import Footprint, PinRef, Refusal
-from kohakulayout.ir.geometry import XY, attach_cell
+from kohakulayout.ir import Footprint, Refusal
+from kohakulayout.ir.geometry import XY, footprint_cells
+from kohakulayout.physics.fields import reach_cells
 from kohakulayout.physics.protocol import Occupant
+from kohakulayout.state.attach import options_at
+from kohakulayout.state.crossing import crossable
 from kohakulayout.state.kernel import holder_kind
 
 
@@ -25,8 +29,8 @@ def inspect(
     rot: int,
     cells: tuple[XY, ...],
     layers: tuple[str, ...],
-) -> tuple[list[Refusal], list[str]]:
-    """Every failure before occupancy, and the wires the placement may rip and re-route."""
+) -> tuple[list[Refusal], list[str], list[str]]:
+    """Every failure before occupancy, the nets the placement rips (wires and route units under it), and the field emitters it displaces."""
     failures: list[Refusal] = []
     if rot not in fp.rotations:
         failures.append(refusal("legal", cell.id, f"rotation r{rot} is not allowed"))
@@ -36,22 +40,83 @@ def inspect(
         failures.append(refusal("region", cell.id, "outside the build region"))
     occupant = Occupant(kind="cell", id=cell.id)
     ripped: list[str] = []
+    displaced: list[str] = []
     for layer in layers:
         for xy in cells:
             blocker = world.may_occupy(layer, xy, occupant)
             if blocker is None:
                 continue
             kind, ref = holder_kind(blocker)
-            if kind == "wire" and world.router is not None:
-                if ref not in ripped:
-                    ripped.append(ref)
+            owner = displaceable(world, kind, ref)
+            if owner is not None:
+                target = ripped if owner.startswith("net:") else displaced
+                owner_id = owner.split(":", 1)[1]
+                if owner_id not in target:
+                    target.append(owner_id)
                 continue
             failures.append(
                 refusal("overlap", cell.id, f"{blocker} holds {xy} on {layer}")
             )
             break
     failures += port_shut(world, cell, fp, x, y, rot, cells, layers)
-    return failures, ripped
+    return failures, ripped, [u for u in displaced if u in world.units]
+
+
+def displaceable(world: Any, kind: str, ref: str) -> str | None:
+    """What a footprint may push out of a cell: ``net:<id>`` for a wire or a route unit (ripped and re-routed, with a router), ``unit:<id>`` for a field emitter (placed again); None for anything else."""
+    if kind == "wire":
+        return f"net:{ref}" if world.router is not None else None
+    if kind == "unit":
+        unit = world.units.get(ref)
+        if unit is None:
+            return None
+        if unit.owner.startswith("field:"):
+            return f"unit:{ref}"
+        if unit.owner.startswith("net:") and world.router is not None:
+            return unit.owner
+    return None
+
+
+def recover(world: Any, gone: Iterable[Any] = ()) -> Refusal | None:
+    """Cover again every placed cell a displaced emitter left short of a need; with ``gone`` (the emitters removed) only the cells they reached are looked at."""
+    fields = world.physics.fields
+    emitters = {e.kind: e for e in fields.emitters()}
+    by_footprint = {e.footprint.id: e for e in emitters.values()}
+    lost: set[XY] | None = None
+    for unit in gone:
+        emitter = by_footprint.get(unit.footprint)
+        if emitter is not None:
+            lost = (lost or set()) | reach_cells(emitter, unit.x, unit.y)
+    if gone and not lost:
+        return None
+    covered: dict[str, frozenset[XY]] = {}
+    for cell_id, placement in list(world.placements.items()):
+        cell = world.netlist.cells[cell_id]
+        needs = [k for k in fields.needs(cell) if k in emitters]
+        if not needs:
+            continue
+        fp = world.footprint_of(cell_id)
+        cells = footprint_cells(
+            placement.x, placement.y, fp.width, fp.height, placement.rot
+        )
+        if lost is not None and lost.isdisjoint(cells):
+            continue
+        short = False
+        for kind in needs:
+            if kind not in covered:
+                covered[kind] = world.field_coverage(kind)
+            hit = (
+                any(c in covered[kind] for c in cells)
+                if emitters[kind].reach.partial
+                else all(c in covered[kind] for c in cells)
+            )
+            short = short or not hit
+        if short:
+            refusal = cover(world, cell, cells)
+            if refusal is not None:
+                return refusal
+            covered.clear()
+    return None
 
 
 def port_shut(
@@ -65,67 +130,73 @@ def port_shut(
     layers: tuple[str, ...],
     owners: dict[str, dict[XY, str]] | None = None,
 ) -> list[Refusal]:
-    """The cell's own attach cells must be open, and it must cover no other open attach cell."""
+    """Every pin of the cell keeps a port whose attach cell is open, and the cell leaves every other placed pin one."""
     failures: list[Refusal] = []
     owners = world.open_attach_owners() if owners is None else owners
     for pin in world.netlist.pins_of(cell.id):
-        port = fp.port(pin.ports[0]) if pin.ports else None
-        if port is None:
+        options = options_at(fp, pin, x, y, rot)
+        if not options:
             continue
-        ax, ay = attach_cell(fp.width, fp.height, port.side, port.offset, rot)
-        attach = (x + ax, y + ay)
         layer = world.carrier_layer(pin.carrier)
-        if not world.in_grid(attach):
-            failures.append(
-                refusal(
-                    "port_shut",
-                    cell.id,
-                    f"pin {pin.id} attaches at {attach}, outside the grid",
-                )
-            )
-            continue
-        owner = owners.get(layer, {}).get(attach)
-        if owner is not None and not _same_net(world, owner, cell.id, pin.id):
-            failures.append(
-                refusal(
-                    "port_shut",
-                    cell.id,
-                    f"pin {pin.id} attaches at {attach}, the attach cell of a pin of {owner}",
-                )
-            )
-            continue
-        for holder in world.kernel.holders_at(layer, attach):
-            if _connects(world, holder, cell.id, pin):
-                continue
-            failures.append(
-                refusal(
-                    "port_shut",
-                    cell.id,
-                    f"pin {pin.id} attaches at {attach}, held by {holder}",
-                )
-            )
-            break
+        faults = [
+            _shut_by(world, layer, attach, owners, cell.id, pin)
+            for _, attach, _ in options
+        ]
+        if all(fault is not None for fault in faults):
+            failures.append(refusal("port_shut", cell.id, f"pin {pin.id} {faults[0]}"))
     mine = set(cells)
     failures += boxed(world, cell, fp, x, y, rot, mine, layers, owners)
-    for other_id in world.placements:
-        for pin_id, attach in world.attach_cells(other_id).items():
-            pin = world.netlist.pin(PinRef(cell=other_id, pin=pin_id))
-            if (
-                attach not in mine
-                or pin is None
-                or world.carrier_layer(pin.carrier) not in layers
-                or _routed(world, other_id, pin_id)
+    alternatives = world.tables().alternatives
+    for layer in layers:
+        touched = sorted(
+            {
+                (other_id, pin_id)
+                for xy in mine
+                for other_id, pin_id in alternatives.get(layer, {}).get(xy, ())
+                if other_id != cell.id and other_id in world.placements
+            }
+        )
+        for other_id, pin_id in touched:
+            open_cells = [attach for _, attach in world.open_ports(other_id, pin_id)]
+            covered = [attach for attach in open_cells if attach in mine]
+            if covered and all(
+                attach in mine or not _free(world, layer, attach)
+                for attach in open_cells
             ):
-                continue
-            failures.append(
-                refusal(
-                    "port_shut",
-                    cell.id,
-                    f"covers {other_id}.{pin_id}'s attach cell {attach}",
+                failures.append(
+                    refusal(
+                        "port_shut",
+                        cell.id,
+                        f"covers {other_id}.{pin_id}'s attach cell {covered[0]}",
+                    )
                 )
-            )
-            break
+                break
     return failures
+
+
+def _shut_by(
+    world: Any,
+    layer: str,
+    attach: XY,
+    owners: dict[str, dict[XY, str]],
+    cell_id: str,
+    pin: Any,
+) -> str | None:
+    """Why the attach cell is closed to the pin, or None when it is open."""
+    if not world.in_grid(attach):
+        return f"attaches at {attach}, outside the grid"
+    owner = owners.get(layer, {}).get(attach)
+    if owner is not None and not _same_net(world, owner, cell_id, pin.id):
+        return f"attaches at {attach}, the attach cell of a pin of {owner}"
+    for holder in world.kernel.holders_at(layer, attach):
+        if not _connects(world, holder, attach, cell_id, pin):
+            return f"attaches at {attach}, held by {holder}"
+    return None
+
+
+def _free(world: Any, layer: str, xy: XY) -> bool:
+    """Whether no footprint stands on the cell."""
+    return all(holder_kind(h)[0] != "cell" for h in world.kernel.holders_at(layer, xy))
 
 
 POCKET = 12
@@ -150,33 +221,45 @@ def boxed(
     open_cells: dict[str, dict[XY, str]] = {
         layer: dict(found) for layer, found in owners.items()
     }
-    own: set[tuple[str, XY]] = set()
+    own: dict[tuple[str, str], list[XY]] = {}
     for pin in world.netlist.pins_of(cell.id):
-        port = fp.port(pin.ports[0]) if pin.ports else None
-        net = _net_of(world, cell.id, pin.id)
-        if port is None or net is None:
+        options = options_at(fp, pin, x, y, rot)
+        net_id = world.net_of(cell.id, pin.id)
+        if not options or net_id is None:
             continue
-        ax, ay = attach_cell(fp.width, fp.height, port.side, port.offset, rot)
         layer = world.carrier_layer(pin.carrier)
-        open_cells.setdefault(layer, {})[(x + ax, y + ay)] = net.id
-        own.add((layer, (x + ax, y + ay)))
+        if len(options) == 1:
+            open_cells.setdefault(layer, {})[options[0][1]] = net_id
+        own[(layer, net_id)] = [attach for _, attach, _ in options]
     halo = {
         (cx + dx, cy + dy) for cx, cy in mine for dx in (-1, 0, 1) for dy in (-1, 0, 1)
     }
     failures: list[Refusal] = []
     for layer in layers:
-        for attach, net_id in open_cells.get(layer, {}).items():
-            if attach not in halo and (layer, attach) not in own:
-                continue
+        pockets: list[tuple[str, list[XY]]] = [
+            (net_id, [attach])
+            for attach, net_id in open_cells.get(layer, {}).items()
+            if attach in halo and (layer, net_id) not in own
+        ]
+        pockets += [
+            (net_id, cells)
+            for (own_layer, net_id), cells in own.items()
+            if own_layer == layer
+        ]
+        for net_id, cells in pockets:
             net = world.netlist.nets[net_id]
             if all(r.cell == cell.id or r.cell in world.placements for r in net.pins()):
                 continue
-            if _exits(world, layer, attach, mine, open_cells[layer], net) < POCKET:
+            exits = (
+                _exits(world, layer, attach, mine, open_cells.get(layer, {}), net)
+                for attach in cells
+            )
+            if all(found < POCKET for found in exits):
                 failures.append(
                     refusal(
                         "port_shut",
                         cell.id,
-                        f"boxes in the attach cell {attach} of {net_id}",
+                        f"boxes in the attach cell {cells[0]} of {net_id}",
                     )
                 )
                 break
@@ -224,42 +307,34 @@ def _passable(world: Any, layer: str, xy: XY, net: Any) -> bool:
     return True
 
 
-def _net_of(world: Any, cell_id: str, pin_id: str) -> Any:
-    for net in world.netlist.nets.values():
-        if any(r.cell == cell_id and r.pin == pin_id for r in net.pins()):
-            return net
-    return None
-
-
-def _connects(world: Any, holder: str, cell_id: str, pin: Any) -> bool:
-    """Whether the holder of an attach cell connects the pin instead of shutting it."""
+def _connects(world: Any, holder: str, attach: XY, cell_id: str, pin: Any) -> bool:
+    """Whether the holder of an attach cell connects the pin instead of shutting it: the pin's own net, a unit of it that carries the pin's carrier, a reservation for that carrier, another net's wire the pin's own may cross there, or a field emitter the route will displace."""
     kind, ref = holder_kind(holder)
     if kind == "unit":
-        return world.physics.carriers.transfers_through(
-            world.units[ref].kind, pin.carrier
+        unit = world.units[ref]
+        if unit.owner.startswith("field:"):
+            return True
+        owner = unit.owner.removeprefix("net:")
+        return (
+            owner in world.netlist.nets
+            and _same_net(world, owner, cell_id, pin.id)
+            and world.physics.carriers.transfers_through(unit.kind, pin.carrier)
         )
     if kind == "wire":
-        return any(
+        if any(
             r.cell == cell_id and r.pin == pin.id
             for r in world.netlist.nets[ref].pins()
-        )
+        ):
+            return True
+        layer = world.carrier_layer(pin.carrier)
+        return crossable(world, layer, pin.carrier, ref, attach)
     if kind == "reserve":
         return world.reservations[ref].carrier == pin.carrier
     return False
 
 
 def _same_net(world: Any, net_id: str, cell_id: str, pin_id: str) -> bool:
-    return any(
-        r.cell == cell_id and r.pin == pin_id for r in world.netlist.nets[net_id].pins()
-    )
-
-
-def _routed(world: Any, cell_id: str, pin_id: str) -> bool:
-    return any(
-        n.id in world.wires
-        for n in world.nets_of(cell_id)
-        if any(r.cell == cell_id and r.pin == pin_id for r in n.pins())
-    )
+    return world.net_of(cell_id, pin_id) == net_id
 
 
 def cover(world: Any, cell: Any, cells: tuple[XY, ...]) -> Refusal | None:

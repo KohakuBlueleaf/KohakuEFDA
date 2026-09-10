@@ -12,7 +12,6 @@ from kohakulayout.errors import StateError
 from kohakulayout.ir import (
     Footprint,
     Layout,
-    Net,
     Placement,
     Refusal,
     Reservation,
@@ -20,17 +19,19 @@ from kohakulayout.ir import (
     Wire,
 )
 from kohakulayout.ir.base import digest_of_text
-from kohakulayout.ir.geometry import ROTATIONS, XY, attach_cell, footprint_cells
+from kohakulayout.ir.geometry import ROTATIONS, XY, footprint_cells
 from kohakulayout.physics.fields import reach_cells
 from kohakulayout.physics.protocol import Anchor, Occupant, UnitPlacement
-from kohakulayout.state.chain import cover, inspect, port_shut
+from kohakulayout.state.attach import AttachMixin, Tables
+from kohakulayout.state.chain import cover, displaceable, inspect, port_shut, recover
 from kohakulayout.state.forms import freeze, load
 from kohakulayout.state.kernel import Kernel, ShareTable, holder_kind, make_kernel
 from kohakulayout.state.snapshot import Token
 from kohakulayout.state.transaction import Transaction
+from kohakulayout.state.wiring import WiringMixin
 
 
-class World:
+class World(AttachMixin, WiringMixin):
     def __init__(
         self,
         problem: Any,
@@ -64,6 +65,14 @@ class World:
         self.checker: Any = None
         self.seq = 0
         self.revision = 0
+        self._attach_memo: dict[str, tuple[Placement, dict[str, tuple]]] = {}
+        self._net_by_pin: dict[tuple[str, str], str] = {
+            (r.cell, r.pin): n.id for n in self.netlist.nets.values() for r in n.pins()
+        }
+        self._tables: Tables | None = None
+        self._coverage: dict[str, frozenset[XY]] = {}
+        self._nets_by_cell: dict[str, list[Any]] | None = None
+        self.units_rev = 0
         self._digest: tuple[int, str] | None = None
         self._tx: Transaction | None = None
         self._unit_seq = 0
@@ -129,64 +138,9 @@ class World:
                 return holder
         return None
 
-    def attach_cells(self, cell_id: str) -> dict[str, XY]:
-        """Every pin's attach cell for a placed cell, through each pin's first allowed port."""
-        placement = self.placements.get(cell_id)
-        fp = self.footprint_of(cell_id)
-        if placement is None or fp is None:
-            return {}
-        out: dict[str, XY] = {}
-        for pin in self.netlist.pins_of(cell_id):
-            port = fp.port(pin.ports[0]) if pin.ports else None
-            if port is None:
-                continue
-            ax, ay = attach_cell(
-                fp.width, fp.height, port.side, port.offset, placement.rot
-            )
-            out[pin.id] = (placement.x + ax, placement.y + ay)
-        return out
-
-    def attach_cell(self, cell_id: str, pin_id: str) -> XY | None:
-        return self.attach_cells(cell_id).get(pin_id)
-
-    def nets_of(self, cell_id: str) -> tuple[Net, ...]:
-        return tuple(
-            n
-            for n in self.netlist.nets.values()
-            if any(r.cell == cell_id for r in n.pins())
-        )
-
-    def ready(self, net: Net) -> bool:
-        return all(r.cell in self.placements for r in net.pins())
-
-    def ready_nets(self, cell_id: str) -> tuple[Net, ...]:
-        return tuple(
-            n for n in self.nets_of(cell_id) if self.ready(n) and n.id not in self.wires
-        )
-
-    def unrouted(self) -> tuple[Net, ...]:
-        return tuple(n for n in self.netlist.nets.values() if n.id not in self.wires)
-
     def anchors(self, cell_id: str) -> Iterable[Anchor]:
         cell = self.netlist.cells[cell_id]
         return self.physics.boundaries.anchors(self, cell)
-
-    def open_attach_owners(self) -> dict[str, dict[XY, str]]:
-        """Per layer, the net owning each attach cell of a placed pin whose net is still unrouted."""
-        out: dict[str, dict[XY, str]] = {}
-        for net in self.unrouted():
-            for ref in net.pins():
-                attach = self.attach_cell(ref.cell, ref.pin)
-                if attach is not None:
-                    out.setdefault(self.carrier_layer(net.carrier), {})[attach] = net.id
-        return out
-
-    def open_attach_cells(self) -> dict[str, frozenset[XY]]:
-        """Per layer, the attach cells of every placed pin whose net is still unrouted."""
-        return {
-            layer: frozenset(owners)
-            for layer, owners in self.open_attach_owners().items()
-        }
 
     def admits(
         self,
@@ -196,15 +150,20 @@ class World:
         rot: int = 0,
         owners: dict[str, dict[XY, str]] | None = None,
     ) -> bool:
-        """Whether the footprint is free there and no port is shut; the cheap half of ``place``."""
+        """Whether the footprint covers nothing it could not displace (wires and route units a router re-routes, emitters placed again) and no port is shut; the cheap half of ``place``."""
         cell = self.netlist.cells.get(cell_id)
         fp = self.footprint_of(cell_id)
         if cell is None or fp is None or rot not in fp.rotations:
             return False
-        if not self.free_footprint(fp, x, y, rot):
-            return False
         cells = footprint_cells(x, y, fp.width, fp.height, rot)
+        if not all(self.in_grid(c) for c in cells):
+            return False
         layers = self.layers_for(fp)
+        for layer in layers:
+            for xy in cells:
+                for holder in self.kernel.holders_at(layer, xy):
+                    if displaceable(self, *holder_kind(holder)) is None:
+                        return False
         return not port_shut(self, cell, fp, x, y, rot, cells, layers, owners)
 
     def first_open(
@@ -232,13 +191,18 @@ class World:
         return self.kernel.occupancy(layer)
 
     def field_coverage(self, kind: str) -> frozenset[XY]:
+        """The cells the field's emitters reach; kept until a unit comes or goes."""
+        hit = self._coverage.get(kind)
+        if hit is not None:
+            return hit
         emitters = {e.footprint.id: e for e in self.physics.fields.emitters()}
         covered: set[XY] = set()
         for unit in self.units.values():
             emitter = emitters.get(unit.footprint)
             if unit.owner == f"field:{kind}" and emitter is not None:
                 covered |= reach_cells(emitter, unit.x, unit.y)
-        return frozenset(covered)
+        self._coverage[kind] = frozenset(covered)
+        return self._coverage[kind]
 
     # ------------------------------------------------------- transactions
     def transaction(self) -> Transaction:
@@ -256,6 +220,10 @@ class World:
         self._require_tx().record(undo)
         self.seq += 1
         self.revision += 1
+
+    def record(self, undo: Any) -> None:
+        """Log an undo step of a collaborator's state, so a rollback reverts it with the world's."""
+        self._record(undo)
 
     def mark(self) -> int:
         return self._require_tx().mark()
@@ -279,7 +247,7 @@ class World:
 
     # ---------------------------------------------------------- placement
     def place(self, cell_id: str, x: int, y: int, rot: int = 0) -> Refusal | None:
-        """Place a leaf cell, route the nets it completes, cover its needs; refuse and roll back otherwise."""
+        """Place a leaf cell, route the nets it makes routable and grow the routed ones to its pins, then cover its needs around the wires; refuse and roll back otherwise."""
         cell = self.netlist.cells.get(cell_id)
         if cell is None:
             raise StateError(f"{cell_id!r} is not a leaf cell of the problem")
@@ -306,27 +274,63 @@ class World:
     ) -> Refusal | None:
         cells = footprint_cells(x, y, fp.width, fp.height, rot)
         layers = self.layers_for(fp)
-        failures, ripped = inspect(self, cell, fp, x, y, rot, cells, layers)
+        failures, ripped, displaced = inspect(self, cell, fp, x, y, rot, cells, layers)
         if failures:
             return self.physics.diagnose(self, tuple(failures))
+        trimmed = [net_id for net_id in ripped if self.trim(net_id, cells)]
         for net_id in ripped:
-            self.unroute(net_id)
+            if net_id not in trimmed:
+                self.unroute(net_id)
+        gone = [self.units[unit_id] for unit_id in displaced]
+        for unit_id in displaced:
+            self.remove_unit(unit_id)
         self._occupy(layers, cells, f"cell:{cell.id}")
         placement = Placement(cell=cell.id, x=x, y=y, rot=rot)
         self.placements[cell.id] = placement
-        self._record(lambda: self.placements.pop(cell.id, None))
+        self.table_cell(cell.id)
+        self._record(
+            lambda: (self.untable_cell(cell.id), self.placements.pop(cell.id, None))
+        )
         legal = self.physics.boundaries.legal(self, placement)
         if legal is not None:
             return legal
+        if self.router is not None:
+            grown = [*trimmed, *(n.id for n in self.grown_nets(cell.id))]
+            pending = [*ripped, *grown, *(n.id for n in self.ready_nets(cell.id))]
+            together = getattr(self.router, "route_all", None)
+            if together is not None:
+                refusal = together(self, cell.id, pending, set(grown))
+                if refusal is not None:
+                    return refusal
+            else:
+                order = getattr(self.router, "order", None)
+                ordered = (
+                    order(self, cell.id, pending, set(grown))
+                    if order is not None
+                    else sorted(dict.fromkeys(pending), key=self.span, reverse=True)
+                )
+                for net_id in ordered:
+                    refusal = self.route(net_id, grow=net_id in grown)
+                    if refusal is not None:
+                        return refusal
         refusal = cover(self, cell, cells)
         if refusal is not None:
             return refusal
-        if self.router is not None:
-            for net_id in [*ripped, *(n.id for n in self.ready_nets(cell.id))]:
-                refusal = self.route(net_id)
-                if refusal is not None:
-                    return refusal
+        if displaced:
+            return recover(self, gone)
         return None
+
+    def span(self, net_id: str) -> int:
+        """How far a net's terminals lie apart: the widest Manhattan distance between any two of its placed attach cells."""
+        cells = [
+            xy
+            for ref in self.netlist.nets[net_id].pins()
+            if (xy := self.attach_cell(ref.cell, ref.pin)) is not None
+        ]
+        return max(
+            (abs(a[0] - b[0]) + abs(a[1] - b[1]) for a in cells for b in cells),
+            default=0,
+        )
 
     def place_instance(
         self, instance_id: str, x: int, y: int, rot: int = 0
@@ -355,6 +359,7 @@ class World:
         return None
 
     def _restore_anchor(self, instance_id: str, previous: Placement | None) -> None:
+        self._tables = None
         if previous is None:
             self.instance_anchors.pop(instance_id, None)
         else:
@@ -372,8 +377,14 @@ class World:
             placement.x, placement.y, fp.width, fp.height, placement.rot
         )
         self._free(self.layers_for(fp), cells, f"cell:{cell_id}")
+        self.untable_cell(cell_id)
         del self.placements[cell_id]
-        self._record(lambda: self.placements.__setitem__(cell_id, placement))
+        self._record(
+            lambda: (
+                self.placements.__setitem__(cell_id, placement),
+                self.table_cell(cell_id),
+            )
+        )
         if cell_id in self.membership:
             instance = self.membership.pop(cell_id)
             self._record(lambda: self.membership.__setitem__(cell_id, instance))
@@ -427,7 +438,13 @@ class World:
             owner=spot.owner,
         )
         self.units[unit_id] = unit
-        self._record(lambda: self.units.pop(unit_id, None))
+        self._unit_changed(unit.owner.startswith("field:"))
+        self._record(
+            lambda: (
+                self.units.pop(unit_id, None),
+                self._unit_changed(unit.owner.startswith("field:")),
+            )
+        )
         self.library.setdefault(fp.id, fp)
         self._occupy(layers, cells, f"unit:{unit_id}")
         return None
@@ -447,79 +464,19 @@ class World:
         cells = footprint_cells(unit.x, unit.y, fp.width, fp.height, unit.rot)
         self._free(self.layers_for(fp), cells, f"unit:{unit_id}")
         del self.units[unit_id]
-        self._record(lambda: self.units.__setitem__(unit_id, unit))
-
-    # -------------------------------------------------------------- routing
-    def route(self, net_id: str) -> Refusal | None:
-        if net_id not in self.netlist.nets:
-            raise StateError(f"no net {net_id!r}")
-        if net_id in self.wires:
-            return None
-        pre_digest = self.digest() if self.checker is not None else ""
-        if self.router is None:
-            result: Refusal | None = Refusal(
-                stage="route", subject=f"net:{net_id}", detail="no router is installed"
+        self._unit_changed(unit.owner.startswith("field:"))
+        self._record(
+            lambda: (
+                self.units.__setitem__(unit_id, unit),
+                self._unit_changed(unit.owner.startswith("field:")),
             )
-        else:
-            mark = self.mark()
-            result = self.router.route(self, net_id)
-            if result is not None:
-                self.rollback_to(mark)
-        if self.checker is not None:
-            self.checker.on_route(self, net_id, result, pre_digest)
-        return result
-
-    def forget_routes(self) -> None:
-        """Tell the router its negotiation history no longer describes this state."""
-        forget = getattr(self.router, "forget", None)
-        if forget is not None:
-            forget()
-
-    def set_wire(self, wire: Wire) -> None:
-        """Record a routed wire and hold its cells; the router calls this after finding a path."""
-        for segment in wire.segments:
-            self._occupy((segment.layer,), tuple(segment.cells), f"wire:{wire.net}")
-        self.wires[wire.net] = wire
-        self._record(lambda: self.wires.pop(wire.net, None))
-
-    def unroute(self, net_id: str) -> None:
-        """Free the wire, its units, and every other net's unit that only existed because of it."""
-        wire = self.wires.get(net_id)
-        if wire is None:
-            return
-        held = self.kernel.cells_of(f"wire:{net_id}")
-        for layer, cells in held.items():
-            self._free((layer,), tuple(sorted(cells)), f"wire:{net_id}")
-        for unit_id in list(wire.units):
-            self.remove_unit(unit_id)
-        del self.wires[net_id]
-        self._record(lambda: self.wires.__setitem__(net_id, wire))
-        for layer, cells in held.items():
-            for xy in sorted(cells):
-                for holder in self.kernel.holders_at(layer, xy):
-                    kind, ref = holder_kind(holder)
-                    if kind == "unit":
-                        self._drop_shared_unit(ref, net_id)
-
-    def _drop_shared_unit(self, unit_id: str, gone: str) -> None:
-        """A unit another net's wire lists, on a cell the ripped net held, was a crossing: it goes too."""
-        unit = self.units.get(unit_id)
-        if (
-            unit is None
-            or not unit.owner.startswith("net:")
-            or unit.owner == f"net:{gone}"
-        ):
-            return
-        other_id = unit.owner.removeprefix("net:")
-        other = self.wires.get(other_id)
-        if other is None or unit_id not in other.units:
-            return
-        self.remove_unit(unit_id)
-        trimmed = other.model_copy(
-            update={"units": tuple(u for u in other.units if u != unit_id)}
         )
-        self.wires[other_id] = trimmed
-        self._record(lambda: self.wires.__setitem__(other_id, other))
+
+    def _unit_changed(self, field: bool) -> None:
+        """A unit came or went: the unit tables the searches cache are stale, and a field's coverage with it."""
+        self.units_rev += 1
+        if field:
+            self._coverage.clear()
 
     # --------------------------------------------------------- reservations
     def reserve(
@@ -565,6 +522,8 @@ class World:
         )
 
     def restore(self, token: Token) -> None:
+        self._tables = None
+        self._unit_changed(True)
         if self._tx is not None and self._tx.open:
             raise StateError(
                 "restore inside an open transaction; roll back to a mark instead"
@@ -584,6 +543,8 @@ class World:
 
     def load(self, layout: Layout) -> None:
         """Adopt a frozen layout wholesale, without checks; a verified layout is the caller's job."""
+        self._tables = None
+        self._unit_changed(True)
         if self._tx is not None and self._tx.open:
             raise StateError("load inside an open transaction")
         load(self, layout)

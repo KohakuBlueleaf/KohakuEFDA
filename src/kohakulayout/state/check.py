@@ -5,7 +5,7 @@ from typing import Any
 from kohakulayout.errors import StateError
 from kohakulayout.ir.geometry import footprint_cells
 from kohakulayout.ir.refusal import STAGES
-from kohakulayout.physics.protocol import Anchor
+from kohakulayout.physics.protocol import Anchor, Occupant
 from kohakulayout.state.kernel import holder_kind
 from kohakulayout.state.snapshot import Token
 
@@ -109,7 +109,33 @@ class StateCheck:
                     self._fail(
                         f"{holder} holds cells on {layer} but the world has no record of it"
                     )
+        self.sharing(world)
         self.reservations(world)
+
+    def sharing(self, world: Any) -> None:
+        """Two wires hold one cell only where a unit carries them across or the pack lets their carriers share it."""
+        for layer in world.kernel.layers:
+            for xy, holders in world.kernel.holders_map(layer).items():
+                kinds = [holder_kind(h) for h in holders]
+                if any(kind == "unit" for kind, _ in kinds):
+                    continue
+                wires = [ref for kind, ref in kinds if kind == "wire"]
+                for index, first in enumerate(wires):
+                    for second in wires[index + 1 :]:
+                        mine = Occupant(
+                            kind="wire",
+                            carrier=world.netlist.nets[first].carrier,
+                            id=first,
+                        )
+                        theirs = Occupant(
+                            kind="wire",
+                            carrier=world.netlist.nets[second].carrier,
+                            id=second,
+                        )
+                        if not world.share.may_share(mine, theirs):
+                            self._fail(
+                                f"wire:{first} and wire:{second} share {xy} on {layer} with {sorted(holders)}"
+                            )
 
     def reservations(self, world: Any) -> None:
         for reservation in world.reservations.values():

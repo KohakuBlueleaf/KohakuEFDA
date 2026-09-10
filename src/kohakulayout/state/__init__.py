@@ -10,7 +10,7 @@ from kohakulayout.state.kernel import (
     holder_kind,
     make_kernel,
 )
-from kohakulayout.state.router import DefaultRouter, Router, make_router
+from kohakulayout.state.router import DefaultRouter, LaneRouter, Router, make_router
 from kohakulayout.state.snapshot import Token
 from kohakulayout.state.transaction import Transaction
 from kohakulayout.state.world import World
@@ -20,6 +20,7 @@ __all__ = [
     "DefaultRouter",
     "Holder",
     "Kernel",
+    "LaneRouter",
     "PyKernel",
     "Router",
     "ShareTable",
