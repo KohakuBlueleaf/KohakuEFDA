@@ -65,14 +65,26 @@ def belt_ring(world: Any, layout: Layout, metrics: dict[str, Any]) -> Iterable[F
 def run_length(
     world: Any, layout: Layout, metrics: dict[str, Any]
 ) -> Iterable[Finding]:
+    """A continuous run ends at a unit of its own net (LOG-05): each stretch between them stays within the carrier's limit."""
     for net_id, wire in layout.wires.items():
+        cuts = {
+            (layout.units[u].x, layout.units[u].y)
+            for u in wire.units
+            if u in layout.units
+        }
         for segment in wire.segments:
             limit = RUN_LIMIT.get(segment.carrier)
-            if limit is not None and len(segment.cells) > limit:
+            if limit is None:
+                continue
+            longest = run = 0
+            for cell in segment.cells:
+                run = 0 if cell in cuts else run + 1
+                longest = max(longest, run)
+            if longest > limit:
                 yield _finding(
                     "endfield.run_length",
                     f"net:{net_id}",
-                    f"{segment.carrier} run of {len(segment.cells)} cells exceeds {limit}",
+                    f"{segment.carrier} run of {longest} cells exceeds {limit}",
                 )
 
 

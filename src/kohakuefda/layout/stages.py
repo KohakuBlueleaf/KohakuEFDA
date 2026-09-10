@@ -18,6 +18,7 @@ from kohakuefda.layout.engine import (
     LAYOUT_DEFAULTS,
     LayoutError,
     budget_of,
+    router_of,
     solver_of,
 )
 from kohakuefda.layout.place import Block
@@ -158,6 +159,7 @@ def layout_stage(
             progress=CallbackSink(observer.emit) if observe is not None else None,
             kernel=str(settings["backend"]),
             workers=max(1, int(settings["workers"])),
+            router=router_of(),
         )
     except CancelledError:
         if observe is not None and observer.last_layout is not None:

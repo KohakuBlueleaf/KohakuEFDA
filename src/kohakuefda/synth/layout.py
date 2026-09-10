@@ -28,8 +28,8 @@ from kohakuefda.physics.library import (
     UNIT_CARRIER,
 )
 from kohakuefda.synth.flows import BRIDGES, CONVERGERS, SPLITTERS, Flows, step_between
-from kohakuefda.synth.footprints import ENTRY
-from kohakuefda.synth.problem import project_pin_id
+from kohakuefda.synth.footprints import ENTRY, port_id
+from kohakuefda.synth.problem import kl_id, project_pin_id
 from kohakulayout.ir import Layout as FrameworkLayout
 from kohakulayout.ir import Problem
 from kohakulayout.ir.geometry import attach_cell, rotate_side
@@ -61,14 +61,23 @@ class Translation(Flows):
         self.kl = problem.netlist
         self.library = {**problem.netlist.library}
         self.attach: dict[tuple[str, str], XY] = {}
+        self.chosen: dict[tuple[str, str], str] = {}
+        net_by_pin = {
+            (r.cell, r.pin): n.id for n in self.kl.nets.values() for r in n.pins()
+        }
         for cell_id, placement in layout.placements.items():
             fp = self.library.get(self.kl.cells[cell_id].footprint or "")
             if fp is None:
                 continue
             for pin in self.kl.cells[cell_id].pins:
-                port = fp.port(pin.ports[0]) if pin.ports else None
+                wire = layout.wires.get(net_by_pin.get((cell_id, pin.id), ""))
+                port_id = wire.ports.get(f"{cell_id}.{pin.id}") if wire else None
+                if port_id not in pin.ports:
+                    port_id = pin.ports[0] if pin.ports else None
+                port = fp.port(port_id) if port_id is not None else None
                 if port is None:
                     continue
+                self.chosen[(cell_id, pin.id)] = port.id
                 ax, ay = attach_cell(
                     fp.width, fp.height, port.side, port.offset, placement.rot
                 )
@@ -177,16 +186,15 @@ class Translation(Flows):
             if net_id not in self.layout.wires:
                 continue
             item_id = facts(net).get("item")
-            graph = self.graph(net_id)
-            flows = self.flows(net_id)
+            directed = self.orientation(net_id)
             for index, piece in enumerate(self.oriented(net_id)):
                 out.append(
                     Segment(
                         id=f"{net_id}.p{index}",
                         kind=net.carrier,
                         cells=list(piece),
-                        entry=self.entry_of(piece, graph, flows),
-                        heading=self.heading_of(piece, graph, flows),
+                        entry=self.entry_of(piece, directed),
+                        heading=self.heading_of(piece, directed),
                         item_id=item_id,
                     )
                 )
@@ -207,41 +215,21 @@ class Translation(Flows):
             out.append(current)
         return out
 
-    def entry_of(
-        self,
-        piece: list[XY],
-        graph: dict[XY, set[XY]],
-        flows: dict[tuple[XY, XY], Fraction],
-    ) -> Edge | None:
-        """The travel into the first cell: from the unit the flow comes from, else out of the port it starts at."""
+    def entry_of(self, piece: list[XY], directed: set[tuple[XY, XY]]) -> Edge | None:
+        """The travel into the first cell: from the step the flow comes by, else out of the port it starts at."""
         first = piece[0]
         inner = piece[1] if len(piece) > 1 else None
-        behind = [
-            c
-            for c in graph.get(first, ())
-            if c != inner and flows.get((c, first), 0) > 0
-        ]
-        if not behind and not flows:
-            behind = [c for c in graph.get(first, ()) if c != inner]
+        behind = sorted(a for a, b in directed if b == first and a != inner)
         if behind:
             return HEADINGS[step_between(behind[0], first)]
         port = self.port_at(first, "out")
         return None if port is None else HEADINGS[port]
 
-    def heading_of(
-        self,
-        piece: list[XY],
-        graph: dict[XY, set[XY]],
-        flows: dict[tuple[XY, XY], Fraction],
-    ) -> Edge | None:
-        """The travel out of the last cell: to the unit the flow goes on to, else into the port it ends at."""
+    def heading_of(self, piece: list[XY], directed: set[tuple[XY, XY]]) -> Edge | None:
+        """The travel out of the last cell: by the step the flow goes on, else into the port it ends at."""
         last = piece[-1]
         inner = piece[-2] if len(piece) > 1 else None
-        ahead = [
-            c for c in graph.get(last, ()) if c != inner and flows.get((last, c), 0) > 0
-        ]
-        if not ahead and not flows:
-            ahead = [c for c in graph.get(last, ()) if c != inner]
+        ahead = sorted(b for a, b in directed if a == last and b != inner)
         if ahead:
             return HEADINGS[step_between(last, ahead[0])]
         port = self.port_at(last, "in")
@@ -254,8 +242,7 @@ class Translation(Flows):
                 continue
             placement = self.layout.placements[cell_id]
             fp = self.library[self.kl.cells[cell_id].footprint or ""]
-            pin = next(p for p in self.kl.cells[cell_id].pins if p.id == pin_id)
-            port = fp.port(pin.ports[0])
+            port = fp.port(self.chosen[(cell_id, pin_id)])
             side = rotate_side(port.side, placement.rot)
             dx, dy = edge_step(SIDE_EDGE[side])
             return (dx, dy) if direction == "out" else (-dx, -dy)
@@ -284,6 +271,14 @@ class Translation(Flows):
         out["waste"] = max(0.0, out.get("area", 0.0) - machine_cells - out["length"])
         return out
 
+    def port_index(self, cell_id: str, pin: Any) -> int:
+        """The alternative the pin's wire took, by the project's index; 0 for the default port."""
+        chosen = self.chosen.get((cell_id, kl_id(pin.id)))
+        for index, ref in enumerate(pin.alternatives):
+            if port_id(pin.direction, ref.index) == chosen:
+                return index
+        return 0
+
     def placement(self, metrics: dict[str, Any], findings: list[Finding]) -> Placement:
         blocks: list[PlacedBlock] = []
         for cell_id, placement in self.layout.placements.items():
@@ -296,7 +291,7 @@ class Translation(Flows):
                     rotation=placement.rot,
                     width=cell.width,
                     height=cell.height,
-                    ports=dict.fromkeys((p.id for p in cell.pins), 0),
+                    ports={p.id: self.port_index(cell_id, p) for p in cell.pins},
                 )
             )
         square = tuple(self.problem.params["square"])

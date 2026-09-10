@@ -1,13 +1,15 @@
-"""The wires of a framework layout as flows: the net's graph, its potential and the flow on every step.
+"""The wires of a framework layout as flows: the net's graph, its orientation and the flow on every step.
 
-A wire is a set of cells; the pack's lane facts say which pins feed it and which drain
-it. The flows follow the potential from the sources to the sinks, split where the net
-branches and merge where it joins; the translation reads them to orient every piece and
-to decide what each junction is.
+A wire is a set of segments the router laid: each runs from the tree to the pin it
+reached, so a segment ending on a source's attach cell flows the other way. The pack's
+lane facts say what each pin supplies or takes; the supply is pushed along that
+orientation, split evenly where the net branches and summed where it joins, and the
+translation reads the result to orient every piece and to decide what each junction is.
 """
 
 from fractions import Fraction
 from itertools import pairwise
+from typing import Any
 
 from kohakuefda.model.layout import Cell as XY
 from kohakuefda.physics.facts import lane_facts
@@ -37,49 +39,79 @@ class Flows:
                 out[b].add(a)
         return out
 
-    def distances(self, net_id: str, ends: list[XY]) -> dict[XY, int]:
-        """Steps along the net from each cell to the nearest of ``ends``; a cell none reaches is unmarked."""
-        graph = self.graph(net_id)
-        starts = [c for c in ends if c in graph]
-        out = dict.fromkeys(starts, 0)
-        frontier = list(starts)
-        while frontier:
-            cell = frontier.pop(0)
-            for other in graph[cell]:
-                if other not in out:
-                    out[other] = out[cell] + 1
-                    frontier.append(other)
+    def orientation(self, net_id: str) -> set[tuple[XY, XY]]:
+        """Every step of the net the way the router laid it: along each segment, and against a segment that ends on a source's attach cell no sink shares and no other segment starts from (a join, stored from the tree to the source; a lane ending where another lane leaves a source merges into it); kept per net, the layout never changes under a translation."""
+        memo = self.__dict__.setdefault("_orientation", {})
+        if net_id in memo:
+            return memo[net_id]
+        net = self.kl.nets[net_id]
+        sources = {
+            self.attach[(r.cell, r.pin)]
+            for r in net.sources
+            if (r.cell, r.pin) in self.attach
+        }
+        sinks = {
+            self.attach[(r.cell, r.pin)]
+            for r in net.sinks
+            if (r.cell, r.pin) in self.attach
+        }
+        wire = self.layout.wires.get(net_id)
+        heads = {seg.cells[0] for seg in wire.segments} if wire is not None else set()
+        out: set[tuple[XY, XY]] = set()
+        for segment in wire.segments if wire is not None else ():
+            cells = list(segment.cells)
+            joins = cells[-1] in heads and cells[-1] != cells[0]
+            tree_ward = cells[-1] in sources and cells[-1] not in sinks and not joins
+            if len(cells) > 1 and tree_ward:
+                cells.reverse()
+            out.update(pairwise(cells))
+        memo[net_id] = out
         return out
 
-    def potential(self, net_id: str) -> dict[XY, int]:
-        """Flow runs uphill: a cell's distance from the sources less its distance to the sinks."""
-        net = self.kl.nets[net_id]
-        from_source = self.distances(
-            net_id,
-            [
-                self.attach[(r.cell, r.pin)]
-                for r in net.sources
-                if (r.cell, r.pin) in self.attach
-            ],
-        )
-        to_sink = self.distances(
-            net_id,
-            [
-                self.attach[(r.cell, r.pin)]
-                for r in net.sinks
-                if (r.cell, r.pin) in self.attach
-            ],
-        )
-        far = 10**6
-        return {
-            cell: from_source.get(cell, far) - to_sink.get(cell, far)
-            for cell in self.graph(net_id)
-        }
-
     def flows(self, net_id: str) -> dict[tuple[XY, XY], Fraction]:
-        """The rate each directed step of the net carries: every lane's rate along its path from source to sink."""
+        """The rate each directed step carries: on a tree, each pin's supply pushed along the orientation, a sink taking its demand as it passes, a branch sharing what arrives evenly; elsewhere every lane's rate along its path."""
         graph = self.graph(net_id)
         net = self.kl.nets[net_id]
+        supply: dict[XY, Fraction] = {}
+        demand: dict[XY, Fraction] = {}
+        for source, sink, rate in lane_facts(net):
+            start = self.attach.get(source)
+            goal = self.attach.get(sink)
+            if start in graph:
+                supply[start] = supply.get(start, Fraction(0)) + rate
+            if goal in graph:
+                demand[goal] = demand.get(goal, Fraction(0)) + rate
+        edges = sum(len(others) for others in graph.values()) // 2
+        if not graph or edges != len(graph) - 1:
+            return self.lane_flows(graph, net)
+        directed = self.orientation(net_id)
+        ahead: dict[XY, list[XY]] = {}
+        waiting: dict[XY, int] = {}
+        for a, b in directed:
+            ahead.setdefault(a, []).append(b)
+            waiting[b] = waiting.get(b, 0) + 1
+        ready = [c for c in graph if waiting.get(c, 0) == 0]
+        carried: dict[XY, Fraction] = {}
+        out: dict[tuple[XY, XY], Fraction] = {}
+        while ready:
+            cell = ready.pop()
+            have = carried.get(cell, Fraction(0)) + supply.get(cell, Fraction(0))
+            have = max(have - demand.get(cell, Fraction(0)), Fraction(0))
+            onward = sorted(ahead.get(cell, ()))
+            for other in onward:
+                out[(cell, other)] = have / len(onward)
+                carried[other] = carried.get(other, Fraction(0)) + have / len(onward)
+                waiting[other] -= 1
+                if waiting[other] == 0:
+                    ready.append(other)
+        if len(out) != len(directed):
+            return self.lane_flows(graph, net)
+        return out
+
+    def lane_flows(
+        self, graph: dict[XY, set[XY]], net: Any
+    ) -> dict[tuple[XY, XY], Fraction]:
+        """Every lane's rate along its path from source to sink; the reading for a net that is not a tree."""
         out: dict[tuple[XY, XY], Fraction] = {}
         for source, sink, rate in lane_facts(net):
             start = self.attach.get(source)
@@ -111,19 +143,21 @@ class Flows:
     def junction(
         self, net_id: str, xy: XY
     ) -> tuple[str | None, tuple[int, int] | None, tuple[int, int] | None]:
-        """What a unit cell of the net must be by the flows meeting there: a splitter, a converger, or nothing."""
+        """What a unit cell of the net must be by the steps meeting there: a splitter, a converger, or nothing; it faces the steps that carry the most."""
         graph = self.graph(net_id)
+        directed = self.orientation(net_id)
         flows = self.flows(net_id)
         net = self.kl.nets[net_id]
-        ins = {c: flows.get((c, xy), Fraction(0)) for c in graph.get(xy, ())}
-        outs = {c: flows.get((xy, c), Fraction(0)) for c in graph.get(xy, ())}
-        came = goes = None
-        entering = [c for c, r in ins.items() if r > 0]
-        leaving = [c for c, r in outs.items() if r > 0]
-        if entering:
-            came = step_between(max(entering, key=lambda c: ins[c]), xy)
-        if leaving:
-            goes = step_between(xy, max(leaving, key=lambda c: outs[c]))
+        entering = sorted(
+            (c for c in graph.get(xy, ()) if (c, xy) in directed),
+            key=lambda c: (-flows.get((c, xy), Fraction(0)), c),
+        )
+        leaving = sorted(
+            (c for c in graph.get(xy, ()) if (xy, c) in directed),
+            key=lambda c: (-flows.get((xy, c), Fraction(0)), c),
+        )
+        came = step_between(entering[0], xy) if entering else None
+        goes = step_between(xy, leaving[0]) if leaving else None
         arrivals = len(entering)
         departures = len(leaving)
         for ref in net.sources:
@@ -147,7 +181,7 @@ class Flows:
             if unit is None
             else ("split" if unit.footprint in SPLITTERS else "merge")
         )
-        if not flows or (arrivals <= 1 and departures <= 1):
+        if not directed or (arrivals <= 1 and departures <= 1):
             return placed, came, goes
         return ("merge" if arrivals > 1 else "split"), came, goes
 
@@ -184,7 +218,7 @@ class Flows:
         net = self.kl.nets[net_id]
         junctions = self.junction_cells(net_id)
         cuts = junctions | self.bridges_of.get(net.carrier, set())
-        potential = self.potential(net_id)
+        directed = self.orientation(net_id)
         flows = self.flows(net_id)
         pieces: list[list[XY]] = []
         wire = self.layout.wires.get(net_id)
@@ -199,17 +233,13 @@ class Flows:
                         (flows.get((b, a), Fraction(0)) for a, b in pairwise(piece)),
                         Fraction(0),
                     )
-                    if flows and forward == backward == 0:
-                        continue
                     reverse = (
                         backward > forward
                         if forward != backward
-                        else potential[piece[0]] > potential[piece[-1]]
+                        else (piece[1], piece[0]) in directed
                     )
                     if reverse:
                         piece = list(reversed(piece))
-                elif flows and not self.touches_flow(piece[0], flows):
-                    continue
                 pieces.append(piece)
         for xy in sorted(junctions):
             if self.junction(net_id, xy)[0] is not None:
@@ -222,10 +252,6 @@ class Flows:
             pieces = [p for p in pieces if p is not tail and p is not head]
             pieces.append(joined)
         return pieces
-
-    @staticmethod
-    def touches_flow(cell: XY, flows: dict[tuple[XY, XY], Fraction]) -> bool:
-        return any(cell in edge and rate > 0 for edge, rate in flows.items())
 
     def travel(self, net_id: str) -> dict[XY, tuple[int, int]]:
         """The direction the flow leaves each cell by: along the pieces, and into a sink's port."""

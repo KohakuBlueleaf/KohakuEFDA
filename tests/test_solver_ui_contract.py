@@ -39,7 +39,7 @@ def test_default_layout_is_hill_climbing_on_a_time_budget():
     assert params["backend"] == "auto" and params["seed"] == 0
     assert params["max_actions"] == 0
     solver_id, options = solver_of(params)
-    assert solver_id == "climb" and options == {}
+    assert solver_id == "endfield.climb" and options == {}
     assert SOLVERS.get("hc").defaults["until_budget"] is True
     assert params["solver_options"] == LAYOUT_DEFAULTS["solver_options"] == "{}"
 
@@ -63,7 +63,7 @@ def test_ui_payload_keeps_booleans_and_explicit_solver_overrides():
         },
     )
     solver_id, options = solver_of(params)
-    assert solver_id == "anneal"
+    assert solver_id == "endfield.anneal"
     assert options["until_budget"] is False
     assert options["construction_temperature"] == 2.5
     assert options["repack_every"] == 32
@@ -180,3 +180,14 @@ def test_legacy_partial_done_frames_are_reclassified_without_rewriting_files(
     assert restored.stages["layout"].status == "incomplete"
     assert restored.stages["layout"].outcome["placed"] == 121
     assert (directory / "run.json").read_bytes() == before
+
+
+def test_the_projects_own_solvers_stand_behind_the_names() -> None:
+    solver_id, options = solver_of({"solver": "regional", "solver_options": "{}"})
+    assert solver_id == "endfield.regional" and options == {}
+    assert SOLVERS.get("regional").defaults["extent_weight"] == 0.0
+    assert SOLVERS.get("regional").defaults["lookahead"] == 1
+    _, chosen = solver_of(
+        {"solver": "regional", "solver_options": '{"extent_weight": 0.5}'}
+    )
+    assert chosen["extent_weight"] == 0.5

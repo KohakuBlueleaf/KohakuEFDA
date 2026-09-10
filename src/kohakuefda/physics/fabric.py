@@ -19,6 +19,7 @@ PIPE_PER_MIN = Fraction(120)
 BUILD = "build"
 AREA = "area"
 RING = "ring"
+ENTRY_SIDES = "NW"
 FIXED = "bus_fixed"
 NAMESPACE = "endfield"
 Rect = tuple[int, int, int, int]
@@ -50,7 +51,7 @@ def fabric(params: dict[str, Any]) -> Fabric:
             PIPE: Carrier(id=PIPE, layer=SKY, capacity=PIPE_PER_MIN),
         },
         regions=regions,
-        entries=("N", "E", "S", "W"),
+        entries=tuple(str(params.get("entry_sides", ENTRY_SIDES))),
         attrs={
             NAMESPACE: {
                 "square": [sw, sh],

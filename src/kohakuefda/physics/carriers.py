@@ -23,6 +23,9 @@ from kohakulayout.physics import (
     Occupant,
 )
 
+BENT_CROSSINGS: bool = False
+"""Whether a lane may start on a cell where the crossed belt or pipe bends; off, as JCT-04 makes a bridge two straight paths."""
+
 
 class EndfieldCarriers(DefaultCarriers):
     def may_share(self, a: Occupant, b: Occupant) -> bool:
@@ -35,7 +38,7 @@ class EndfieldCarriers(DefaultCarriers):
 
     def crossing(self, a: str, b: str) -> CrossingRule:
         if a == b and a in CARRIERS:
-            return CrossingRule(mode="unit", unit=UNITS[BRIDGE[a]])
+            return CrossingRule(mode="unit", unit=UNITS[BRIDGE[a]], bent=BENT_CROSSINGS)
         return CrossingRule(mode="forbidden")
 
     def junction(self, carrier: str) -> JunctionRule:

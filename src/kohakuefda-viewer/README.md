@@ -50,8 +50,7 @@ Saved-run parameters still seed existing drafts and are not rewritten by a reset
 The stage inspector reads solver defaults, parameter types and parallel capability
 from `/api/solvers`; shared backend/budget settings come from `/api/params`.
 Time/actions, backend, seed and policy stop controls are always visible. Advanced
-sections include construction insertion lookahead and optional frontier/local-repair
-controls, as well as every remaining selected-solver field, serialized as typed values
+sections include every selected-solver field, serialized as typed values
 in `solver_options`; the optional JSON editor edits those same overrides. Solver
 switching preserves separate drafts. Time presets explicitly enable budget-driven
 search and remove action caps, but do not silently enable a zero-step phase.

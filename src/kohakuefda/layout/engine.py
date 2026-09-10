@@ -2,8 +2,18 @@
 
 The studio and the CLI keep their flat settings (``solver``, ``seed``, ``seconds``,
 ``max_actions``, ``backend``, ``solver_options``); this module maps them onto a framework
-solver id, its params and a budget. The catalogue the studio lists is the framework's,
-described from each solver's declared params under the project's legacy names.
+solver id, its params and a budget. The project's own solvers (``kohakuefda.solvers``: the
+regional construction and the local searches over it) stand behind the names
+``regional``, ``hc`` and ``sa``; ``baseline`` and ``inorder`` are the framework's.
+``ROUTER_COSTS`` carries the routing costs on a ten-times scale: a step 10, a turn 5, a
+bridge 40, a displaced wire's cell 20, a pylon's cell nothing (a lane displaces it and the
+cover is redone), and the detour rule that a path may cost the span across stretched by
+2.5 plus 16 cells. ``ROUTER_NEGOTIATION`` keeps placement-time routing: another net's wire
+is a wall to a lane, a route never rips a wire, a placement whose lanes find no path is
+refused at once, and only a footprint displaces wires, which re-route; its lanes are laid
+as a bundle with costs summed as single floats on the same scale. The catalogue the
+studio lists is the framework's, described from each solver's declared params under the
+project's legacy names.
 """
 
 import json
@@ -11,16 +21,19 @@ import math
 from typing import Any
 
 from kohakuefda.layout.config import Catalog, ConfigurationError, Entry, settings_of
+from kohakuefda.layout.router import EndfieldRouter
+from kohakuefda.solvers import EndfieldAnneal, EndfieldClimb, EndfieldRegional
 from kohakulayout.engine import Budget
 from kohakulayout.errors import SolverError
 from kohakulayout.solvers import get, known
 from kohakulayout.solvers.params import resolve
+from kohakulayout.state.router.protocol import Costs
 
 SOLVER_NAMES: dict[str, str] = {
-    "hc": "climb",
-    "sa": "anneal",
+    "hc": EndfieldClimb.id,
+    "sa": EndfieldAnneal.id,
     "baseline": "baseline",
-    "regional": "regional",
+    "regional": EndfieldRegional.id,
     "inorder": "inorder",
 }
 DESCRIPTIONS: dict[str, str] = {
@@ -43,6 +56,21 @@ LAYOUT_DEFAULTS: dict[str, Any] = {
 }
 LayoutError = ConfigurationError
 DEFAULT_UNITS = 20_000
+ROUTER_COSTS: dict[str, float] = {
+    "step": 10,
+    "turn": 5,
+    "crossing": 40,
+    "ripup": 20,
+    "displace": 0,
+    "detour": 25.0,
+    "slack": 160.0,
+}
+ROUTER_NEGOTIATION: dict[str, Any] = {
+    "max_rips": 0,
+    "lanes": True,
+    "wire_model": "lanes",
+    "float_scale": 10,
+}
 
 
 def framework_id(name: str) -> str:
@@ -134,6 +162,13 @@ def solver_of(params: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     return solver_id, typed
 
 
+def router_of() -> EndfieldRouter:
+    """The project's router with its lane order, wire model and costs."""
+    router = EndfieldRouter(**ROUTER_NEGOTIATION)
+    router.costs = Costs(**ROUTER_COSTS)
+    return router
+
+
 def budget_of(params: dict[str, Any]) -> Budget:
     """The framework budget: seconds and actions as given; neither given means ``DEFAULT_UNITS`` actions."""
     seconds = float(params.get("seconds") or 0) or None
@@ -182,12 +217,14 @@ __all__ = [
     "DESCRIPTIONS",
     "LAYOUT_DEFAULTS",
     "LIMITS",
+    "ROUTER_COSTS",
     "SOLVERS",
     "SOLVER_NAMES",
     "LayoutError",
     "budget_of",
     "catalogue",
     "framework_id",
+    "router_of",
     "settings_of",
     "solver_of",
     "solver_options",

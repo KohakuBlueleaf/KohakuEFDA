@@ -128,9 +128,16 @@ def assign(
 
 
 def lanes_of(net: NetSpec) -> list[tuple[PinKey, PinKey, Fraction]]:
-    """The lanes of one project net: best-fit pairs of a source and a sink, belts and pipes alike."""
+    """The lanes of one project net: a pipe net with several sources and several sinks is a trunk from the fullest source to the fullest sink, the other sources joining that sink and that source branching to the other sinks; every other net is best-fit pairs."""
     sources = [((r.cell_id, r.pin_id), r.rate) for r in net.sources if r.rate > 0]
     sinks = [((r.cell_id, r.pin_id), r.rate) for r in net.sinks if r.rate > 0]
+    if net.kind == "pipe" and len(sources) > 1 and len(sinks) > 1:
+        root, root_rate = max(sources, key=lambda s: s[1])
+        main, _ = max(sinks, key=lambda s: s[1])
+        lanes = [(root, main, root_rate)]
+        lanes += [(key, main, rate) for key, rate in sources if key != root]
+        lanes += [(root, key, rate) for key, rate in sinks if key != main]
+        return lanes
     return assign(sources, sinks)
 
 
@@ -176,6 +183,11 @@ def nets_of(netlist: ProjectNetlist) -> dict[str, Net]:
                 if ref not in sinks:
                     sinks.append(ref)
             net_id = f"{spec.id}_{index}"
+            load: dict[PinRef, Fraction] = {}
+            for source, _, rate in group:
+                ref = PinRef(cell=source[0], pin=kl_id(source[1]))
+                load[ref] = load.get(ref, Fraction(0)) + rate
+            sources.sort(key=lambda ref: -load[ref])
             out[net_id] = Net(
                 id=net_id,
                 kind="lane",

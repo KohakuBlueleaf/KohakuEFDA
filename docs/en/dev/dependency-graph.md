@@ -15,10 +15,10 @@ cli / serve / scripts
 layout stages / pipeline (composition; the layout stage runs KohakuLayout)
        |                  \
        v                   v
-synth (problem, layout, frames)      kohakulayout (ir, physics, engine, pipeline)
-       |                                     ^
-       v                                     |
-physics (the Endfield pack) -----------------+
+synth (problem, layout, frames)      kohakulayout (ir, physics, engine, pipeline, solvers)
+       |                                     ^                      ^
+       v                                     |                      |
+physics (the Endfield pack) -----------------+    solvers (the project's own, on the protocol)
        |
        v
 layout/board, chunk, geometry, connect, coverage, depot_via
@@ -35,6 +35,9 @@ verify / flow (the rule deck and the evaluator over a project layout)
 - `physics` is the Endfield pack: it imports `kohakulayout` (`ir`, `physics`) and nothing
   else of the project. It reads the `endfield` namespace of `attrs`; the framework never
   reads it.
+- `solvers` is KohakuEFDA-kl's own construction and search on the framework's solver
+  protocol; it imports `kohakulayout.solvers` and nothing else of the project, and the
+  stage's name table is its only importer.
 - `synth` turns the project netlist into a framework problem and a framework layout back
   into the project's placement and layout; it imports `model`, `layout/board`,
   `layout/fragments`, `layout/place` and the pack.

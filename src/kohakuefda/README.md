@@ -16,6 +16,7 @@ CLI and the viewer are thin consumers. Dependency direction is one-way:
 | `plan/`   | Recipe selection, LP/MILP planner, cellization, netlist                     |
 | `physics/` | The Endfield pack: what the grid means, stated to KohakuLayout through its hooks |
 | `synth/`  | The project netlist as a KohakuLayout problem, and the framework layout back    |
+| `solvers/` | KohakuEFDA-kl's own solvers on the framework's protocol: the regional construction and the local searches over it |
 | `layout/` | Basement geometry, the stage over KohakuLayout, its settings and solver names, chunking |
 | `route/`  | The occupancy grid the verify rules read                                      |
 | `verify/` | Rule checker over plans and layouts, report model                           |

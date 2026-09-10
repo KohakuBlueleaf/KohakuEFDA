@@ -32,6 +32,7 @@ PART_KIND = "depot"
 ZONE_KIND = "zone"
 ZONE_REACH = 5
 BRICK_SEAT = 2
+BRICK_SEAT_MIDDLE: bool = True
 BUS_ROOM = 2
 SEAT = "seat"
 CLUSTER = "cluster"
@@ -136,13 +137,13 @@ def placed_members(
 
 
 def edge_anchors(world: Any, cell: Cell) -> Iterable[Anchor]:
-    """Border cells of the entry area with the pin's port facing inward."""
+    """Border cells of the entry area on the fabric's entry sides, the pin's port facing inward."""
     fp = world.footprint_of(cell.id)
     side0 = port_side(world, cell)
     if fp is None or side0 is None:
         return
     x0, y0, x1, y1 = entry_rect(world.fabric)
-    for border in SIDES:
+    for border in world.fabric.entries:
         rot = turn(side0, OPPOSITE[border])
         if rot not in fp.rotations:
             continue
@@ -228,12 +229,12 @@ def bus_anchors(world: Any, cell: Cell, area: Rect) -> Iterable[Anchor]:
 def seated(
     world: Any, cell: Cell, placement: Placement, part_cells: set[tuple[int, int]]
 ) -> bool:
-    """A brick seats when at least two back cells, the middle among them, touch bus cells (DEP-18)."""
+    """A brick seats when at least ``BRICK_SEAT`` back cells touch bus cells, the middle among them when ``BRICK_SEAT_MIDDLE`` (DEP-18)."""
     backs = back_cells(world, cell, placement)
     if not backs:
         return False
     hits = [c in part_cells for c in backs]
-    return sum(hits) >= BRICK_SEAT and hits[len(hits) // 2]
+    return sum(hits) >= BRICK_SEAT and (hits[len(hits) // 2] or not BRICK_SEAT_MIDDLE)
 
 
 def zone_anchors(world: Any, cell: Cell, area: Rect) -> Iterable[Anchor]:
@@ -297,31 +298,53 @@ def approach_fault(
     closed: tuple,
     wired: frozenset[str],
 ) -> str | None:
-    """Every wired port's attach cell lies open and keeps a neighbour its wire can arrive through."""
+    """Every wired pin keeps a port whose attach cell lies open with a neighbour its wire can arrive through; a routed pin keeps the port in use."""
     fp = world.footprint_of(cell.id)
     if fp is None or not wired:
         return None
     fixed, ring = closed
-    attach: dict[str, tuple[tuple[int, int], str]] = {}
+    options: dict[str, list[tuple[tuple[int, int], str]]] = {}
     for pin in world.netlist.pins_of(cell.id):
-        port = fp.port(pin.ports[0]) if pin.ports and pin.id in wired else None
-        if port is None:
+        if not pin.ports or pin.id not in wired:
             continue
-        ax, ay = attach_cell(fp.width, fp.height, port.side, port.offset, placement.rot)
-        attach[pin.id] = ((placement.x + ax, placement.y + ay), pin.carrier)
-    taken = {xy for xy, _ in attach.values()}
-    for pin_id, ((x, y), carrier) in attach.items():
-        shut = fixed if carrier == PIPE else fixed | ring
-        if not world.in_grid((x, y)) or (x, y) in shut:
-            return f"port {pin_id} attaches on a closed cell"
-        for xy in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
-            if rect[0] <= xy[0] < rect[2] and rect[1] <= xy[1] < rect[3]:
+        routed = world.routed_port(cell.id, pin.id)
+        for port_id in (routed,) if routed is not None else pin.ports:
+            port = fp.port(port_id)
+            if port is None:
                 continue
-            if world.in_grid(xy) and xy not in taken and xy not in shut:
-                break
-        else:
-            return f"port {pin_id} keeps no cell its wire can arrive through"
+            ax, ay = attach_cell(
+                fp.width, fp.height, port.side, port.offset, placement.rot
+            )
+            options.setdefault(pin.id, []).append(
+                ((placement.x + ax, placement.y + ay), pin.carrier)
+            )
+    taken = {xy for found in options.values() for xy, _ in found}
+    shut_belt = fixed | ring
+    for pin_id, found in options.items():
+        faults = [
+            _approach_fault(
+                world, rect, fixed if carrier == PIPE else shut_belt, xy, taken
+            )
+            for xy, carrier in found
+        ]
+        if all(fault is not None for fault in faults):
+            return f"port {pin_id} {faults[0]}"
     return None
+
+
+def _approach_fault(
+    world: Any, rect: Rect, shut: frozenset, xy: tuple[int, int], taken: set
+) -> str | None:
+    """Why an attach cell cannot receive a wire: closed, or without a free neighbour outside the footprint."""
+    x, y = xy
+    if not world.in_grid(xy) or xy in shut:
+        return "attaches on a closed cell"
+    for near in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+        if rect[0] <= near[0] < rect[2] and rect[1] <= near[1] < rect[3]:
+            continue
+        if world.in_grid(near) and near not in taken and near not in shut:
+            return None
+    return "keeps no cell its wire can arrive through"
 
 
 class EndfieldBoundaries(DefaultBoundaries):

@@ -66,7 +66,12 @@ WIDE = Footprint(
 )
 ZONE_UNIT = Footprint(id="vaporizer_1", width=3, height=3)
 PART = Footprint(id="log_hongs_bus", width=4, height=8)
-PARAMS = {"square": [12, 10], "ring": 2, "slots": ["3:2:N", "6:2:N"]}
+PARAMS = {
+    "square": [12, 10],
+    "ring": 2,
+    "slots": ["3:2:N", "6:2:N"],
+    "entry_sides": "NEW",
+}
 
 
 def toy_problem() -> Problem:
@@ -247,6 +252,8 @@ def test_slot_and_edge_anchors() -> None:
     assert {a.rot for a in edges if a.x == 2 and 2 < a.y < 11} == {0}
     assert {a.rot for a in edges if a.x == 13 and 2 < a.y < 11} == {180}
     assert {a.rot for a in edges if a.y == 2 and 2 < a.x < 13} == {90}
+    default = EndfieldPhysics().fabric({"square": [12, 10], "ring": 2})
+    assert default.entries == ("N", "W")
 
 
 def test_legal_refuses_what_the_game_refuses() -> None:
@@ -350,3 +357,89 @@ def test_a_framework_solver_is_a_legal_client_on_the_pack(solver: str) -> None:
     assert wuling_toy().check() == []
     report = level3(solver, {"endfield": wuling_toy}, params=params, units=4000)
     assert report.failures == [], report.failures
+
+
+def test_a_run_ends_at_the_nets_own_unit(monkeypatch: pytest.MonkeyPatch) -> None:
+    from kohakuefda.physics import rules
+    from kohakulayout.ir import Layout as KlLayout
+    from kohakulayout.ir import Segment, Unit, Wire
+
+    monkeypatch.setitem(rules.RUN_LIMIT, BELT, 3)
+    cells = tuple((x, 0) for x in range(6))
+    splitter = Unit(
+        id="u1",
+        kind="log_splitter",
+        footprint="log_splitter",
+        x=3,
+        y=0,
+        rot=0,
+        owner="net:n",
+    )
+    cut = KlLayout(
+        wires={
+            "n": Wire(
+                net="n",
+                segments=(Segment(carrier=BELT, layer="ground", cells=cells),),
+                units=("u1",),
+            )
+        },
+        units={"u1": splitter},
+    )
+    whole = KlLayout(
+        wires={
+            "n": Wire(
+                net="n", segments=(Segment(carrier=BELT, layer="ground", cells=cells),)
+            )
+        }
+    )
+    assert list(rules.run_length(None, cut, {})) == []
+    found = list(rules.run_length(None, whole, {}))
+    assert len(found) == 1 and "run of 6" in found[0].message
+
+
+def test_a_pin_with_a_choice_of_ports_keeps_one_approach() -> None:
+    """A pin that may use a port on either side is legal while one of them keeps an approach."""
+    base = toy_problem()
+    two_sided = Footprint(
+        id="two_sided_1",
+        width=3,
+        height=3,
+        ports=(
+            Port(id="out0", side="N", offset=1, direction="out", carrier=BELT),
+            Port(id="out1", side="S", offset=1, direction="out", carrier=BELT),
+        ),
+    )
+    cell = Cell(
+        id="a",
+        kind="recipe",
+        footprint=two_sided.id,
+        pins=(Pin(id="out", direction="out", carrier=BELT, ports=("out0", "out1")),),
+    )
+    net = Net(
+        id="p",
+        carrier=BELT,
+        rate=Fraction(30),
+        sources=(PinRef(cell="a", pin="out"),),
+        sinks=(PinRef(cell="m", pin="in.ore.0"),),
+    )
+    netlist = base.netlist.model_copy(
+        update={
+            "library": {**base.netlist.library, two_sided.id: two_sided},
+            "cells": {**base.netlist.cells, "a": cell},
+            "nets": {**base.netlist.nets, "p": net},
+        }
+    )
+    world = World(
+        base.model_copy(update={"netlist": netlist}), EndfieldPhysics(), router=None
+    )
+    boundaries = world.physics.boundaries
+    assert boundaries.legal(world, Placement(cell="a", x=4, y=2, rot=0)) is None
+    bound = cell.model_copy(
+        update={
+            "pins": (Pin(id="out", direction="out", carrier=BELT, ports=("out0",)),)
+        }
+    )
+    world.netlist = netlist.model_copy(update={"cells": {**netlist.cells, "a": bound}})
+    assert (
+        "closed" in boundaries.legal(world, Placement(cell="a", x=4, y=2, rot=0)).detail
+    )
