@@ -7,7 +7,7 @@ from typer.testing import CliRunner
 
 from kohakulayout.cli import app
 from kohakulayout.cli.io import load_all
-from kohakulayout.engine import Context
+from kohakulayout.engine import Budget, Context
 from kohakulayout.ir import Layout, Netlist, parse_text, write
 from kohakulayout.solvers import get
 from kohakulayout.state import StateCheck
@@ -55,9 +55,14 @@ class TestGatesRouting:
         digests = set()
         for _ in range(2):
             ctx = Context(
-                problem(netlist, width=40, height=20), seed=3, router="default"
+                problem(netlist, width=40, height=20),
+                seed=3,
+                router="default",
+                budget=Budget(units=3000),
             )
-            assert get("inorder").run(ctx) == "complete"
+            check = StateCheck().mount(ctx.world)
+            assert get("baseline").run(ctx) == "complete"
+            assert check.failures == []
             digests.add(ctx.world.digest())
         assert len(digests) == 1
 

@@ -11,6 +11,8 @@ pub struct Grid {
     pub layers: Vec<String>,
     grid: BTreeMap<String, BTreeMap<XY, Vec<String>>>,
     index: BTreeMap<String, BTreeMap<String, BTreeSet<XY>>>,
+    /// Counts every mutation, so a search may reuse what it classified while nothing changed.
+    pub generation: u64,
 }
 
 impl Grid {
@@ -19,10 +21,11 @@ impl Grid {
             .iter()
             .map(|l| (l.clone(), BTreeMap::new()))
             .collect();
-        Grid { width, height, layers, grid, index: BTreeMap::new() }
+        Grid { width, height, layers, grid, index: BTreeMap::new(), generation: 0 }
     }
 
     pub fn occupy(&mut self, layer: &str, cells: &[XY], holder: &str) {
+        self.generation += 1;
         let grid = self.grid.entry(layer.to_string()).or_default();
         let mine = self
             .index
@@ -41,6 +44,7 @@ impl Grid {
     }
 
     pub fn free(&mut self, layer: &str, cells: &[XY], holder: &str) {
+        self.generation += 1;
         let grid = self.grid.entry(layer.to_string()).or_default();
         for xy in cells {
             if let Some(held) = grid.get_mut(xy) {
@@ -71,10 +75,15 @@ impl Grid {
     }
 
     pub fn clear(&mut self) {
+        self.generation += 1;
         for grid in self.grid.values_mut() {
             grid.clear();
         }
         self.index.clear();
+    }
+
+    pub fn layer_map(&self, layer: &str) -> Option<&BTreeMap<XY, Vec<String>>> {
+        self.grid.get(layer)
     }
 
     pub fn holders_at(&self, layer: &str, xy: XY) -> Vec<String> {

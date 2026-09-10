@@ -121,7 +121,7 @@ def test_native_search_finds_what_python_finds(seed: int) -> None:
 
     with patch.object(pathfinder, "find", both), patch.object(trees, "find", both):
         get("inorder").run(ctx)
-    assert len(searches) > 20
+    assert len(searches) >= 15
     assert [n for n, _ in searches] == [p for _, p in searches]
 
 

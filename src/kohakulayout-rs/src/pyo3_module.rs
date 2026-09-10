@@ -2,7 +2,10 @@
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
+use std::sync::{Arc, Mutex};
+
+use crate::kernel::astar::{Classified, Prepared};
 
 use crate::kernel::grid::Grid;
 use crate::text;
@@ -43,16 +46,27 @@ fn digest(level_json: &str) -> PyResult<String> {
     crate::text::levels::digest_json(level_json).map_err(err)
 }
 
+/// The layer classified for one rules text at one grid generation.
+type ClassifiedCache = Option<(String, String, u64, Arc<Classified>)>;
+
 #[pyclass(name = "Grid")]
 struct PyGrid {
     inner: Grid,
+    rules: Mutex<Option<(String, Arc<Prepared>)>>,
+    classified: Mutex<ClassifiedCache>,
+    walls: Mutex<HashMap<String, Vec<(i64, i64)>>>,
 }
 
 #[pymethods]
 impl PyGrid {
     #[new]
     fn new(width: i64, height: i64, layers: Vec<String>) -> PyGrid {
-        PyGrid { inner: Grid::new(width, height, layers) }
+        PyGrid {
+            inner: Grid::new(width, height, layers),
+            rules: Mutex::new(None),
+            classified: Mutex::new(None),
+            walls: Mutex::new(HashMap::new()),
+        }
     }
 
     #[getter]
@@ -130,6 +144,23 @@ impl PyGrid {
     }
 
     /// A* from any source to any target under the rules JSON; the found path as JSON, or None.
+    fn has_walls(&self, key: &str) -> PyResult<bool> {
+        Ok(self
+            .walls
+            .lock()
+            .map_err(|_| PyValueError::new_err("walls cache poisoned"))?
+            .contains_key(key))
+    }
+
+    fn set_walls(&self, key: &str, cells: Vec<(i64, i64)>) -> PyResult<()> {
+        self.walls
+            .lock()
+            .map_err(|_| PyValueError::new_err("walls cache poisoned"))?
+            .insert(key.to_string(), cells);
+        Ok(())
+    }
+
+    #[pyo3(signature = (layer, sources, targets, rules, avoid, own=Vec::new()))]
     fn astar(
         &self,
         layer: &str,
@@ -137,12 +168,69 @@ impl PyGrid {
         targets: Vec<(i64, i64)>,
         rules: &str,
         avoid: Vec<(i64, i64)>,
+        own: Vec<(i64, i64, u8)>,
     ) -> PyResult<Option<String>> {
-        let rules: crate::kernel::astar::Rules = serde_json::from_str(rules).map_err(err)?;
-        Ok(
-            crate::kernel::astar::find(&self.inner, layer, &sources, &targets, &avoid, &rules)
-                .map(|f| serde_json::to_string(&f).unwrap()),
+        let prepared = {
+            let mut cache = self
+                .rules
+                .lock()
+                .map_err(|_| PyValueError::new_err("rules cache poisoned"))?;
+            match cache.as_ref() {
+                Some((text, prepared)) if text == rules => prepared.clone(),
+                _ => {
+                    let parsed: crate::kernel::astar::Rules =
+                        serde_json::from_str(rules).map_err(err)?;
+                    let registered = self
+                        .walls
+                        .lock()
+                        .map_err(|_| PyValueError::new_err("walls cache poisoned"))?
+                        .get(&parsed.walls_key)
+                        .cloned()
+                        .unwrap_or_default();
+                    let prepared = Arc::new(Prepared::new(
+                        parsed,
+                        self.inner.width,
+                        self.inner.height,
+                        &registered,
+                    ));
+                    *cache = Some((rules.to_string(), prepared.clone()));
+                    prepared
+                }
+            }
+        };
+        let classified = {
+            let mut cache = self
+                .classified
+                .lock()
+                .map_err(|_| PyValueError::new_err("classification cache poisoned"))?;
+            let generation = self.inner.generation;
+            match cache.as_ref() {
+                Some((text, cached_layer, cached_generation, cells))
+                    if text == rules
+                        && cached_layer == layer
+                        && *cached_generation == generation =>
+                {
+                    cells.clone()
+                }
+                _ => {
+                    let cells =
+                        Arc::new(crate::kernel::astar::classify(&self.inner, layer, &prepared));
+                    *cache =
+                        Some((rules.to_string(), layer.to_string(), generation, cells.clone()));
+                    cells
+                }
+            }
+        };
+        Ok(crate::kernel::astar::find(
+            &self.inner,
+            &sources,
+            &targets,
+            &avoid,
+            &own,
+            &prepared,
+            &classified,
         )
+        .map(|f| serde_json::to_string(&f).unwrap()))
     }
 }
 

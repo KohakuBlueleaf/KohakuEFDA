@@ -69,12 +69,13 @@ def rust_astar(
     targets: list,
     rules: Any,
     avoid: list | None = None,
+    own: list | None = None,
 ) -> str | None:
     """The native path search on a native grid: the found path as JSON, ``none``, or None to use Python."""
     if not native_wanted() or not hasattr(grid, "astar"):
         return None
     try:
-        answer = grid.astar(layer, sources, targets, rules(), avoid or [])
+        answer = grid.astar(layer, sources, targets, rules(), avoid or [], own or [])
     except Exception:  # noqa: BLE001
         return None
     return "none" if answer is None else answer
