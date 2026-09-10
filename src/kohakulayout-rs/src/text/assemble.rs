@@ -419,16 +419,36 @@ fn derive_macros(netlist: Netlist, parent: Option<&Netlist>) -> Result<Netlist> 
 }
 
 /// The attach cell of a placed pin's first allowed port; Python's `Layout.attach`.
-pub fn attach(layout: &Layout, netlist: &Netlist, r: &PinRef) -> Option<XY> {
+pub fn attach(layout: &Layout, netlist: &Netlist, r: &PinRef, port_id: Option<&str>) -> Option<XY> {
     let placement = layout.placements.get(&r.cell)?;
     let fp = netlist.footprint_for(&r.cell)?;
     let pin = netlist.pin(r)?;
-    let port = fp.port(pin.ports.first()?)?;
+    let chosen = match port_id {
+        Some(id) if pin.ports.iter().any(|p| p == id) => id,
+        _ => pin.ports.first()?,
+    };
+    let port = fp.port(chosen)?;
     let (ax, ay) = attach_cell(fp.width, fp.height, &port.side, port.offset, placement.rot);
     Some((placement.x + ax, placement.y + ay))
 }
 
-fn endpoint(item: &End, netlist: Option<&Netlist>, partial: &Layout) -> Result<XY> {
+fn ports_of(opts: &Opts) -> BTreeMap<String, String> {
+    as_list(opts.get("ports"))
+        .iter()
+        .map(|item| {
+            let text = as_text(item);
+            let (r, port) = text.split_once(':').unwrap_or((text.as_str(), ""));
+            (r.to_string(), port.to_string())
+        })
+        .collect()
+}
+
+fn endpoint(
+    item: &End,
+    netlist: Option<&Netlist>,
+    partial: &Layout,
+    ports: &BTreeMap<String, String>,
+) -> Result<XY> {
     match item {
         End::Cell(xy) => Ok(*xy),
         End::Pin(text) => {
@@ -439,7 +459,7 @@ fn endpoint(item: &End, netlist: Option<&Netlist>, partial: &Layout) -> Result<X
             };
             let r = PinRef::parse(text)
                 .ok_or_else(|| Error::Text(format!("wire endpoint {text}: not a pin reference")))?;
-            attach(partial, netlist, &r).ok_or_else(|| {
+            attach(partial, netlist, &r, ports.get(text).map(String::as_str)).ok_or_else(|| {
                 Error::Text(format!(
                     "wire endpoint {text}: the cell is not placed or the pin is unknown"
                 ))
@@ -500,10 +520,11 @@ fn layout(stmts: &[Stmt], context: &Levels, _relative: bool) -> Result<Layout> {
             return Err(Error::Text(format!("wire {net}: carrier and layer are unknown; give carrier= and layer= or the problem")));
         }
         let mut out_segments = Vec::new();
+        let ports = ports_of(opts);
         for seg in segments {
             let cells = match seg {
                 Seg::Cells { cells, end } => {
-                    let end = endpoint(end, netlist, &partial)?;
+                    let end = endpoint(end, netlist, &partial, &ports)?;
                     let mut cells = cells.clone();
                     if *cells.last().unwrap() != end {
                         cells.push(end);
@@ -511,8 +532,8 @@ fn layout(stmts: &[Stmt], context: &Levels, _relative: bool) -> Result<Layout> {
                     cells
                 }
                 Seg::Moves { start, moves, end } => {
-                    let end = endpoint(end, netlist, &partial)?;
-                    let start = endpoint(start, netlist, &partial)?;
+                    let end = endpoint(end, netlist, &partial, &ports)?;
+                    let start = endpoint(start, netlist, &partial, &ports)?;
                     let steps: Vec<Step> = moves.clone();
                     let cells = cells_from_moves(start, &steps).map_err(Error::Text)?;
                     if *cells.last().unwrap() != end {
@@ -535,6 +556,7 @@ fn layout(stmts: &[Stmt], context: &Levels, _relative: bool) -> Result<Layout> {
                 net: net.clone(),
                 segments: out_segments,
                 units: as_list(opts.get("units")).iter().map(as_text).collect(),
+                ports,
             },
         );
     }

@@ -40,6 +40,11 @@ class Wire(Model):
     net: str
     segments: tuple[Segment, ...] = ()
     units: tuple[str, ...] = ()
+    ports: dict[str, str] = {}
+
+    def port_of(self, ref: Any) -> str | None:
+        """The port this wire uses at a pin, recorded for every pin that may use more than one."""
+        return self.ports.get(str(ref))
 
     def cells(self) -> frozenset[XY]:
         out: set[XY] = set()
@@ -138,14 +143,14 @@ class Layout(Level):
     def placed(self, cell: str) -> Placement | None:
         return self.placements.get(cell)
 
-    def attach(self, netlist: Any, ref: Any) -> XY | None:
-        """The attach cell of a placed pin's first allowed port, or None when unplaced."""
+    def attach(self, netlist: Any, ref: Any, port_id: str | None = None) -> XY | None:
+        """The attach cell of a placed pin through ``port_id``, else its first allowed port; None when unplaced."""
         placement = self.placements.get(ref.cell)
         fp = netlist.footprint_for(ref.cell)
         pin = netlist.pin(ref)
         if placement is None or fp is None or pin is None or not pin.ports:
             return None
-        port = fp.port(pin.ports[0])
+        port = fp.port(port_id if port_id in pin.ports else pin.ports[0])
         if port is None:
             return None
         ax, ay = attach_cell(fp.width, fp.height, port.side, port.offset, placement.rot)
@@ -209,7 +214,12 @@ class Layout(Level):
                         break
             cells = wire.cells()
             for ref in net.pins():
-                attach = self.attach(flat_netlist, ref)
+                chosen = wire.port_of(ref)
+                pin = flat_netlist.pin(ref)
+                if chosen is not None and (pin is None or chosen not in pin.ports):
+                    problems.append(f"wire {key}: {ref} may not use port {chosen!r}")
+                    continue
+                attach = self.attach(flat_netlist, ref, chosen)
                 if attach is not None and attach not in cells:
                     problems.append(f"wire {key}: does not reach {ref} at {attach}")
         for key, unit in self.units.items():
@@ -277,6 +287,7 @@ class Layout(Level):
                     net=prefix + wire_key,
                     segments=segments,
                     units=tuple(prefix + u for u in wire.units),
+                    ports={prefix + k: v for k, v in wire.ports.items()},
                 )
             for unit_key, unit in macro.layout.units.items():
                 rx, ry = rotate_point(unit.x, unit.y, width, height, instance.rot)

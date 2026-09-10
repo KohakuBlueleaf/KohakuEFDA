@@ -1,0 +1,20 @@
+kl 1
+# A sink whose pin may use either of two ports; the wire takes the second and says so.
+physics gates@1
+fabric 12x5 layers=ground,overhead entries=W,E
+carrier wire ground
+carrier clk overhead
+lib IN   1x1 { y out wire E0 }
+lib SINK 1x3 { p0 in wire W0 ; p1 in wire W2 }
+lib BLOCK 1x1 { }
+cell b IN
+cell z SINK
+cell k BLOCK
+pin z.a in wire ports=p0|p1
+net n wire : b.y -> z.a
+
+layout
+place b 0,2 r0
+place k 7,1 r0
+place z 8,1 r0
+wire n ports=z.a:p1 : b.y E5 S1 E1 -> z.a

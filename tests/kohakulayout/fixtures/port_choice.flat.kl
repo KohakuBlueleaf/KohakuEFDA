@@ -1,0 +1,14 @@
+kl 1
+physics gates@1
+fabric 12x5 layers=ground,overhead entries=W,E
+region build all
+carrier clk overhead
+carrier wire ground
+lib BLOCK 1x1 { }
+lib IN 1x1 { y out wire E0 }
+lib SINK 1x3 { p0 in wire W0 ; p1 in wire W2 }
+cell b IN
+cell k BLOCK
+cell z SINK
+pin z.a in wire ports=p0|p1
+net n wire : b.y -> z.a

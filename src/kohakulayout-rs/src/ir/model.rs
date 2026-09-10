@@ -303,6 +303,15 @@ pub struct Wire {
     pub segments: Vec<Segment>,
     #[serde(default)]
     pub units: Vec<String>,
+    #[serde(default)]
+    pub ports: BTreeMap<String, String>,
+}
+
+impl Wire {
+    /// The port this wire uses at a pin, recorded for every pin that may use more than one.
+    pub fn port_of(&self, r: &PinRef) -> Option<&str> {
+        self.ports.get(&r.text()).map(String::as_str)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

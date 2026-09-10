@@ -224,11 +224,13 @@ def _wire_line(wire: Wire, layout: Layout, netlist: Netlist | None) -> str:
             parts += [_opt("carrier", first.carrier), _opt("layer", first.layer)]
     else:
         for ref in net.sources + net.sinks:
-            xy = layout.attach(netlist, ref)
+            xy = layout.attach(netlist, ref, wire.port_of(ref))
             if xy is not None and xy not in attach:
                 attach[xy] = ref
     if wire.units:
         parts.append(_opt("units", list(wire.units)))
+    if wire.ports:
+        parts.append(_opt("ports", [f"{k}:{v}" for k, v in sorted(wire.ports.items())]))
     segments = []
     for segment in wire.segments:
         cells = segment.cells

@@ -313,7 +313,7 @@ fn wire_line(wire: &Wire, layout: &Layout, netlist: Option<&Netlist>) -> String 
     match (net, netlist) {
         (Some(net), Some(netlist)) => {
             for r in net.sources.iter().chain(net.sinks.iter()) {
-                if let Some(xy) = attach(layout, netlist, r) {
+                if let Some(xy) = attach(layout, netlist, r, wire.port_of(r)) {
                     pins.entry(xy).or_insert_with(|| r.clone());
                 }
             }
@@ -327,6 +327,10 @@ fn wire_line(wire: &Wire, layout: &Layout, netlist: Option<&Netlist>) -> String 
     }
     if !wire.units.is_empty() {
         parts.push(opt_list("units", &wire.units));
+    }
+    if !wire.ports.is_empty() {
+        let items: Vec<String> = wire.ports.iter().map(|(k, v)| format!("{k}:{v}")).collect();
+        parts.push(opt_list("ports", &items));
     }
     let mut segments = Vec::new();
     for segment in &wire.segments {

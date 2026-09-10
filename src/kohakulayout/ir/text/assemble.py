@@ -324,8 +324,17 @@ def _derive_macros(netlist: Netlist, parent: Netlist | None) -> Netlist:
     return netlist.model_copy(update={"macros": macros})
 
 
+def _ports(opts: dict) -> dict[str, str]:
+    """The ``ports`` option: ``cell.pin:port`` items, the port a wire uses at each pin that may use several."""
+    out: dict[str, str] = {}
+    for item in _as_tuple(opts.get("ports")):
+        ref, _, port = str(item).partition(":")
+        out[ref] = port
+    return out
+
+
 def _endpoint(
-    item: Any, netlist: Netlist | None, layout: Layout, net: Net | None
+    item: Any, netlist: Netlist | None, layout: Layout, ports: dict[str, str]
 ) -> tuple:
     if isinstance(item, tuple) and item[0] == "cell":
         return item[1]
@@ -334,7 +343,7 @@ def _endpoint(
         raise TextError(
             f"wire endpoint {item}: a pin reference needs the netlist in context"
         )
-    attach = layout.attach(netlist, PinRef(cell=cell, pin=pin))
+    attach = layout.attach(netlist, PinRef(cell=cell, pin=pin), ports.get(str(item)))
     if attach is None:
         raise TextError(
             f"wire endpoint {item}: the cell is not placed or the pin is unknown"
@@ -378,14 +387,15 @@ def _layout(stmts: list[dict], context: Levels, relative: bool = False) -> Layou
                 f"wire {s['net']}: carrier and layer are unknown; give carrier= and layer= or the problem"
             )
         segments = []
+        ports = _ports(s["opts"])
         for seg in s["segments"]:
-            end = _endpoint(seg["end"], netlist, partial, net)
+            end = _endpoint(seg["end"], netlist, partial, ports)
             if "cells" in seg:
                 cells = tuple(seg["cells"])
                 if cells[-1] != end:
                     cells = cells + (end,) if end != cells[-1] else cells
             else:
-                start = _endpoint(seg["start"], netlist, partial, net)
+                start = _endpoint(seg["start"], netlist, partial, ports)
                 moves = [
                     parse_move(str(m)) if not isinstance(m, tuple) else m
                     for m in seg["moves"]
@@ -400,6 +410,7 @@ def _layout(stmts: list[dict], context: Levels, relative: bool = False) -> Layou
             net=s["net"],
             segments=tuple(segments),
             units=tuple(str(u) for u in _as_tuple(s["opts"].get("units"))),
+            ports=ports,
         )
     units = {
         s["id"]: Unit(
