@@ -11,9 +11,6 @@ from pathlib import Path
 
 import pytest
 
-from kohakuefda.flow.evaluate import evaluate
-from kohakuefda.layout.coverage import inside, zone_rect
-from kohakuefda.layout.depot_via import BUS_PORT, BUS_SECTION, io_budget
 from kohakuefda.layout.stages import StageError, layout_stage, params_of
 from kohakuefda.model.basement import Region
 from kohakuefda.model.cells import CellInstance, Netlist, NetSpec, PinRef
@@ -22,6 +19,8 @@ from kohakuefda.model.dataset import Dataset
 from kohakuefda.model.layout import Entry, Layout, Placed, Segment
 from kohakuefda.model.scenario import BasementRef, Scenario
 from kohakuefda.physics import carriers
+from kohakuefda.physics.boundaries import ZONE_REACH, inside
+from kohakuefda.plan.depot import BUS_PORT, BUS_SECTION, io_budget
 from kohakuefda.plan.machines import (
     brick_cell,
     bus_part,
@@ -32,7 +31,8 @@ from kohakuefda.plan.machines import (
     single_cell,
     zone_cell,
 )
-from kohakuefda.verify.rules.geometry import check_layout
+from kohakuefda.verify.evaluate import evaluate
+from kohakuefda.verify.layout import check_layout
 
 ROOT = Path(__file__).resolve().parents[1]
 DATASET = ROOT / "data" / "1.5.3@9764758-3" / "dataset.json"
@@ -202,7 +202,12 @@ def test_outside_inputs_sit_on_the_border_and_feed_the_zone(dataset: Dataset) ->
     unit_placed = next(m for m in layout.machines if m.machine_id == "vaporizer_1")
     assert inside(
         (oven_placed.x, oven_placed.y, oven_placed.x + 5, oven_placed.y + 5),
-        zone_rect((unit_placed.x, unit_placed.y), 3),
+        (
+            unit_placed.x - ZONE_REACH,
+            unit_placed.y - ZONE_REACH,
+            unit_placed.x + 3 + ZONE_REACH,
+            unit_placed.y + 3 + ZONE_REACH,
+        ),
     )
     evaluation = evaluate(dataset, layout)
     assert evaluation.converged
@@ -229,7 +234,7 @@ def test_a_laid_bus_seats_its_bricks_and_stays_one_cluster(dataset: Dataset) -> 
     cells = [port, section, unloader, loader, furnace, parked_core(dataset, "core")]
     placement, layout = _run(dataset, _netlist(dataset, WULING, cells, nets), seed=5)
     rules = {f.rule for f in _errors(dataset, layout)}
-    assert "geom.depot_bus" not in rules and "geom.bus_connected" not in rules, rules
+    assert "endfield.bus" not in rules and "kl.legal" not in rules, rules
     assert _errors(dataset, layout) == []
     parts = {b.id: b for b in placement.blocks if b.id in ("port", "sec")}
     assert len(parts) == 2
@@ -310,16 +315,12 @@ def test_area_rules_flag_production_in_the_ring_and_belts_outside(
             Entry(id="bad", item_id=WATER, rate=Fraction(30), x=15, y=15, edge="W")
         ],
     )
-    rules = {f.rule for f in check_layout(dataset, layout)}
-    assert "geom.outside_area" in rules and "geom.belt_in_ring" in rules
-    assert "geom.entry_off_border" in rules
-    assert "geom.core_missing" not in rules
-    subjects = {
-        f.subject
-        for f in check_layout(dataset, layout)
-        if f.rule == "geom.outside_area"
-    }
-    assert subjects == {"stray"}
+    found = check_layout(dataset, layout)
+    rules = {f.rule for f in found}
+    assert "endfield.area" in rules and "endfield.belt_ring" in rules
+    assert any(f.rule == "kl.legal" and f.subject == "cell:bad" for f in found)
+    subjects = {f.subject for f in found if f.rule == "endfield.area"}
+    assert subjects == {"cell:stray"}
 
 
 def test_bus_rules_on_hand_built_layouts(dataset: Dataset) -> None:
@@ -340,12 +341,15 @@ def test_bus_rules_on_hand_built_layouts(dataset: Dataset) -> None:
     turned = Placed(
         id="u", machine_id="unloader_1", x=10, y=14, rotation=180, config={"item": ORE}
     )
-    good = {f.rule for f in _errors(dataset, layout_with([port, touching, facing]))}
-    assert "geom.bus_connected" not in good and "geom.depot_bus" not in good
-    bad = {f.rule for f in _errors(dataset, layout_with([port, apart, turned]))}
-    assert "geom.bus_connected" in bad and "geom.depot_bus" in bad
+    good = _errors(dataset, layout_with([port, touching, facing]))
+    assert good == []
+    bad = _errors(dataset, layout_with([port, apart, turned]))
+    assert {f.subject for f in bad if f.rule == "endfield.bus"} == {
+        "cell:sec",
+        "cell:u",
+    }
     alone = {f.rule for f in _errors(dataset, layout_with([touching]))}
-    assert "geom.bus_connected" in alone
+    assert "endfield.bus" in alone
 
 
 def test_single_cell_helper_and_pin_defaults(dataset: Dataset) -> None:

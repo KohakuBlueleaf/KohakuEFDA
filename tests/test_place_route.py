@@ -7,16 +7,16 @@ from pathlib import Path
 
 import pytest
 
-from kohakuefda.flow.evaluate import evaluate
-from kohakuefda.layout.depot_via import BUS_PORT, BUS_SECTION
 from kohakuefda.layout.pipeline import layout_scenario
 from kohakuefda.layout.stages import layout_stage
 from kohakuefda.model.basement import Region
 from kohakuefda.model.cells import Netlist, NetSpec, PinRef
 from kohakuefda.model.dataset import Dataset
 from kohakuefda.model.scenario import BasementRef, Scenario
+from kohakuefda.plan.depot import BUS_PORT, BUS_SECTION
 from kohakuefda.plan.machines import brick_cell, bus_part, parked_core
-from kohakuefda.verify.rules.geometry import check_layout
+from kohakuefda.verify.evaluate import evaluate
+from kohakuefda.verify.layout import check_layout
 
 ROOT = Path(__file__).resolve().parents[1]
 DATASET = ROOT / "data" / "1.5.3@9764758-3" / "dataset.json"

@@ -1,34 +1,33 @@
 # verify/
 
-Rules with an id, a severity and a locatable subject, run over layouts
-(geometry and rate rules) and, through `flow/stability.py`, over plans. The
-report is the machine artifact; the CLI renders it.
+The verify stage's checks and the report. A project layout is read back as a framework
+problem and layout by the synth's reverse translation, loaded into a world and judged by
+KohakuLayout's verify runner under the Endfield pack; the rate rule reads the evaluation
+against the plan; `flow/stability.py` judges plans. The report is the machine artifact;
+the CLI renders it.
 
 ## Files
 
 | File                | Description                                                                 |
 | ------------------- | --------------------------------------------------------------------------- |
 | `report.py`         | `Report`: findings, verdict, save/load                                      |
-| `rules/geometry.py` | bounds, overlap, segment shape and run length, port connections and merges, unit counts, conduit links, gas zones, pylon coverage (12×12 squares from the dataset's pylons), the core, the area and its ring, depot bricks touching a Depot Bus with their back face, a laid bus one cluster with its port, outside inputs on the border (optionally retained independently of search extent), pipe over machine; `check_layout` |
+| `layout.py`         | `check_layout(dataset, layout)`: the reverse translation loaded into a world, the framework runner's findings with the project's ids put back |
+| `evaluate.py`       | `evaluate(dataset, layout)`: the reverse translation under the framework's routed evaluator and the pack's flow hooks, read back as the project's `Evaluation` (rates per segment and direct link, utilisation and stall per machine) |
 | `rules/rates.py`    | `rate_findings` over an evaluation: convergence, crafters below utilisation 1, idle sources |
 
 ## Rule ids
 
-`geom.bounds`, `geom.overlap`, `geom.segment_empty`, `geom.segment_gap`,
-`geom.segment_loop`, `geom.run_length`, `geom.dangling_start`,
-`geom.dangling_end`, `geom.port_shared`, `geom.merge`,
-`geom.fluid_router_count`, `geom.conduit_missing`, `geom.conduit_kind`,
-`geom.conduit_distance`, `geom.zone_overlap`, `geom.zone_missing`,
-`geom.power` (warning: no pylon at all), `geom.power_uncovered`,
-`geom.core_missing` (warning), `geom.core_count`, `geom.outside_area`,
-`geom.belt_in_ring`, `geom.depot_bus` (warning when no bus is placed, error
-when a brick's back face touches no bus part; a Valley IV bus is located
-through the layout's area), `geom.bus_connected`, `geom.entry_off_border`,
-`geom.entry_shared`, `geom.pipe_over_machine`, `flow.unconverged`,
-`flow.starved`, `flow.idle` (warning). The layout stage adds
-`layout.square_unknown`, `layout.too_big`, `layout.group_faults`,
-`layout.unrouted`, `layout.uncovered`.
+The framework's: `kl.geometry` (a placement off the grid or on another, a wire off its
+pins or not one contiguous tree), `kl.occupancy` (two occupants on one cell of one layer
+the pack does not let share), `kl.legal` (a placement the pack's boundaries refuse: outside
+the Core AIC Area, an outside input off the border, a brick off its slot or unseated, a
+bus part off the cluster, a machine outside its gas zone), `kl.missing`, `kl.unrouted`,
+`kl.field` (a powered machine no pylon's square touches). The pack's: `endfield.area`,
+`endfield.belt_ring`, `endfield.run_length`, `endfield.pipe_units`, `endfield.bus`,
+`endfield.zone`, `endfield.core`, `endfield.conduit`, `endfield.wiring`. The rate rule:
+`flow.unconverged`, `flow.starved`, `flow.idle` (warning). The netlist stage adds
+`netlist.*` and the board `layout.square_unknown`.
 
 ## Dependencies
 
-- `kohakuefda.model`, `kohakuefda.layout`, `kohakuefda.route`, `kohakuefda.flow`
+- `kohakuefda.model`, `kohakuefda.synth` (`reverse`), `kohakuefda.physics` (`flow`), `kohakuefda.flow`, `kohakulayout` (`engine`, `flow`, `verify`)

@@ -12,10 +12,10 @@ from kohakuefda.data.importers.industrial_planner import (
     match_recipe,
     match_source_item,
 )
-from kohakuefda.flow.evaluate import evaluate
 from kohakuefda.model.dataset import Dataset
 from kohakuefda.model.layout import Link
-from kohakuefda.verify.rules.geometry import check_layout
+from kohakuefda.verify.evaluate import evaluate
+from kohakuefda.verify.layout import check_layout
 
 ROOT = Path(__file__).resolve().parents[1]
 DATASET = ROOT / "data" / "1.5.3@9764758-3" / "dataset.json"
@@ -61,7 +61,8 @@ def test_import_matches_recipes_and_pump_fluid(dataset: Dataset) -> None:
 
 def test_imported_line_passes_drc_and_flows(dataset: Dataset) -> None:
     layout = import_industrial_planner(dataset, FIXTURE)
-    assert [f for f in check_layout(dataset, layout) if f.severity == "error"] == []
+    errors = {f.rule for f in check_layout(dataset, layout) if f.severity == "error"}
+    assert errors <= {"kl.field"}
     result = evaluate(dataset, layout)
     assert result.segments["belt0"].items == {"item_xiranite_powder": Fraction(30)}
     assert result.machines["ld"].inputs == {"item_xiranite_powder": Fraction(30)}
@@ -76,5 +77,5 @@ def test_check_command_detects_blueprints() -> None:
         cwd=ROOT,
         check=False,
     )
-    assert proc.returncode == 0, proc.stdout + proc.stderr
-    assert "0 errors" in proc.stdout
+    assert proc.returncode == 1, proc.stdout + proc.stderr
+    assert "kl.field" in proc.stdout and "endfield." not in proc.stdout

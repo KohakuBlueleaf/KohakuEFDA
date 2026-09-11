@@ -5,16 +5,15 @@ from pathlib import Path
 
 import pytest
 
-from kohakuefda.flow.evaluate import evaluate
-from kohakuefda.layout.connect import Connectivity
 from kohakuefda.model.basement import Region
 from kohakuefda.model.dataset import Dataset
 from kohakuefda.model.geometry import Edge
 from kohakuefda.model.layout import Layout, Link, Placed, Segment, Unit
 from kohakuefda.model.scenario import BasementRef
 from kohakuefda.render.grid_text import render_text
-from kohakuefda.route.grid import occupancy_of
-from kohakuefda.verify.rules.geometry import check_layout
+from kohakuefda.synth.reverse import Connections
+from kohakuefda.verify.evaluate import evaluate
+from kohakuefda.verify.layout import check_layout
 
 DATASET = (
     Path(__file__).resolve().parents[1] / "data" / "1.5.3@9764758-3" / "dataset.json"
@@ -70,6 +69,7 @@ def straight_line(dataset: Dataset) -> Layout:
             ),
             Placed(id="loader", machine_id="loader_1", x=0, y=13),
             Placed(id="bus_bottom", machine_id="log_hongs_bus_source", x=0, y=14),
+            Placed(id="pylon", machine_id="power_diffuser_1", x=3, y=8),
         ],
         segments=[
             Segment(id="belt_in", kind="belt", cells=[(1, 5), (1, 6), (1, 7)]),
@@ -80,13 +80,13 @@ def straight_line(dataset: Dataset) -> Layout:
 
 def test_ports_connect_end_to_end(dataset: Dataset) -> None:
     layout = straight_line(dataset)
-    conn = Connectivity(dataset, layout)
-    first = conn.connections["belt_in"]
-    assert first.source is not None and first.source.owner == "unloader"
-    assert first.target is not None and first.target.owner == "refine"
-    second = conn.connections["belt_out"]
-    assert second.source is not None and second.source.owner == "refine"
-    assert second.target is not None and second.target.owner == "loader"
+    conn = Connections(dataset, layout)
+    source, target = conn.ends["belt_in"]
+    assert source is not None and source.owner == "unloader"
+    assert target is not None and target.owner == "refine"
+    source, target = conn.ends["belt_out"]
+    assert source is not None and source.owner == "refine"
+    assert target is not None and target.owner == "loader"
 
 
 def test_clean_line_passes_drc_and_runs_at_full_rate(dataset: Dataset) -> None:
@@ -120,7 +120,7 @@ def test_overlap_gap_and_merge_are_reported(dataset: Dataset) -> None:
         Segment(id="second_in", kind="belt", cells=[(4, 5), (4, 6), (1, 7)])
     )
     rules = {f.rule for f in check_layout(dataset, layout)}
-    assert {"geom.overlap", "geom.segment_gap", "geom.merge"} <= rules
+    assert {"kl.occupancy", "kl.geometry", "endfield.wiring"} <= rules
 
 
 def test_pipe_over_machine_and_bounds(dataset: Dataset) -> None:
@@ -129,20 +129,23 @@ def test_pipe_over_machine_and_bounds(dataset: Dataset) -> None:
         Segment(id="pipe0", kind="pipe", cells=[(0, 9), (1, 9), (2, 9)])
     )
     layout.machines.append(Placed(id="edge", machine_id="grinder_1", x=4, y=0))
-    rules = {f.rule for f in check_layout(dataset, layout)}
-    assert "geom.pipe_over_machine" in rules and "geom.bounds" in rules
-    occ = occupancy_of(dataset, layout)
-    assert occ.occupant(0, (1, 9)) == "refine"
+    found = check_layout(dataset, layout)
+    rules = {f.rule for f in found}
+    assert "kl.occupancy" in rules and "kl.geometry" in rules
+    assert any(f.rule == "kl.occupancy" and f.subject == "cell:refine" for f in found)
 
 
 def test_depot_bus_must_touch_loaders(dataset: Dataset) -> None:
     layout = straight_line(dataset)
     layout.machines = [m for m in layout.machines if m.id != "bus_bottom"]
-    found = [f for f in check_layout(dataset, layout) if f.rule == "geom.depot_bus"]
-    assert [(f.severity, f.subject) for f in found] == [("error", "loader")]
+    found = [f for f in check_layout(dataset, layout) if f.rule == "endfield.bus"]
+    assert [(f.severity, f.subject) for f in found] == [("error", "cell:loader")]
     layout.machines = [m for m in layout.machines if m.id != "bus_top"]
-    found = [f for f in check_layout(dataset, layout) if f.rule == "geom.depot_bus"]
-    assert [f.severity for f in found] == ["warning"]
+    found = [f for f in check_layout(dataset, layout) if f.rule == "endfield.bus"]
+    assert sorted((f.severity, f.subject) for f in found) == [
+        ("error", "cell:loader"),
+        ("error", "cell:unloader"),
+    ]
 
 
 def test_splitter_shares_between_live_outputs(dataset: Dataset) -> None:
@@ -174,6 +177,7 @@ def test_splitter_shares_between_live_outputs(dataset: Dataset) -> None:
             Placed(id="sink_r", machine_id="loader_1", x=6, y=14),
             Placed(id="bus_bottom", machine_id="log_hongs_bus_source", x=0, y=15),
             Placed(id="bus_bottom_r", machine_id="log_hongs_bus_source", x=5, y=15),
+            Placed(id="pylon", machine_id="power_diffuser_1", x=3, y=10),
         ],
         units=[Unit(id="split", unit_id="log_splitter", x=4, y=7)],
         segments=[
@@ -209,6 +213,7 @@ def conduit_line(dataset: Dataset, item: str) -> Layout:
             ),
             Placed(id="outlet", machine_id="udpipe_unloader_1", x=0, y=6),
             Placed(id="dump", machine_id="liquid_cleaner_1", x=5, y=6),
+            Placed(id="pylon", machine_id="power_diffuser_1", x=3, y=4),
         ],
         segments=[
             Segment(id="pipe_a", kind="pipe", cells=[(3, 2), (4, 2)]),
@@ -252,8 +257,7 @@ def test_two_touching_machines_transfer_nothing(dataset: Dataset) -> None:
             Placed(id="loader", machine_id="loader_1", x=0, y=1),
         ],
     )
-    conn = Connectivity(dataset, layout)
-    assert [c for c in conn.connections.values() if c.direct] == []
+    assert Connections(dataset, layout).links == []
     assert evaluate(dataset, layout).machines["loader"].inputs == {}
 
 
@@ -283,8 +287,7 @@ def test_touching_units_connect_directly(dataset: Dataset) -> None:
         ],
     )
     assert errors(dataset, layout) == []
-    conn = Connectivity(dataset, layout)
-    links = [c for c in conn.connections.values() if c.direct]
-    assert [(c.source.owner, c.target.owner) for c in links] == [("split", "bridge")]
+    links = Connections(dataset, layout).links
+    assert [(a.owner, b.owner) for a, b in links] == [("split", "bridge")]
     result = evaluate(dataset, layout)
     assert result.machines["loader"].inputs == {ORE: Fraction(30)}

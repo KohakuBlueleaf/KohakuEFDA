@@ -10,18 +10,17 @@ frames as the solver's phases sample them, and one ``final`` frame.
 
 import logging
 
-from kohakuefda.flow.evaluate import Evaluation, evaluate
-from kohakuefda.layout.board import Board, board_of
-from kohakuefda.layout.chunk import chunk
-from kohakuefda.layout.config import ConfigurationError, settings_of
-from kohakuefda.layout.engine import (
+from kohakuefda.flow.evaluate import Evaluation
+from kohakuefda.layout.board import board_of
+from kohakuefda.layout.settings import (
     LAYOUT_DEFAULTS,
+    ConfigurationError,
     LayoutError,
     budget_of,
     router_of,
+    settings_of,
     solver_of,
 )
-from kohakuefda.layout.place import Block
 from kohakuefda.model.cells import Netlist
 from kohakuefda.model.control import Cancelled, CancelledError, Observe
 from kohakuefda.model.dataset import Dataset
@@ -34,8 +33,10 @@ from kohakuefda.plan.planner import plan as plan_scenario
 from kohakuefda.synth import problem_of
 from kohakuefda.synth.frames import Cancel, FrameObserver, LayoutEveryFrame
 from kohakuefda.synth.layout import layout_of
+from kohakuefda.synth.modules import modules_of
+from kohakuefda.verify.evaluate import evaluate
+from kohakuefda.verify.layout import check_layout
 from kohakuefda.verify.report import Report
-from kohakuefda.verify.rules.geometry import check_layout
 from kohakuefda.verify.rules.rates import rate_findings
 from kohakulayout.engine import CallbackSink
 from kohakulayout.engine.plugins import default_plugins
@@ -49,7 +50,6 @@ DEFAULTS: dict[str, dict] = {
     "layout": dict(LAYOUT_DEFAULTS),
     "verify": {},
 }
-__all__ = ["Board", "blocks_of", "board_of"]
 
 
 class StageError(ValueError):
@@ -67,10 +67,6 @@ def params_of(stage: str, given: dict | None = None) -> dict:
         return out
     except ConfigurationError as error:
         raise StageError(f"{stage} parameters: {error}") from error
-
-
-def blocks_of(dataset: Dataset, netlist: Netlist) -> list[Block]:
-    return [Block.of_cell(c, dataset) for c in netlist.cells]
 
 
 def plan_stage(dataset: Dataset, scenario: Scenario) -> Plan:
@@ -196,7 +192,7 @@ def layout_stage(
     placement, layout = layout_of(
         problem, result.layout, dataset, netlist, result.assessment
     )
-    layout.modules = chunk(dataset, layout)
+    layout.modules = modules_of(dataset, layout)
     layout.notes = (
         f"{scenario.basement.basement_id} level {scenario.basement.level}, "
         f"solver {settings['solver']}, seed {settings['seed']}, "

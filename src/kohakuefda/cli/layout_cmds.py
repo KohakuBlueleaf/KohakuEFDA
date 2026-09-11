@@ -11,9 +11,9 @@ from rich.table import Table
 
 from kohakuefda.cli.data import DEFAULT_ROOT, load_dataset
 from kohakuefda.data.importers.industrial_planner import import_industrial_planner
-from kohakuefda.flow.evaluate import Evaluation, evaluate
-from kohakuefda.layout.engine import LAYOUT_DEFAULTS
+from kohakuefda.flow.evaluate import Evaluation
 from kohakuefda.layout.pipeline import layout_scenario
+from kohakuefda.layout.settings import LAYOUT_DEFAULTS
 from kohakuefda.model.dataset import Dataset
 from kohakuefda.model.layout import Layout
 from kohakuefda.model.plan import Finding
@@ -21,8 +21,9 @@ from kohakuefda.model.scenario import Scenario
 from kohakuefda.render.grid_text import render_text
 from kohakuefda.render.png import render_png
 from kohakuefda.render.tables import findings_table
+from kohakuefda.verify.evaluate import evaluate
+from kohakuefda.verify.layout import check_layout
 from kohakuefda.verify.report import Report
-from kohakuefda.verify.rules.geometry import check_layout
 
 log = logging.getLogger(__name__)
 console = Console()
