@@ -17,13 +17,6 @@ import math
 from fractions import Fraction
 
 from kohakuefda.flow.lanes import lane_capacity, lane_split
-from kohakuefda.layout.depot_via import (
-    BUS_PORT,
-    BUS_SECTION,
-    io_budget,
-    laid_limits,
-    sections_needed,
-)
 from kohakuefda.model.cells import (
     BUS_GROUP,
     CellInstance,
@@ -43,6 +36,13 @@ from kohakuefda.model.rates import lanes_needed
 from kohakuefda.model.recipes import Recipe
 from kohakuefda.model.scenario import Scenario
 from kohakuefda.model.sinks import ZONE_GAS_PER_MIN, ZONE_MACHINE
+from kohakuefda.plan.depot import (
+    BUS_PORT,
+    BUS_SECTION,
+    io_budget,
+    laid_limits,
+    sections_needed,
+)
 from kohakuefda.plan.zones import assign_zones
 
 log = logging.getLogger(__name__)

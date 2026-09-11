@@ -8,15 +8,15 @@ from pathlib import Path
 
 import pytest
 
-from kohakuefda.layout.depot_via import (
+from kohakuefda.model.cells import Netlist
+from kohakuefda.model.dataset import Dataset
+from kohakuefda.model.scenario import Scenario
+from kohakuefda.plan.depot import (
     BUS_PORT,
     BUS_SECTION,
     chain_capacity,
     sections_needed,
 )
-from kohakuefda.model.cells import Netlist
-from kohakuefda.model.dataset import Dataset
-from kohakuefda.model.scenario import Scenario
 from kohakuefda.plan.machines import CORE, lane_groups
 from kohakuefda.plan.netlist import build_netlist
 from kohakuefda.plan.planner import plan

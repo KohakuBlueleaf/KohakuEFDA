@@ -1,11 +1,11 @@
 """The basement's geometry for one scenario: square, ring, fixed bus cells and brick slots."""
 
-from kohakuefda.layout.depot_via import Slot, fixed_slots
 from kohakuefda.model.basement import DEFAULT_SQUARE
 from kohakuefda.model.dataset import Dataset
 from kohakuefda.model.layout import Cell, Rect
 from kohakuefda.model.plan import Finding
 from kohakuefda.model.scenario import Scenario
+from kohakuefda.plan.depot import Slot, fixed_slots
 
 
 class Board:

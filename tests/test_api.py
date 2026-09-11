@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from kohakuefda.layout.engine import LAYOUT_DEFAULTS
+from kohakuefda.layout.settings import LAYOUT_DEFAULTS
 from kohakuefda.serve.server import serve
 
 ROOT = Path(__file__).resolve().parents[1]

@@ -1,4 +1,4 @@
-"""Depot access as a placement resource: where depot bricks may stand and how many.
+"""Depot access as a planning resource: where depot bricks may stand and how many.
 
 A brick (Depot Loader or Unloader, 3×1) must touch a Depot Bus part with the face opposite
 its port (game-knowledge DEP-05, DEP-06). In Wuling the bus is laid by the player: a 4×4 port
@@ -11,9 +11,8 @@ square coordinates with the side the bus is on.
 
 from kohakuefda.model.basement import BusSegment, LaidBus
 from kohakuefda.model.dataset import Dataset
-from kohakuefda.model.geometry import Edge, Rotation, rotate_edge
+from kohakuefda.model.geometry import Edge
 from kohakuefda.model.items import Phase
-from kohakuefda.model.machines import Machine
 from kohakuefda.model.scenario import BasementRef
 
 BRICK = 3
@@ -21,7 +20,6 @@ PORT_LENGTH = 4
 SECTION_LENGTH = 8
 BUS_PORT = "log_hongs_bus_source"
 BUS_SECTION = "log_hongs_bus"
-OPPOSITE = {Edge.N: Edge.S, Edge.S: Edge.N, Edge.E: Edge.W, Edge.W: Edge.E}
 
 
 class Slot:
@@ -38,14 +36,6 @@ class Slot:
     def cells(self) -> list[tuple[int, int]]:
         w, d = self.size()
         return [(self.x + i, self.y + j) for j in range(d) for i in range(w)]
-
-
-def brick_rotation(machine: Machine, side: Edge) -> Rotation:
-    """The rotation that turns the brick's port away from the bus on ``side``."""
-    port = machine.ports[0]
-    return next(
-        r for r in (0, 90, 180, 270) if rotate_edge(port.edge, r) is OPPOSITE[side]
-    )
 
 
 def chain_capacity(ports: int, sections: int) -> int:
@@ -73,12 +63,7 @@ def laid_limits(bus: LaidBus, depot_level: int) -> tuple[int, int]:
 
 
 def _runs(segments: list[BusSegment]) -> list[tuple[int, int, int, Edge]]:
-    """Adjoining segments merged into runs: ``(face, start, length, side)``.
-
-    A brick seats on the cells of a run, not of one segment, so two segments that meet leave no
-    gap between the bricks on them (DEP-18). ``face`` is the row or column the bricks stand on,
-    inside the area.
-    """
+    """Adjoining segments merged into runs ``(face, start, length, side)``, ``face`` being the row or column the bricks stand on inside the area (DEP-18)."""
     lines: dict[tuple[int, Edge, bool], list[tuple[int, int]]] = {}
     for segment in segments:
         flat = segment.depth < segment.width

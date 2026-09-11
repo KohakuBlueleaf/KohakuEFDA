@@ -1,7 +1,7 @@
 """Blueprint-sized modules: tiles of at most 50×50 cells, halved while they hold too many entities."""
 
-from kohakuefda.layout.geometry import machine_footprint
 from kohakuefda.model.dataset import Dataset
+from kohakuefda.model.footprints import machine_footprint
 from kohakuefda.model.layout import Cell, Layout, Module
 
 
@@ -18,7 +18,7 @@ def _anchors(dataset: Dataset, layout: Layout) -> dict[str, Cell]:
     return anchors
 
 
-def chunk(dataset: Dataset, layout: Layout) -> list[Module]:
+def modules_of(dataset: Dataset, layout: Layout) -> list[Module]:
     """Modules in build order (top-left first) covering the layout's bounding box."""
     anchors = _anchors(dataset, layout)
     if not anchors:
@@ -61,3 +61,6 @@ def chunk(dataset: Dataset, layout: Layout) -> list[Module]:
             )
         )
     return modules
+
+
+__all__ = ["modules_of"]

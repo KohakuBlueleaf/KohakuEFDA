@@ -2,7 +2,7 @@
 
 import pytest
 
-from kohakuefda.layout.engine import SOLVERS, framework_id
+from kohakuefda.layout.settings import SOLVERS, framework_id
 from kohakuefda.solvers import SOLVER_IDS, EndfieldProposals, EndfieldSearch
 from kohakulayout.solvers import get, known, level3
 from kohakulayout.solvers.regional.search import DEFAULTS as FRAMEWORK_DEFAULTS

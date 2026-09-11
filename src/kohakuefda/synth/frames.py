@@ -9,17 +9,63 @@ translates the layout it carries and fills the rest from the problem.
 import time
 from typing import Any
 
-from kohakuefda.layout.place import Block, catalogue_of
+from kohakuefda.model.cells import CellInstance
 from kohakuefda.model.cells import Netlist as ProjectNetlist
 from kohakuefda.model.dataset import Dataset
 from kohakuefda.physics.fabric import area_rect, entry_rect, slots_of
 from kohakuefda.physics.facts import facts
 from kohakuefda.synth.layout import Translation
+from kohakuefda.synth.problem import UNPOWERED_KINDS
 from kohakulayout.engine.plugins import EnginePlugin
 from kohakulayout.ir import Problem
 
 FRAME_SCHEMA = 1
 KINDS = {"construct": "build", "constructed": "build", "spread": "build"}
+
+
+def catalogue_of(dataset: Dataset, cells: list[CellInstance]) -> list[dict]:
+    """Size, kind, group, machines and local pins of every cell, for drawing frames."""
+    return [
+        {
+            "id": cell.id,
+            "kind": cell.kind,
+            "constraint": cell.constraint,
+            "group": cell.group,
+            "env": cell.env,
+            "powered": cell.kind not in UNPOWERED_KINDS
+            and any(dataset.machines[m.machine_id].needs_power for m in cell.machines),
+            "width": cell.width,
+            "height": cell.height,
+            "machines": [
+                {
+                    "id": m.id,
+                    "machine_id": m.machine_id,
+                    "x": m.x,
+                    "y": m.y,
+                    "rotation": m.rotation,
+                    "recipe_id": m.recipe_id,
+                }
+                for m in cell.machines
+            ],
+            "pins": [
+                {
+                    "id": p.id,
+                    "x": p.cell[0],
+                    "y": p.cell[1],
+                    "edge": p.edge.value,
+                    "kind": p.kind,
+                    "direction": p.direction,
+                    "item_id": p.item_id,
+                    "alternatives": [
+                        {"x": a.cell[0], "y": a.cell[1], "edge": a.edge.value}
+                        for a in p.alternatives
+                    ],
+                }
+                for p in cell.pins
+            ],
+        }
+        for cell in cells
+    ]
 
 
 class LayoutEveryFrame(EnginePlugin):
@@ -207,7 +253,6 @@ class FrameObserver:
 
     def catalogue(self, params: dict[str, Any]) -> dict[str, Any]:
         """The first frame: the grid, the area, the slots, every block's size and pins."""
-        blocks = [Block.of_cell(c, self.dataset) for c in self.netlist.cells]
         x0, y0, x1, y1 = area_rect(self.problem.fabric)
         frame = {
             "frame_schema": FRAME_SCHEMA,
@@ -227,7 +272,7 @@ class FrameObserver:
                 if "bus_fixed" in self.problem.fabric.regions
                 else []
             ),
-            "blocks": catalogue_of(blocks),
+            "blocks": catalogue_of(self.dataset, self.netlist.cells),
             "settings": dict(params),
             "physics": self.problem.physics,
             "facts": facts(self.problem.fabric).get("facts", []),
@@ -240,4 +285,10 @@ class FrameObserver:
         return frame
 
 
-__all__ = ["FRAME_SCHEMA", "Cancel", "FrameObserver", "LayoutEveryFrame"]
+__all__ = [
+    "FRAME_SCHEMA",
+    "Cancel",
+    "FrameObserver",
+    "LayoutEveryFrame",
+    "catalogue_of",
+]

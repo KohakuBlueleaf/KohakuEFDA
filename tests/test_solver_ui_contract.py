@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from kohakuefda.layout.engine import LAYOUT_DEFAULTS, SOLVERS, solver_of
+from kohakuefda.layout.settings import LAYOUT_DEFAULTS, SOLVERS, solver_of
 from kohakuefda.layout.stages import StageError, params_of
 from kohakuefda.model.dataset import Dataset
 from kohakuefda.model.scenario import Scenario

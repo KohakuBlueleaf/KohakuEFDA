@@ -20,7 +20,7 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from kohakuefda.data.icons import IconIndex
-from kohakuefda.layout.engine import SOLVERS
+from kohakuefda.layout.settings import SOLVERS
 from kohakuefda.layout.stages import DEFAULTS, STAGES, StageError
 from kohakuefda.model.dataset import Dataset
 from kohakuefda.model.scenario import PlanMode, Scenario

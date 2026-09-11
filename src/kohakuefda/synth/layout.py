@@ -9,11 +9,11 @@ and heading the connectivity rules read; outside inputs become entries.
 from fractions import Fraction
 from typing import Any
 
-from kohakuefda.layout.fragments import rotate, translate
 from kohakuefda.model.cells import CellInstance
 from kohakuefda.model.cells import Netlist as ProjectNetlist
 from kohakuefda.model.dataset import Dataset
-from kohakuefda.model.geometry import Edge, edge_step, rotate_edge
+from kohakuefda.model.footprints import machine_footprint
+from kohakuefda.model.geometry import Edge, edge_step, rotate_cell, rotate_edge
 from kohakuefda.model.layout import Cell as XY
 from kohakuefda.model.layout import Entry, Layout, Placed, Segment, Unit
 from kohakuefda.model.placement import PlacedBlock, Placement
@@ -41,6 +41,28 @@ HEADINGS = {(1, 0): Edge.E, (-1, 0): Edge.W, (0, 1): Edge.S, (0, -1): Edge.N}
 def rotation_facing(edge: Edge, wanted: Edge) -> int:
     """The rotation turning a unit's ``edge`` port onto ``wanted``."""
     return next(r for r in (0, 90, 180, 270) if rotate_edge(edge, r) is wanted)
+
+
+def placed_machines(
+    dataset: Dataset, cell: CellInstance, x: int, y: int, rot: int
+) -> list[Placed]:
+    """The cell's machines turned by ``rot`` inside the cell's box and moved to the anchor."""
+    out: list[Placed] = []
+    for machine in cell.machines:
+        cells = [
+            rotate_cell(cx, cy, cell.width, cell.height, rot)
+            for cx, cy in machine_footprint(dataset, machine)
+        ]
+        out.append(
+            machine.model_copy(
+                update={
+                    "x": x + min(c[0] for c in cells),
+                    "y": y + min(c[1] for c in cells),
+                    "rotation": (machine.rotation + rot) % 360,
+                }
+            )
+        )
+    return out
 
 
 class Translation(Flows):
@@ -117,10 +139,11 @@ class Translation(Flows):
             if cell.machine_id == ENTRY:
                 entries.append(self.entry(cell, placement))
                 continue
-            fragment = (
-                rotate(self.dataset, cell, placement.rot) if placement.rot else cell
+            placed.extend(
+                placed_machines(
+                    self.dataset, cell, placement.x, placement.y, placement.rot
+                )
             )
-            placed.extend(translate(fragment, placement.x, placement.y).machines)
         for index, unit in enumerate(self.pylons()):
             placed.append(
                 Placed(id=f"pylon{index}", machine_id=PYLON, x=unit.x, y=unit.y)

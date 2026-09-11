@@ -15,5 +15,5 @@ CLI.
 
 ## Dependencies
 
-- `kohakuefda.model`, `kohakuefda.layout`
+- `kohakuefda.model`
 - External: `rich`; `matplotlib` for PNG (extra `viz`)

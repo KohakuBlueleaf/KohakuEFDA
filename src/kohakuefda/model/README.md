@@ -25,11 +25,10 @@ and saving its own files.
 | `scenario.py`  | `Scenario` (targets as a rate, `min` or `max`; `gas`, `liquids`, `events`, `banned_machines`, `area_fill`, `natural_default`, `gas_default`, `activation`, `depot`), `BasementRef`, `PlanMode`, `DepotMode`, `goal_of`, TOML reader and writer |
 | `plan.py`      | `Plan` (with `zones`), `RecipeUse`, `ItemBalance`, `Net`, `Cell`, `Finding`, `TargetResult` (with `goal`) |
 | `layout.py`    | `Layout` (grid plus `area`, the Core AIC Area inside it; `area_rect`, `origin`, `entries`), `Placed`, `Unit`, `Segment` (with `heading`, `entry`, `item_id`), `Entry` (an outside input on the border), `Link`, `Rect` |
+| `footprints.py` | `footprint`, `machine_footprint`, `unit_footprint` (the cells a placed machine or unit covers), `inside` |
 | `cells.py`     | `Pin` (with `alternatives`), `Fragment` (one machine), `CellInstance` (with `env`, `group`, `constraint`), `BUS_GROUP`, `PinRef`, `NetSpec`, `Netlist` |
 | `placement.py` | `Placement` (grid, area, gap, pylons, entries, cost terms), `PlacedBlock` (with chosen `ports`): the layout stage's checkpoint |
 | `control.py`   | `Observe` and `Cancelled` callables for long loops, `CancelledError`        |
-
-| `solver.py` | Immutable Problem, Snapshot, Action, Scope, Assessment, Candidate, ConnectionTarget endpoint queries and SolveEvent/SolveResult records |
 
 ## Dependencies
 

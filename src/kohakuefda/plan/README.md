@@ -21,8 +21,9 @@ full compatible port domain independently of ingredient order (JCT-08/JCT-09).
 | `zones.py`        | `member_fits`, `group_fits`, `assign_zones`: which Gas Dispersing Unit each environment machine belongs to |
 | `machines.py`     | `instantiate`: one cell per machine (`recipe_cell`, `dump_cell`, `zone_cell` heading a `zone<n>` group), outside inputs (`entry_cell`), the core (`core_cell`, `parked_core`), Depot Bus parts (`bus_part`) and bricks (`brick_cell`) in the `bus` group or on Valley IV slots; lane packing (`lane_groups`, `supply_lanes`); `CellFactory` |
 | `netlist.py`      | `build_netlist`: one net per item over cell pins, planned vs nominal rates, trunk lanes, depot-via eligibility, `brick_count`, findings |
+| `depot.py`        | Depot access as a resource: `chain_capacity`, `sections_needed`, `laid_limits` (DEP-10), `fixed_slots` (Valley IV brick slots along the fixed bus, DEP-12, DEP-18), `io_budget`, `via_depot_ok`, the bus part ids |
 
 ## Dependencies
 
-- `kohakuefda.model`, `kohakuefda.flow`, `kohakuefda.layout`
+- `kohakuefda.model`, `kohakuefda.flow`
 - External: `highspy`

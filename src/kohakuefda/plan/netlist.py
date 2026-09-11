@@ -4,12 +4,12 @@ import logging
 from fractions import Fraction
 
 from kohakuefda.flow.lanes import lane_capacity
-from kohakuefda.layout.depot_via import io_budget, via_depot_ok
 from kohakuefda.model.cells import CellInstance, Netlist, NetSpec, Pin, PinRef
 from kohakuefda.model.dataset import Dataset
 from kohakuefda.model.plan import Finding, Plan
 from kohakuefda.model.rates import lanes_needed
 from kohakuefda.model.scenario import Scenario
+from kohakuefda.plan.depot import io_budget, via_depot_ok
 from kohakuefda.plan.machines import instantiate
 
 log = logging.getLogger(__name__)

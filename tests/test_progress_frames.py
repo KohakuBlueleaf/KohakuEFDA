@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from kohakuefda.layout.engine import SOLVERS
+from kohakuefda.layout.settings import SOLVERS
 from kohakuefda.layout.stages import layout_stage, netlist_stage, params_of, plan_stage
 from kohakuefda.model.control import CancelledError
 from kohakuefda.model.dataset import Dataset

@@ -3,8 +3,8 @@
 import logging
 from pathlib import Path
 
-from kohakuefda.layout.geometry import machine_footprint, unit_footprint
 from kohakuefda.model.dataset import Dataset
+from kohakuefda.model.footprints import machine_footprint, unit_footprint
 from kohakuefda.model.layout import Layout
 
 log = logging.getLogger(__name__)
