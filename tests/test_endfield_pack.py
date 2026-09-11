@@ -65,7 +65,7 @@ WIDE = Footprint(
     ),
 )
 ZONE_UNIT = Footprint(id="vaporizer_1", width=3, height=3)
-PART = Footprint(id="log_hongs_bus", width=4, height=8)
+PART = Footprint(id="log_hongs_bus_source", width=4, height=4)
 PARAMS = {
     "square": [12, 10],
     "ring": 2,
@@ -332,7 +332,7 @@ def test_zone_and_bus_rules_bind_groups() -> None:
         near = Placement(cell="m", x=8, y=4, rot=0)
         assert world.physics.boundaries.legal(world, near) is None
         assert world.place("p", 9, 2, 0) is None
-        seated = Placement(cell="w", x=9, y=10, rot=0)
+        seated = Placement(cell="w", x=9, y=6, rot=0)
         assert world.physics.boundaries.legal(world, seated) is None
         loose = Placement(cell="w", x=2, y=10, rot=0)
         assert "seat" in world.physics.boundaries.legal(world, loose).detail

@@ -1,8 +1,9 @@
-"""The Endfield units: junctions and bridges per carrier, and the pylon that emits power.
+"""The Endfield units: junctions, bridges and control ports per carrier, and the pylon that emits power.
 
 Belt units stand on the ground; pipe units are pole-supported and take the ground cell too
-(LOG-04). A pylon is 2×2 and powers the 12×12 square its footprint extends by five on every
-side (COV-01); touching the square is enough (COV-02).
+(LOG-04). A control port lets one item through (JCT-05). A pylon is 2×2 and powers the
+12×12 square its footprint extends by five on every side (COV-01); touching the square is
+enough (COV-02). A conduit inlet links to an outlet up to 300 cells away (DEP-16).
 """
 
 from kohakulayout.ir import Footprint
@@ -17,6 +18,8 @@ CARRIERS = (BELT, PIPE)
 SPLITTER = {BELT: "log_splitter", PIPE: "log_pipe_splitter"}
 CONVERGER = {BELT: "log_converger", PIPE: "log_pipe_converger"}
 BRIDGE = {BELT: "log_connector", PIPE: "log_pipe_connector"}
+CONTROL = {BELT: "log_conditioner", PIPE: "log_pipe_conditioner"}
+CONDUIT_LINK_MAX = 300
 PYLON = "power_diffuser_1"
 POWER = "power"
 PYLON_REACH = 5
@@ -25,7 +28,17 @@ RUN_LIMIT = {BELT: 110, PIPE: 80}
 PIPE_UNIT_LIMIT = 128
 FACTS = {
     "endfield": {
-        "facts": ["LOG-04", "LOG-05", "LOG-06", "JCT-01", "JCT-02", "JCT-04", "COV-01"]
+        "facts": [
+            "LOG-04",
+            "LOG-05",
+            "LOG-06",
+            "JCT-01",
+            "JCT-02",
+            "JCT-04",
+            "JCT-05",
+            "COV-01",
+            "DEP-16",
+        ]
     }
 }
 
@@ -44,12 +57,12 @@ def _unit(unit_id: str, carrier: str) -> Footprint:
 
 UNITS: dict[str, Footprint] = {
     unit_id: _unit(unit_id, carrier)
-    for table in (SPLITTER, CONVERGER, BRIDGE)
+    for table in (SPLITTER, CONVERGER, BRIDGE, CONTROL)
     for carrier, unit_id in table.items()
 }
 UNIT_CARRIER: dict[str, str] = {
     unit_id: carrier
-    for table in (SPLITTER, CONVERGER, BRIDGE)
+    for table in (SPLITTER, CONVERGER, BRIDGE, CONTROL)
     for carrier, unit_id in table.items()
 }
 
@@ -82,6 +95,8 @@ __all__ = [
     "BELT",
     "BRIDGE",
     "CARRIERS",
+    "CONDUIT_LINK_MAX",
+    "CONTROL",
     "CONVERGER",
     "FACTS",
     "GROUND",

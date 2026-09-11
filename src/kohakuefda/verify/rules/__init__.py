@@ -1,1 +1,1 @@
-"""Rule sets: each function takes a context and returns findings."""
+"""The rate rule over an evaluation and the plan."""
