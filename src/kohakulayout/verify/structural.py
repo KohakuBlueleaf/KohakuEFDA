@@ -10,7 +10,7 @@ UNROUTED = "kl.unrouted"
 
 
 def geometry(layout: Layout, netlist: Any, fabric: Any) -> tuple[Finding, ...]:
-    """Every ``Layout.check_against`` message as an error finding."""
+    """Every ``Layout.check`` and ``Layout.check_against`` message as an error finding."""
     return tuple(
         Finding(
             rule=GEOMETRY,
@@ -18,7 +18,7 @@ def geometry(layout: Layout, netlist: Any, fabric: Any) -> tuple[Finding, ...]:
             subject=message.split(":", 1)[0],
             message=message,
         )
-        for message in layout.check_against(netlist, fabric)
+        for message in (*layout.check(), *layout.check_against(netlist, fabric))
     )
 
 
