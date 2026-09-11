@@ -48,43 +48,37 @@ Ids are stable. Severity `error` fails the stage; `warning` and `info` do not.
 | Rule | Severity | Meaning |
 |---|---|---|
 | `layout.square_unknown` | warning | The basement's square size is unknown; 50×50 is used. |
-| `layout.too_big` | error | The best layout does not fit the square; the message gives the size it needs. |
-| `layout.group_faults` | error | A brick off its bus, a bus part off the cluster, or a machine outside its gas zone remains. |
-| `layout.unrouted` | error | A wire found no path anywhere the machines ended up; the message names its ends. |
-| `layout.unplaced` | error | No position in the square where a machine could be placed and wired; the message names it. |
-| `layout.uncovered` | error | A powered machine with no free spot for a pylon within reach. |
+
+The placement checkpoint carries the framework's assessment findings of the run's layout,
+the same ids the verifier raises below.
 
 ## Geometry (verifier)
 
+The verifier reads a layout back as a KohakuLayout problem and layout and runs the
+framework's verify runner under the Endfield pack. The framework's findings:
+
 | Rule | Severity | Meaning |
 |---|---|---|
-| `geom.bounds` | error | Something lies outside the grid. |
-| `geom.overlap` | error | Two things claim one cell on one layer. |
-| `geom.pipe_over_machine` | error | A pipe cell above a machine. |
-| `geom.segment_empty` | error | A segment with no cells. |
-| `geom.segment_gap` | error | Two consecutive cells are not neighbours. |
-| `geom.segment_loop` | error | A segment visits a cell twice. |
-| `geom.run_length` | error | A belt run over 110 cells or a pipe run over 80. |
-| `geom.dangling_start` | error | No output port behind a segment's first cell. |
-| `geom.dangling_end` | error | No input port ahead of a segment's last cell. |
-| `geom.port_shared` | error | One output port feeds two segments. |
-| `geom.merge` | error | Two segments end at one input port. |
-| `geom.fluid_router_count` | error | More than 128 pipe units. |
-| `geom.conduit_missing` | error | A conduit link names an unknown end. |
-| `geom.conduit_kind` | error | A conduit link does not join an inlet to an outlet. |
-| `geom.conduit_distance` | error | Conduit ends more than 300 cells apart. |
-| `geom.zone_overlap` | error | Two gas zones overlap. |
-| `geom.zone_missing` | error | An environment recipe's machine is not inside one zone. |
-| `geom.power` | warning | No pylon at all while powered machines exist. |
-| `geom.power_uncovered` | error | A powered machine lies outside every pylon's 12×12 square. |
-| `geom.core_missing` | warning | No Automation-Core in a layout with machines. |
-| `geom.core_count` | error | More than one Automation-Core. |
-| `geom.outside_area` | error | A production machine, zone unit, bus part or brick is not inside the Core AIC Area. |
-| `geom.belt_in_ring` | error | A belt leaves the Core AIC Area. |
-| `geom.depot_bus` | error / warning | A loader or unloader whose back face touches no Depot Bus part (error); no bus placed at all (warning). A Valley IV bus is located through the layout's area; without one the rule is silent for it. |
-| `geom.bus_connected` | error | A laid Depot Bus section not in one touching cluster with the port, or sections without a port. |
-| `geom.entry_off_border` | error | An outside input not on a border cell of the area with the outside beyond its edge. |
-| `geom.entry_shared` | error | Two outside inputs on one cell. |
+| `kl.geometry` | error | A placement off the grid or over another, a wire off its pins, a segment that is not one contiguous path, a wire whose segments do not form one tree. |
+| `kl.occupancy` | error | Two occupants on one cell of one layer that the pack does not let share: two machines, a belt or pipe over a machine, two wires without a bridge between them. |
+| `kl.legal` | error | A placement the pack refuses: outside the Core AIC Area, an outside input off the border or facing outward, a Valley IV brick off its slot, a Wuling brick unseated or with no bus, a bus part off the cluster, a machine outside its gas zone, a port with no cell its wire can arrive through. |
+| `kl.missing` | error | A cell of the problem with no placement. |
+| `kl.unrouted` | error | A net with no wire. |
+| `kl.field` | error | A powered machine outside every pylon's 12×12 square. |
+
+The pack's deck:
+
+| Rule | Severity | Meaning |
+|---|---|---|
+| `endfield.area` | error | A machine not inside the Core AIC Area. |
+| `endfield.belt_ring` | error | A belt leaves the Core AIC Area. |
+| `endfield.run_length` | error | A belt run over 110 cells or a pipe run over 80 between units of its own net. |
+| `endfield.pipe_units` | error | More than 128 pipe units. |
+| `endfield.bus` | error | A laid Depot Bus part not in a touching cluster around a port; a loader or unloader off a slot whose back face seats on no bus part or fixed bus, or with no bus at all. |
+| `endfield.zone` | error | A grouped machine outside its unit's gas zone, an environment recipe's machine inside no zone, two gas zones overlapping. |
+| `endfield.core` | error | More than one Automation-Core. |
+| `endfield.conduit` | error | A conduit link naming an unplaced end, not joining an inlet to an outlet, or with its ends more than 300 cells apart. |
+| `endfield.wiring` | error | A wire that branches or merges on a cell with no junction unit, merges or splits on a port cell, ends on no port or unit, or visits a cell twice. |
 
 ## Rates (verifier)
 

@@ -16,13 +16,12 @@ Read with `src/kohakuefda/` open. Concept pages explain why; this page says wher
 |---|---|
 | `model/` | Pydantic models with exact `Fraction` rates: items, machines, recipes, logistics, basements, dataset, scenario, plan, layout, cells and netlist, placement. No logic beyond lookups and load/save. |
 | `data/` | The manifest client, table fetch with a SHA manifest, the mirror, wiki names, the normalisers that build `Dataset`, the update classifier, the IndustrialPlanner importer. |
-| `flow/` | Lane sizing, plan nets, stability findings, the steady-state evaluator. |
-| `plan/` | Recipe graph, the HiGHS model, the planner, outcomes, alternatives, zone membership, one cell per machine, the netlist. |
-| `layout/` | World geometry and connectivity, fragments, depot access and bus arithmetic, the pylon cover, blocks, the board, the stage's settings and solver table, chunking, the stages, the pipeline. |
+| `flow/` | Lane sizing, plan nets, stability findings, the evaluation schema. |
+| `plan/` | Recipe graph, the HiGHS model, the planner, outcomes, alternatives, zone membership, one cell per machine, the netlist, depot access arithmetic. |
+| `layout/` | The board, the stage's settings and solver table, the project's lane router, the stages, the pipeline. |
 | `physics/` | The Endfield pack for KohakuLayout: fabric, library, carriers, fields, boundaries, flow, rules, objective and the facts the pack reads from `attrs`. |
-| `synth/` | The project netlist as a framework problem, the framework layout back as placement and layout, the studio's frames. |
-| `route/` | The occupancy grid every rule reads. |
-| `verify/` | Geometry rules, rate rules, the report. |
+| `synth/` | The project netlist as a framework problem, the framework layout back as placement and layout, a project layout from any source as a framework problem and layout, the blueprint modules, the studio's frames. |
+| `verify/` | The checks and the evaluation over the framework, the rate rule, the report. |
 | `render/` | Rich tables, the text grid, the PNG. |
 | `cli/` | Typer commands. |
 | `serve/` | The web app's server, API and run manager. |
@@ -40,15 +39,15 @@ Read with `src/kohakuefda/` open. Concept pages explain why; this page says wher
 
 ### Layout
 
-`layout/stages.py` builds the basement board, turns the netlist into a framework problem with `synth/problem.py`, runs `kohakulayout.pipeline.solve` with the solver `layout/engine.py` names for the flat settings, and translates the framework layout back with `synth/layout.py`. `synth/frames.py` turns the framework's frames into the studio's. See the [KohakuLayout pages](../kohakulayout/README.md).
+`layout/stages.py` builds the basement board, turns the netlist into a framework problem with `synth/problem.py`, runs `kohakulayout.pipeline.solve` with the solver `layout/settings.py` names for the flat settings, and translates the framework layout back with `synth/layout.py`. `synth/frames.py` turns the framework's frames into the studio's. See the [KohakuLayout pages](../kohakulayout/README.md).
 
 ### Routing
 
-The framework's router places every wire under the pack's carriers and rules. `synth/flows.py` reads the flows along each wire from the lane facts, and `synth/layout.py` cuts the wire into segments at its junctions, choosing each junction's splitter or converger and rotation from the flows meeting there. `route/grid.py` provides the occupancy every check starts from.
+The framework's router places every wire under the pack's carriers and rules. `synth/flows.py` reads the flows along each wire from the lane facts, and `synth/layout.py` cuts the wire into segments at its junctions, choosing each junction's splitter or converger and rotation from the flows meeting there.
 
 ### Verification
 
-`verify/rules/geometry.py` (`check_layout`) runs every geometry rule over `route/grid.py`'s occupancy and `layout/connect.py`'s connectivity. `flow/evaluate.py` (`Evaluator`) relaxes the layout; `verify/rules/rates.py` compares it with the plan. `verify/report.py` collects findings.
+`synth/reverse.py` reads the project layout back as a framework problem and layout from its geometry alone: every machine a cell with its footprint and flow facts, every logistics unit a unit, every segment matched to the ports it leaves from and arrives at. `verify/layout.py` (`check_layout`) loads it into a world and runs KohakuLayout's verify runner under the pack: the framework's structural, occupancy, legality and coverage findings, then the pack's deck. `verify/evaluate.py` (`evaluate`) runs the framework's routed evaluator over it under the pack's flow hooks and reads the result back as the project's `Evaluation`; `verify/rules/rates.py` compares it with the plan. `verify/report.py` collects findings.
 
 ### Rendering and serving
 
