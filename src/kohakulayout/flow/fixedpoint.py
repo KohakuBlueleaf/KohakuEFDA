@@ -27,6 +27,8 @@ class Evaluation:
     rounds: int = 0
     converged: bool = False
     findings: tuple = ()
+    runs: dict[str, Any] = field(default_factory=dict)
+    cells: dict[str, Any] = field(default_factory=dict)
 
     def at(self, cell: str, pin: str) -> Fraction:
         key = f"{cell}.{pin}"
@@ -83,7 +85,9 @@ class FixedPoint:
     def __init__(self, max_rounds: int = MAX_ROUNDS) -> None:
         self.max_rounds = max_rounds
 
-    def evaluate(self, netlist: Netlist, flow: Any, fabric: Any = None) -> Evaluation:
+    def evaluate(
+        self, netlist: Netlist, flow: Any, fabric: Any = None, layout: Any = None
+    ) -> Evaluation:
         flat = netlist.flatten()
         out = Evaluation(loops=cycles(flat))
         produced: dict[str, Fraction] = {}

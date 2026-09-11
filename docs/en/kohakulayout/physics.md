@@ -20,7 +20,7 @@ construction and overrides only what its game has.
 | `carriers` | 1, paths | `may_share(a, b)` on one cell, `crossing(a, b)` (forbidden, free, or a unit), `junction(carrier)`, `run_limit`, `repeater`, `transfers_through(unit_kind, carrier)` | exclusive cells, no crossings, no junctions |
 | `fields` | 2, fields | `needs(cell)`, `emitters()` (kind, footprint, reach, overlap rule), `cover(world, needs)` | no fields; `GreedyCover` and `KindCover` ship as planners |
 | `boundaries` | 3, boundaries | `anchors(world, cell)` for a constraint kind, `legal(world, placement)`, `outside(world, net)`, `crossing_region(carrier, region)` | every anchor in `build`; nothing extra illegal |
-| `flow` | 4, flow | `split`, `merge`, `stateful`, `demand(cell, pin)`, `transfer(cell, inputs)`, `evaluates` | even split, proportional capped merge, no demands, no evaluation |
+| `flow` | 4, flow | `split`, `merge`, `stateful`, `demand(cell, pin)`, `transfer(cell, inputs)`, `evaluates`, `evaluator`; for the routed evaluator `commodity(cell, pin)`, `accept(cell, seen, capacities, room)`, `produce(cell, inputs, accepts)`, `share(rate, accepts)`, `merge_accept(capacities, outlet)`, `passes(unit, commodity)`, `crosses(unit)`, `links(netlist)` | even split, proportional capped merge, no demands, no evaluation; one commodity per source pin, every pin accepting its capacity, the acceptance-capped even share, no links |
 | `rules` | every | a deck of rules yielding findings after each assessment | none |
 | `objective` | every | weights over metrics and extra terms | area and units |
 | `diagnose` | every | the order refusals are reported in | overlap, region, port_shut, route, unrouted, field, legal |

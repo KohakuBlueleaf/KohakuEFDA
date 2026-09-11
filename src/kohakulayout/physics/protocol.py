@@ -78,6 +78,18 @@ class UnitPlacement(Model):
     owner: str
 
 
+Mix = dict[str, Fraction]
+
+
+class Made(Model):
+    """What a cell makes in one round: a mix per out pin, the total it makes (the outputs' sum when absent), its load, and why it makes less."""
+
+    outputs: dict[str, dict[str, Fraction]] = {}
+    made: dict[str, Fraction] | None = None
+    load: Fraction | None = None
+    note: str = ""
+
+
 @runtime_checkable
 class Carriers(Protocol):
     def may_share(self, a: Occupant, b: Occupant) -> bool: ...
@@ -108,6 +120,7 @@ class Boundaries(Protocol):
 @runtime_checkable
 class Flow(Protocol):
     evaluates: bool
+    evaluator: str
 
     def split(self, rate: Fraction, live_outputs: int) -> tuple[Fraction, ...]: ...
     def merge(
@@ -118,6 +131,26 @@ class Flow(Protocol):
     def transfer(
         self, cell: Any, inputs: dict[str, Fraction]
     ) -> dict[str, Fraction] | None: ...
+    def commodity(self, cell: Any, pin: str) -> str: ...
+    def accept(
+        self,
+        cell: Any,
+        seen: dict[str, frozenset[str]],
+        capacities: dict[str, Fraction],
+        room: dict[str, Fraction],
+    ) -> dict[str, Fraction]: ...
+    def produce(
+        self, cell: Any, inputs: dict[str, Mix], accepts: dict[str, Fraction]
+    ) -> Made | None: ...
+    def share(
+        self, rate: Fraction, accepts: tuple[Fraction, ...]
+    ) -> tuple[Fraction, ...]: ...
+    def merge_accept(
+        self, capacities: tuple[Fraction, ...], outlet: Fraction
+    ) -> tuple[Fraction, ...]: ...
+    def passes(self, unit: Any, commodity: str) -> bool: ...
+    def crosses(self, unit: Any) -> bool: ...
+    def links(self, netlist: Any) -> tuple[tuple[str, str, str, str], ...]: ...
 
 
 @runtime_checkable

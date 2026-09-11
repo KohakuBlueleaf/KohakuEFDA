@@ -23,13 +23,33 @@ and every function can be replaced by a person writing text.
 | `balance(netlist, demand, fabric)` | findings: unfed, starved, surplus, over capacity |
 | `macros(netlist, strategy)` | groups cells into a module, a macro with a row fragment and its derived footprint, and one instance; strategies `bank`, `group`, `custom` |
 
-## The evaluator
+## The evaluators
 
-`flow.evaluate(netlist, flow, fabric)` computes, for a pack's `Flow` hooks, what every
-source makes and every sink receives. Every net is primed with its declared rate and the
-iteration only moves downward: what the sources make merges under the carrier's capacity,
-splits evenly over the net's live sinks, and each cell's `transfer` turns delivered inputs
-into what its out pins may make, never above the previous round. A loop keeps its
-declared rates unless a cell on it makes less. Findings: `kl.flow.starved`,
-`kl.flow.capacity`, `kl.flow.loop` (info) and `kl.flow.unstable`. A pack that sets
-`flow.evaluates` has these findings join every assessment.
+`flow.evaluate(netlist, flow, fabric, evaluator, layout)` runs the evaluator the name
+picks from `flow.EVALUATORS`; a pack names its own in `flow.evaluator`, and one that sets
+`flow.evaluates` has the findings join every assessment.
+
+`fixedpoint` reads the netlist: what every source makes and every sink receives. Every
+net is primed with its declared rate and the iteration only moves downward: what the
+sources make merges under the carrier's capacity, splits evenly over the net's live
+sinks, and each cell's `transfer` turns delivered inputs into what its out pins may make,
+never above the previous round. A loop keeps its declared rates unless a cell on it makes
+less.
+
+`routed` reads a layout's wires. A wire is nodes and runs: a node is a pin at its attach
+cell, a unit (a crossing unit, `crosses`, one node per way of travel), a cell where the
+wire branches without a unit, a segment boundary, or a dangling end; a run is the path
+between two nodes along a segment, in the segment's cell order when the caller says the
+layout is `oriented` and else turned toward the sink pins; a pin on a unit's cell, two
+pins on one cell, and the pack's `links` are runs of no cells. Each round every cell
+accepts on its in runs what `accept` says and makes what `produce` says, each commodity
+(`commodity`, one per source pin) shared over the runs that accept (`share`); every unit
+admits what `merge_accept` allows, keeps what `passes`, and shares it; then every run
+carries what was offered, scaled to what it accepts and its carrier holds. The rounds
+stop when nothing moves, when the flows rounded to a denominator hold, or when the
+largest move falls under `epsilon`. The evaluation carries a `RunFlow` per run (its mix,
+total and capacity) and a `CellFlow` per cell (what it received and made, its load and
+the pack's note).
+
+Findings of both: `kl.flow.starved`, `kl.flow.capacity`, `kl.flow.loop` (info, the
+netlist one) and `kl.flow.unstable`.
