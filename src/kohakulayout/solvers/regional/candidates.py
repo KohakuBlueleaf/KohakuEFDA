@@ -116,7 +116,7 @@ class Proposals:
         cell = world.netlist.cells[cell_id]
         fp = world.footprint_of(cell_id)
         if cell.constraint.kind != "free":
-            return _rows((a.x, a.y, a.rot) for a in world.anchors(cell_id))
+            return _rows(world.anchor_rows(cell_id))
         if cell.group is not None:
             members = [
                 m
