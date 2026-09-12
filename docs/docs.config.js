@@ -61,6 +61,7 @@ const sidebarStructure = {
     "kohakulayout/README.md",
     "kohakulayout/ir.md",
     "kohakulayout/physics.md",
+    "kohakulayout/custom-pack.md",
     "kohakulayout/state.md",
     "kohakulayout/engine.md",
     "kohakulayout/solvers.md",

@@ -23,6 +23,7 @@ visualising (drawing the answer) stay with the project.
 |---|---|
 | [The IR and its text form](ir.md) | the levels (netlist, problem, layout, assessment), modules and macros, the `.kl` language, JSON, digests |
 | [Physics packs](physics.md) | how a project states its game: fabric, library, carriers, fields, boundaries, flow, rules, objective |
+| [Building your own project](custom-pack.md) | a new pack step by step: the logic-gates pack walked through, and a fake-2D Minecraft redstone sketch |
 | [The world and the router](state.md) | placements, wires, units, reservations, transactions, the refusal chain, routing, the state checker |
 | [The engine](engine.md) | context, builder, budget, attempts, the best archive, frames, plugins, checkpoints, workspaces |
 | [Solvers](solvers.md) | the solver protocol, the shipped families, registries, level-3 conformance |
