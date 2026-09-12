@@ -1,9 +1,10 @@
 # kohakuefda/
 
 The library. Every subpackage is a stage of the pipeline or a shared model; the
-CLI and the viewer are thin consumers. Dependency direction is one-way:
-`data` → `model` → `flow` → `plan` → `layout` → `route` → `verify` → `render` → `cli`.
-`model`, `flow` and `verify` never import `plan`, `layout` or `route`.
+CLI and the viewer are thin consumers. Dependency direction is one-way, from `model` up through `data`, `flow` and `plan`, the
+board and the Endfield pack, the synth, `verify` and the layout stages, to `render`,
+`serve` and `cli` ([the dependency graph](../../docs/en/dev/dependency-graph.md)).
+`model` and `flow` never import `plan` or `layout`.
 
 ## Subpackages
 
