@@ -242,16 +242,17 @@ def test_the_pylon_covers_twelve_by_twelve() -> None:
 def test_slot_and_edge_anchors() -> None:
     world = World(toy_problem(), EndfieldPhysics(), router=None)
     slots = list(slot_anchors(world, world.netlist.cells["u"]))
-    assert [(a.x, a.y, a.rot) for a in slots] == [(3, 2, 0), (6, 2, 0)]
-    assert list(world.anchors("u")) == slots
+    assert slots == [(3, 2, 0), (6, 2, 0)]
+    assert [(a.x, a.y, a.rot) for a in world.anchors("u")] == slots
+    assert list(world.anchor_rows("u")) == slots
     edges = list(edge_anchors(world, world.netlist.cells["e"]))
     assert all(
-        (a.x in (2, 13) or a.y in (2, 11)) and 2 <= a.x <= 13 and 2 <= a.y <= 11
-        for a in edges
+        (x in (2, 13) or y in (2, 11)) and 2 <= x <= 13 and 2 <= y <= 11
+        for x, y, _ in edges
     )
-    assert {a.rot for a in edges if a.x == 2 and 2 < a.y < 11} == {0}
-    assert {a.rot for a in edges if a.x == 13 and 2 < a.y < 11} == {180}
-    assert {a.rot for a in edges if a.y == 2 and 2 < a.x < 13} == {90}
+    assert {r for x, y, r in edges if x == 2 and 2 < y < 11} == {0}
+    assert {r for x, y, r in edges if x == 13 and 2 < y < 11} == {180}
+    assert {r for x, y, r in edges if y == 2 and 2 < x < 13} == {90}
     default = EndfieldPhysics().fabric({"square": [12, 10], "ring": 2})
     assert default.entries == ("N", "W")
 

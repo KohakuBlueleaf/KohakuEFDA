@@ -9,17 +9,76 @@ a lane lays before it offers its straight cells to the next lane. ``JOIN_ONLY_LA
 refuses a lane that is only a merge at its source's port cell.
 """
 
+from collections import OrderedDict
 from fractions import Fraction
 from typing import Any
 
-from kohakuefda.physics.facts import lane_facts, pin_facts
-from kohakulayout.ir import PinRef
+from kohakuefda.physics.facts import lane_facts, pin_facts, recall, remember
+from kohakulayout.ir import PinRef, Refusal
 from kohakulayout.ir.geometry import XY
 from kohakulayout.state import LaneRouter
-from kohakulayout.state.router.trees import Plan, TreePolicy, grow
+from kohakulayout.state.router.lanes import attach_pins, lane_pins
+from kohakulayout.state.router.protocol import terminals
+from kohakulayout.state.router.trees import Plan, TreePolicy, grow, may_join, seed_of
 
 ATTACH_MIN_CELLS: int = 1
 JOIN_ONLY_LANES: bool = True
+Pin = tuple[str, str]
+Lane = tuple[Pin, Pin, Fraction]
+
+
+class LaneTable:
+    """A net's lane facts read once: lanes, rates, partners, the pipe tree's ends and lane roles."""
+
+    def __init__(self, net: Any) -> None:
+        self.facts: list[Lane] = lane_facts(net)
+        self.rates: dict[tuple[str, str, str, str], Fraction] = {
+            (s[0], s[1], t[0], t[1]): rate for s, t, rate in self.facts
+        }
+        self.by_pair: dict[tuple[Pin, Pin], Lane] = {}
+        self.partners: dict[Pin, list[Pin]] = {}
+        load: dict[Pin, Fraction] = {}
+        for fact in self.facts:
+            source, sink, rate = fact
+            self.by_pair.setdefault((source, sink), fact)
+            self.partners.setdefault(source, []).append(sink)
+            self.partners.setdefault(sink, []).append(source)
+            load[source] = load.get(source, Fraction(0)) + rate
+            load[sink] = load.get(sink, Fraction(0)) + rate
+        self.tree = (
+            net.carrier == "pipe" and len(net.sources) > 1 and len(net.sinks) > 1
+        )
+        self.root: Pin | None = max(
+            ((r.cell, r.pin) for r in net.sources),
+            key=lambda k: load.get(k, 0),
+            default=None,
+        )
+        self.main: Pin | None = max(
+            ((r.cell, r.pin) for r in net.sinks),
+            key=lambda k: load.get(k, 0),
+            default=None,
+        )
+
+    def role(self, source: Pin, sink: Pin) -> int:
+        """A lane's role on a pipe tree: 0 the trunk, 1 a join, 3 a branch; 2 elsewhere."""
+        if not self.tree:
+            return 2
+        if (source, sink) == (self.root, self.main):
+            return 0
+        if sink == self.main:
+            return 1
+        if source == self.root:
+            return 3
+        return 2
+
+
+_TABLES: OrderedDict = OrderedDict()
+
+
+def table_of(net: Any) -> LaneTable:
+    """The net's lane table, built once per net."""
+    hit = recall(_TABLES, net)
+    return hit if hit is not None else remember(_TABLES, net, LaneTable(net))
 
 
 class LanePolicy(TreePolicy):
@@ -27,8 +86,9 @@ class LanePolicy(TreePolicy):
 
     def root(self, world: Any, net: Any, sources: list[Any]) -> Any:
         """The source the tree grows from: on a pipe tree its fullest source, else the placed source whose lane to a placed sink carries the most and, at one rate, spans farthest."""
-        rates = {(s[0], s[1], t[0], t[1]): rate for s, t, rate in lane_facts(net)}
-        if net.carrier == "pipe" and len(net.sources) > 1 and len(net.sinks) > 1:
+        table = table_of(net)
+        rates = table.rates
+        if table.tree:
             fullest = max(
                 net.sources,
                 key=lambda r: sum(
@@ -61,9 +121,9 @@ class LanePolicy(TreePolicy):
         """The first sink the trunk runs to: on a pipe tree its fullest sink when placed, else the placed sink whose lane carries the most and, at one rate, lies farthest."""
         if root is None or not sinks:
             return sinks
-        rates = {(s[0], s[1], t[0], t[1]): rate for s, t, rate in lane_facts(net)}
-        tree = net.carrier == "pipe" and len(net.sources) > 1 and len(net.sinks) > 1
-        if tree:
+        table = table_of(net)
+        rates = table.rates
+        if table.tree:
             main = max(
                 net.sinks,
                 key=lambda r: sum(
@@ -91,11 +151,12 @@ class LanePolicy(TreePolicy):
 
     def lanes(self, world: Any, net: Any) -> list[tuple[Any, Any]]:
         """The net's lanes in laying order: on a pipe tree the trunk, then the joins, then the branches; among equals the higher rate, then the wider span between the two attach cells, then the lane fact's place."""
-        facts = lane_facts(net)
+        table = table_of(net)
+        facts = table.facts
         if not facts:
             return super().lanes(world, net)
         ranked = sorted(
-            enumerate(facts), key=lambda e: (*lane_key(world, net, e[1]), e[0])
+            enumerate(facts), key=lambda e: (*lane_key(world, table, e[1]), e[0])
         )
         return [
             (PinRef(cell=s[0], pin=s[1]), PinRef(cell=t[0], pin=t[1]))
@@ -104,22 +165,23 @@ class LanePolicy(TreePolicy):
 
     def rank(self, world: Any, net: Any, source: Any, sink: Any) -> tuple[Any, ...]:
         """A lane's rank across nets: pipes first, then the role, the higher rate, the wider span."""
-        me = ((source.cell, source.pin), (sink.cell, sink.pin))
-        for fact in lane_facts(net):
-            if (fact[0], fact[1]) == me:
-                return (net.carrier != "pipe", *lane_key(world, net, fact))
+        table = table_of(net)
+        fact = table.by_pair.get(((source.cell, source.pin), (sink.cell, sink.pin)))
+        if fact is not None:
+            return (net.carrier != "pipe", *lane_key(world, table, fact))
         return (net.carrier != "pipe", 2, Fraction(0), 0)
 
     def blockers(
         self, world: Any, net: Any, plan: Plan, source: Any, sink: Any
     ) -> list[tuple[Any, Any]]:
         """On a pipe tree, the attachments a join or a branch with nowhere to attach takes up: for a join every branch leaving the trunk, for a branch every join into it; nothing elsewhere."""
-        if not (net.carrier == "pipe" and len(net.sources) > 1 and len(net.sinks) > 1):
+        table = table_of(net)
+        if not table.tree:
             return []
         at = trunk_index(net, plan)
         if at is None:
             return []
-        root, main = tree_ends(net)
+        root, main = table.root, table.main
         me = ((source.cell, source.pin), (sink.cell, sink.pin))
         joining = me[1] == main and me[0] != root
         branching = me[0] == root and me[1] != main
@@ -140,8 +202,45 @@ class LanePolicy(TreePolicy):
     def single_cell_lane(
         self, world: Any, net: Any, source: Any, sink: Any, split: bool, merge: bool
     ) -> bool:
-        """Whether a lane that is only a merge at its source's port cell may stand: yes unless ``JOIN_ONLY_LANES`` is off."""
-        return JOIN_ONLY_LANES or split or not merge
+        """Whether a one-cell lane may stand: always under ``JOIN_ONLY_LANES``, else only port to port."""
+        return JOIN_ONLY_LANES or not (split or merge)
+
+    def native(self, world: Any, net: Any) -> dict[str, Any] | None:
+        """The lane policy as data for the native twin; None for a subclass."""
+        if type(self) is not LanePolicy:
+            return None
+        table = table_of(net)
+        if table.facts:
+            order = [
+                [
+                    ".".join(s),
+                    ".".join(t),
+                    [
+                        [table.role(s, t), 1],
+                        [-Fraction(rate).numerator, Fraction(rate).denominator],
+                    ],
+                ]
+                for s, t, rate in table.facts
+            ]
+        else:
+            order = [
+                [str(s), str(t), [[2, 1], [0, 1]]] for s, t in super().lanes(world, net)
+            ]
+        ends = None
+        if table.tree and table.root is not None and table.main is not None:
+            ends = [".".join(table.root), ".".join(table.main)]
+        return {
+            "order": order,
+            "span": bool(table.facts),
+            "net_key": [[int(net.carrier != "pipe"), 1]],
+            "origins": {"kind": "straight", "min_own": ATTACH_MIN_CELLS, "trunk": ends},
+            "blockers": (
+                {"kind": "trunk", "root": ends[0], "main": ends[1]}
+                if ends
+                else {"kind": "none"}
+            ),
+            "single_joins": JOIN_ONLY_LANES,
+        }
 
     def pending(
         self,
@@ -152,10 +251,7 @@ class LanePolicy(TreePolicy):
     ) -> tuple[Any, ...]:
         """Readiness lane by lane: a pin is reached once one of its lanes has its partner placed; a pin the standing wire holds stays; when that leaves no source or no sink to grow from, every pin stays."""
         on_wire = {c for seg in seed.segments for c in seg.cells} if seed else set()
-        partners: dict[tuple[str, str], list[tuple[str, str]]] = {}
-        for source, sink, _ in lane_facts(net):
-            partners.setdefault(source, []).append(sink)
-            partners.setdefault(sink, []).append(source)
+        partners = table_of(net).partners
         if not partners:
             return found
         kept = tuple(
@@ -182,20 +278,26 @@ class LanePolicy(TreePolicy):
         joinable: frozenset[XY],
         merging: bool,
     ) -> frozenset[XY]:
-        """The straight cells of the lanes that laid enough cells of their own; on a pipe tree the trunk is cut to before its first branch for a join and after its last join for a branch (a junction at a trunk end that is no port cell is the trunk's own)."""
+        """The straight cells of lanes long enough to join, the trunk cut on a pipe tree."""
         if not plan.segments:
             return joinable
         segments = [list(seg.cells) for seg in plan.segments]
         long = laid_enough(segments, ATTACH_MIN_CELLS)
-        bounded = net.carrier == "pipe" and len(net.sources) > 1 and len(net.sinks) > 1
-        at = trunk_index(net, plan) if bounded else None
+        at = trunk_index(net, plan) if table_of(net).tree else None
         behind = port_cells_behind(world, net, plan.ports)
         if at is None:
             runs = [run for run, kept in zip(segments, long) if kept]
         else:
             trunk = segments[at]
-            first = 1 if trunk[0] not in behind else 0
-            last = len(trunk) - 1 if trunk[-1] not in behind else len(trunk)
+            laid = [list(seg.cells) for seg in plan.standing] or segments
+            before = laid.index(trunk) if trunk in laid else at
+            earlier = {c for run in laid[:before] for c in run}
+            first = 1 if trunk[0] not in behind or trunk[0] in earlier else 0
+            last = (
+                len(trunk) - 1
+                if trunk[-1] not in behind or trunk[-1] in earlier
+                else len(trunk)
+            )
             if not long[at]:
                 runs = []
             elif merging:
@@ -282,34 +384,62 @@ def straight_cells(runs: list[list[XY]], open_ends: bool = True) -> set[XY]:
     return straight
 
 
-def lane_key(
-    world: Any, net: Any, fact: tuple[tuple[str, str], tuple[str, str], Fraction]
-) -> tuple[int, Fraction, int]:
-    """The key for one lane: its role on a pipe tree (trunk, join, plain, branch), then the higher rate, then the wider span between its attach cells."""
+def designated_cell(world: Any, cell_id: str, pin_id: str) -> XY | None:
+    """The attach cell of a placed pin's designated port: its first choice."""
+    choices = world.port_choices(cell_id).get(pin_id, ())
+    return choices[0][1] if choices else None
+
+
+def span_of(world: Any, source: Pin, sink: Pin) -> int:
+    """The Manhattan span between two pins' designated attach cells; zero while one is unplaced."""
+    p, q = designated_cell(world, *source), designated_cell(world, *sink)
+    return 0 if p is None or q is None else abs(p[0] - q[0]) + abs(p[1] - q[1])
+
+
+def lane_key(world: Any, table: LaneTable, fact: Lane) -> tuple[int, Fraction, int]:
+    """One lane's key: its role on a pipe tree, then the higher rate, then the wider span."""
     source, sink, rate = fact
-    role = 2
-    if net.carrier == "pipe" and len(net.sources) > 1 and len(net.sinks) > 1:
-        root, main = tree_ends(net)
-        if (source, sink) == (root, main):
-            role = 0
-        elif sink == main:
-            role = 1
-        elif source == root:
-            role = 3
-    p, q = world.attach_cell(*source), world.attach_cell(*sink)
-    span = 0 if p is None or q is None else abs(p[0] - q[0]) + abs(p[1] - q[1])
-    return (role, -rate, -span)
+    return (table.role(source, sink), -rate, -span_of(world, source, sink))
 
 
-def tree_ends(net: Any) -> tuple[tuple[str, str], tuple[str, str]]:
-    """A pipe tree's trunk ends: the source and the sink carrying the most."""
-    load: dict[tuple[str, str], Fraction] = {}
-    for source, sink, rate in lane_facts(net):
-        load[source] = load.get(source, Fraction(0)) + rate
-        load[sink] = load.get(sink, Fraction(0)) + rate
-    root = max(((r.cell, r.pin) for r in net.sources), key=lambda k: load.get(k, 0))
-    main = max(((r.cell, r.pin) for r in net.sinks), key=lambda k: load.get(k, 0))
-    return root, main
+def lane_ends(
+    world: Any, net: Any, ref: PinRef, side: int, policy: TreePolicy
+) -> frozenset[XY] | None:
+    """Where a lane may start (side 0) or end (side 1) on a pin's standing lanes; None without."""
+    wire = world.wires.get(net.id)
+    found = terminals(world, net)
+    if wire is None or isinstance(found, Refusal):
+        return None
+    segments = list(wire.segments)
+    read = lane_pins(segments, attach_pins(found, wire.ports), frozenset(net.sources))
+    mine = [i for i, pair in enumerate(read) if pair[side] == ref]
+    if not mine:
+        return None
+    seed = seed_of(world, net)
+    if seed is None:
+        return None
+    own = Plan(net_id=net.id, segments=[segments[i] for i in mine])
+    own.ports = dict(wire.ports)
+    own.lanes = [read[i] for i in mine]
+    own.standing = segments
+    rule = world.physics.carriers.junction(net.carrier)
+    layer = world.carrier_layer(net.carrier)
+    crossed = {xy for xy, _, _ in seed.crossings}
+    joinable = frozenset(
+        c
+        for seg in own.segments
+        for c in seg.cells
+        if c not in crossed
+        and c not in seed.junctions
+        and may_join(world, rule, c, layer)
+    )
+    return policy.origins(world, net, own, dict(seed.junctions), joinable, side == 1)
+
+
+def tree_ends(net: Any) -> tuple[Pin | None, Pin | None]:
+    """A pipe tree's trunk ends: the source and the sink carrying the most; None on a side without pins."""
+    table = table_of(net)
+    return table.root, table.main
 
 
 class EndfieldRouter(LaneRouter):
@@ -347,25 +477,51 @@ class EndfieldRouter(LaneRouter):
                 return refusal
         return None
 
+    def order_data(self, world: Any, net: Any) -> dict[str, Any] | None:
+        """The net order as data for the native twin; None for a subclass."""
+        if type(self) is not EndfieldRouter:
+            return None
+
+        def frac(value: Any) -> list[int]:
+            value = Fraction(value)
+            return [value.numerator, value.denominator]
+
+        def rate(ref: Any) -> Fraction:
+            found = pin_facts(world.netlist.cells[ref.cell]).get(ref.pin)
+            return net.rate if found is None else found[1]
+
+        facts = table_of(net).facts
+        lanes = [[".".join(s), ".".join(t), frac(r)] for s, t, r in facts] or [
+            [str(s), str(t), frac(net.rate)] for s in net.sources for t in net.sinks
+        ]
+        tree = None
+        if table_of(net).tree:
+            tree = {
+                "root": str(max(net.sources, key=rate)),
+                "main": str(max(net.sinks, key=rate)),
+                "rates": {str(r): frac(rate(r)) for r in net.pins()},
+            }
+        return {
+            "kind": "lanes",
+            "key": [[int(net.carrier != "pipe"), 1]],
+            "lanes": lanes,
+            "rate": frac(net.rate),
+            "tree": tree,
+        }
+
     def order(
         self, world: Any, cell_id: str, pending: list[str], grown: set[str]
     ) -> list[str]:
         """The order for the nets a placement touches: pipes first, a pipe tree's trunk before its joins, its joins before its branches, then the lane of the highest rate, then the widest span; a net ranks by the first of its lanes at the new cell."""
 
-        def span(a: Any, b: Any) -> int:
-            p, q = world.attach_cell(*a), world.attach_cell(*b)
-            if p is None or q is None:
-                return 0
-            return abs(p[0] - q[0]) + abs(p[1] - q[1])
-
         def key(net_id: str) -> tuple[bool, int, Fraction, int]:
             net = world.netlist.nets[net_id]
             lanes = lanes_at(world, net, cell_id)
             rank = 2
-            if net.carrier == "pipe" and len(net.sources) > 1 and len(net.sinks) > 1:
+            if table_of(net).tree:
                 rank, lanes = tree_lane(world, net, cell_id, net_id in grown)
             first = min(
-                ((-rate, -span(a, b)) for a, b, rate in lanes),
+                ((-rate, -span_of(world, a, b)) for a, b, rate in lanes),
                 default=(-net.rate, -world.span(net_id)),
             )
             return (net.carrier != "pipe", rank, first[0], first[1])
@@ -373,12 +529,9 @@ class EndfieldRouter(LaneRouter):
         return sorted(dict.fromkeys(pending), key=key)
 
 
-Lane = tuple[tuple[str, str], tuple[str, str], Fraction]
-
-
 def lanes_at(world: Any, net: Any, cell_id: str) -> list[Lane]:
     """The lanes of a net that end at a cell, or all of them for a net the placement only disturbed; a net without lane facts pairs its sources with its sinks at the net's rate."""
-    lanes = lane_facts(net)
+    lanes = table_of(net).facts
     if not lanes:
         lanes = [
             ((s.cell, s.pin), (t.cell, t.pin), net.rate)
@@ -411,8 +564,10 @@ def tree_lane(
 __all__ = [
     "EndfieldRouter",
     "LanePolicy",
+    "LaneTable",
     "lanes_at",
     "port_cells_behind",
     "straight_cells",
+    "table_of",
     "tree_lane",
 ]

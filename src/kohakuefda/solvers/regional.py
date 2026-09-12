@@ -5,20 +5,17 @@ from typing import Any
 
 import numpy as np
 
-from kohakuefda.layout.router import laid_enough, straight_cells
+from kohakuefda.layout.router import LanePolicy, lane_ends
 from kohakuefda.physics.boundaries import CLUSTER, PART_KIND
 from kohakuefda.physics.facts import lane_facts
-from kohakulayout.ir import PinRef, Refusal
+from kohakulayout.ir import PinRef
 from kohakulayout.ir.geometry import ROTATIONS, XY, footprint_cells
 from kohakulayout.solvers import Regional, register
 from kohakulayout.solvers.protocol import Param
 from kohakulayout.solvers.regional.candidates import Proposals
 from kohakulayout.solvers.regional.search import DEFAULTS as FRAMEWORK_DEFAULTS
 from kohakulayout.solvers.regional.search import Search
-from kohakulayout.state.router.lanes import attach_pins, lane_pins
-from kohakulayout.state.router.protocol import terminals
 
-TARGET_MIN_CELLS: int = 2
 DEFAULTS: dict[str, Any] = {
     **{k: v for k, v in FRAMEWORK_DEFAULTS.items() if k != "origin_weight"},
     "center_weight": 0.2,
@@ -106,55 +103,6 @@ class EndfieldProposals(Proposals):
                     max(0, cx - self.gap) : cx + self.gap + 1,
                 ] = 1
 
-    def lane_cells(
-        self, wire: Any, partner: Any = None, side: int = 0
-    ) -> set[XY] | None:
-        """The cells of a routed net's tree a lane may attach at: the straight cells of the partner pin's own lanes (the lanes it feeds when it is a source, side 0, the lanes into it when it is a sink, side 1; every lane when no partner is named) that laid enough cells of their own, with the port cell behind each attach cell on the run so a turn at a port is no place to attach; None when the partner has no lane yet."""
-        world = self.world
-        behind: dict[XY, XY] = {}
-        for key, port_id in wire.ports.items():
-            cell_id, pin_id = key.split(".", 1)
-            for found, at, port_cell in world.port_choices(cell_id).get(pin_id, ()):
-                if found == port_id:
-                    behind[at] = port_cell
-        laid = [list(seg.cells) for seg in wire.segments]
-        enough = laid_enough(laid, TARGET_MIN_CELLS)
-        net = world.netlist.nets[wire.net]
-        pins = terminals(world, net)
-        if partner is not None and not isinstance(pins, Refusal):
-            read = lane_pins(
-                list(wire.segments),
-                attach_pins(pins, wire.ports),
-                frozenset(net.sources),
-            )
-            chosen = [pair[side] == partner for pair in read]
-            if not any(chosen):
-                return None
-        else:
-            chosen = [True] * len(laid)
-        runs = []
-        for run, ok, mine in zip(laid, enough, chosen):
-            if not (ok and mine):
-                continue
-            if run[0] in behind:
-                run = [behind[run[0]], *run]
-            if run[-1] in behind:
-                run = [*run, behind[run[-1]]]
-            runs.append(run)
-        layers = {seg.layer for seg in wire.segments}
-        return {
-            c
-            for c in straight_cells(runs, open_ends=False)
-            if all(self.bare(layer, c) for layer in layers)
-        }
-
-    def bare(self, layer: str, cell: XY) -> bool:
-        """Whether one wire alone holds the cell: no unit and no crossing."""
-        holders = list(self.world.kernel.holders_at(layer, cell))
-        return sum(h.startswith("wire:") for h in holders) == 1 and not any(
-            h.startswith("unit:") for h in holders
-        )
-
     def targets(self, cell_id: str) -> list[tuple[str, list[XY]]]:
         """Where each own pin's lanes may end, one entry per lane with a placed partner: the straight cells of the partner pin's own lanes (a lane attaches on no bend), else every attach cell the partner pin may still use."""
         world = self.world
@@ -173,11 +121,19 @@ class EndfieldProposals(Proposals):
                 cells = None
                 if wire is not None:
                     partner = PinRef(cell=other, pin=other_pin)
-                    cells = self.lane_cells(wire, partner, 0 if cell_id == sink else 1)
+                    cells = lane_ends(
+                        world, net, partner, 0 if cell_id == sink else 1, self.policy
+                    )
                 if cells is None:
                     cells = {xy for _, xy in world.open_ports(other, other_pin)}
                 out.append((mine, sorted(cells)))
         return out
+
+    @property
+    def policy(self) -> Any:
+        """The lane policy the world's router lays lanes with, or the project's own."""
+        found = getattr(self.world.router, "policy", None)
+        return found if found is not None else LanePolicy()
 
 
 class EndfieldSearch(Search):
