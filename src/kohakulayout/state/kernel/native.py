@@ -27,6 +27,17 @@ class NativeKernel:
     def free(self, layer: str, cells: Iterable[XY], holder: Holder) -> None:
         self._grid.free(layer, [tuple(c) for c in cells], holder)
 
+    def set_runs(
+        self, layer: str, holder: Holder, runs: Iterable[tuple[XY, int]]
+    ) -> None:
+        self._grid.set_runs(layer, holder, [(xy[0], xy[1], mask) for xy, mask in runs])
+
+    def run_at(self, layer: str, holder: Holder, xy: XY) -> int:
+        return self._grid.run_at(layer, holder, tuple(xy))
+
+    def note_unit(self, unit_id: str, footprint: str, owner: str, field: bool) -> None:
+        self._grid.note_unit(unit_id, footprint, owner, field)
+
     def clear(self) -> None:
         self._grid.clear()
 

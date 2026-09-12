@@ -41,8 +41,9 @@ present cost until nothing stays displaced or the route rolls back; a cell a dis
 held is charged history through the world's undo log, so a rollback reverts the charge and
 a ripped cell prices higher only where the rip stood; the search is A* on one
 layer over the kernel's holder map, bounded by a detour when the costs set one, where
-another net's wire is a crossing when the pack allows one and the other wire runs straight
-through, shareable when the carriers say so, and otherwise a wall or a priced obstacle the
+another net's wire is a crossing when the pack allows one, the other wire's run on the cell
+(the sides it continues to, kept by the kernel per wire and cell) goes straight across, and
+the crossing unit may stand in the cell's region, shareable when the carriers say so, and otherwise a wall or a priced obstacle the
 router rips. Nets
 with many terminals grow as trees that keep arrivals and departures per cell: a trunk
 runs from the root to the nearest sink, then the sources join with a merge wherever flow
@@ -51,13 +52,16 @@ and a path never runs through a terminal it is not reaching, so every cell carri
 one way toward a sink and no cell holds two junctions; junctions follow the pack's rule (free, a unit, or
 forbidden) and a junction unit stands only on a cell free of units and crossings; another net's open attach cells are shut to a search and its routed attach cells are never ripped, a terminal cell another wire holds is ripped back or refused, never shared, and one under a footprint or another owner's unit cannot be taken; a pin with several ports is reached through whichever it may still take and the wire records the port (`Wire.ports`), so two pins of one cell never share a port; a routed attach cell counts as straight-through from its port, so a bridge may stand in front of a port; a reused crossing unit that went with a ripped net is placed again; the state checker reports two wires on one cell unless a unit carries them or the pack lets them share; reservations are corridors for their own carrier and
 walls for any other; a unit a route needs may take a field emitter's cell, and the
-emitter is placed again for every cell it left short; run limits place repeaters, and without a repeater only a run over
-the limit is refused. Everything the router writes goes through `set_wire`
+emitter is placed again for every cell it left short; a run counts between the unit cells on a segment, run limits place
+repeaters on the last straight cell within the limit, and without a repeater only a run
+over the limit is refused. Everything the router writes goes through `set_wire`
 and `place_unit`, so it rolls back with the attempt.
 
 ## Kernels
 
-The kernel is the occupancy grid behind the world: `occupy`, `free`, holders per cell,
+The kernel is the occupancy grid behind the world: `occupy`, `free`, holders per cell, the
+run of each wire holder on a cell (`set_runs`, `run_at`: the sides the wire continues to,
+written with the wire from its segments and the port behind an attach cell),
 `free_for`, `cells_of`, `extent`, `occupancy`, `integral`, `save` and `load`. Two occupants
 agree byte for byte: the pure Python `PyKernel` and the native `Grid` from the Rust twin
 (`make_kernel("auto")` picks the twin when built). A `RecordingKernel` logs every mutation

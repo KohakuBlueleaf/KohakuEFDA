@@ -10,7 +10,7 @@ import numpy as np
 from kohakulayout.ir.geometry import XY
 from kohakulayout.state.kernel.protocol import Holder
 
-MUTATIONS = ("occupy", "free", "clear", "load")
+MUTATIONS = ("occupy", "free", "set_runs", "clear", "load")
 
 
 class RecordingKernel:
@@ -46,6 +46,19 @@ class RecordingKernel:
         cells = [list(c) for c in cells]
         self._record("free", layer, cells, holder)
         self.inner.free(layer, [tuple(c) for c in cells], holder)
+
+    def set_runs(
+        self, layer: str, holder: Holder, runs: Iterable[tuple[XY, int]]
+    ) -> None:
+        runs = [[list(xy), mask] for xy, mask in runs]
+        self._record("set_runs", layer, holder, runs)
+        self.inner.set_runs(layer, holder, [(tuple(xy), mask) for xy, mask in runs])
+
+    def run_at(self, layer: str, holder: Holder, xy: XY) -> int:
+        return self.inner.run_at(layer, holder, xy)
+
+    def note_unit(self, unit_id: str, footprint: str, owner: str, field: bool) -> None:
+        self.inner.note_unit(unit_id, footprint, owner, field)
 
     def clear(self) -> None:
         self._record("clear")
@@ -106,6 +119,8 @@ def replay(log: Iterable[str], kernel: Any) -> Any:
             kernel.occupy(args[0], [tuple(c) for c in args[1]], args[2])
         elif op == "free":
             kernel.free(args[0], [tuple(c) for c in args[1]], args[2])
+        elif op == "set_runs":
+            kernel.set_runs(args[0], args[1], [(tuple(xy), m) for xy, m in args[2]])
         elif op == "clear":
             kernel.clear()
         elif op == "load":

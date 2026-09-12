@@ -15,7 +15,9 @@ from typing import Any
 
 from kohakulayout.ir import PinRef, Refusal, Segment
 from kohakulayout.ir.geometry import XY
+from kohakulayout.state.kernel import holder_kind
 from kohakulayout.state.router.default import DefaultRouter
+from kohakulayout.state.router.native_route import native_route_all
 from kohakulayout.state.router.pathfinder import Search, find
 from kohakulayout.state.router.protocol import Terminal, refuse, register, terminals
 from kohakulayout.state.router.trees import (
@@ -111,6 +113,34 @@ def crossable_own(
     return out
 
 
+def standing_crossings(
+    world: Any,
+    net: Any,
+    layer: str,
+    crossings: list[tuple[XY, str, bool]],
+    kept: list[Segment],
+) -> list[tuple[XY, str, bool]]:
+    """The seed's crossings the kept segments still make."""
+    cover: dict[XY, int] = {}
+    for segment in kept:
+        for xy in segment.cells:
+            cover[xy] = cover.get(xy, 0) + 1
+    out: list[tuple[XY, str, bool]] = []
+    for xy, other, reuse in crossings:
+        if not cover.get(xy):
+            continue
+        if other == net.id:
+            made = cover[xy] >= 2
+        else:
+            made = any(
+                holder_kind(h) == ("wire", other)
+                for h in world.kernel.holders_at(layer, xy)
+            )
+        if made:
+            out.append((xy, other, reuse))
+    return out
+
+
 def whole_lanes(
     segments: list[Segment], at: dict[XY, PinRef], sources: frozenset[PinRef]
 ) -> tuple[list[Segment], list[Pins]]:
@@ -184,12 +214,13 @@ def lay(
     crossed: set[XY] = set()
 
     def absorb(segments: list[Segment]) -> None:
-        """Start the plan again from these standing segments: those still whole lanes, with the crossings, ports and seats they carry and the junctions their own ends make on one another (a dropped lane's split or merge goes with it)."""
+        """Start the plan again from the standing segments that still read as whole lanes."""
         kept, read = whole_lanes(segments, at, sources)
-        cells = {c for seg in kept for c in seg.cells}
         plan.segments[:] = kept
         pins[:] = read
-        plan.crossings[:] = [c for c in seed_crossings if c[0] in cells]
+        plan.crossings[:] = standing_crossings(
+            world, net, search.layer, seed_crossings, kept
+        )
         plan.ports.clear()
         plan.ports.update(seed.ports if seed is not None else {})
         junction_at.clear()
@@ -245,6 +276,7 @@ def lay(
         own = Plan(net_id=net.id, segments=[plan.segments[i] for i in mine])
         own.ports = plan.ports
         own.lanes = [pins[i] for i in mine]
+        own.standing = list(plan.segments)
         cells = frozenset(c for seg in own.segments for c in seg.cells)
         joinable = frozenset(c for c in cells if stands(c))
         allowed = policy.origins(world, net, own, junction_at, joinable, side == 1)
@@ -397,6 +429,7 @@ class LaneRouter(DefaultRouter):
     """The default router laying a net as a bundle of lanes; the policy's ``lanes`` names them in order and its ``rank`` orders the lanes of the nets one placement touches, laid one at a time across nets."""
 
     id = "lanes"
+    native_routing = True
 
     def __init__(self, *args: Any, float_scale: int = 0, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -426,7 +459,15 @@ class LaneRouter(DefaultRouter):
     def route_all(
         self, world: Any, cell_id: str, pending: list[str], grown: set[str]
     ) -> Refusal | None:
-        """Lay every lane the placement made ready, across the nets it touches, in the policy's rank: the nets in the router's order break ties, then the policy's lane order within a net; the first lane without a path refuses."""
+        """Lay every lane the placement made ready, in the policy's rank across the nets it touches.
+
+        The router's net order breaks ties, then the lane order within a net; the first lane
+        without a path refuses. The twin's routing pass answers first when it finds the refusal.
+        """
+        if self.native_routing:
+            refusal = native_route_all(self, world, cell_id, pending, grown)
+            if refusal is not None:
+                return refusal
         ordered = self.order(world, cell_id, pending, grown)
         queue: list[tuple[Any, int, int, str, Any, Any]] = []
         for position, net_id in enumerate(ordered):

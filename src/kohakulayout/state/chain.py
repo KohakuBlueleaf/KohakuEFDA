@@ -78,9 +78,12 @@ def displaceable(world: Any, kind: str, ref: str) -> str | None:
 
 
 def recover(world: Any, gone: Iterable[Any] = ()) -> Refusal | None:
-    """Cover again every placed cell a displaced emitter left short of a need; with ``gone`` (the emitters removed) only the cells they reached are looked at."""
+    """Cover again the placed cells displaced emitters left short; swept kinds are laid afresh."""
     fields = world.physics.fields
-    emitters = {e.kind: e for e in fields.emitters()}
+    swept = sweep_fields(world)
+    if swept is not None:
+        return swept
+    emitters = {e.kind: e for e in fields.emitters() if not fields.sweep(e.kind)}
     by_footprint = {e.footprint.id: e for e in emitters.values()}
     lost: set[XY] | None = None
     for unit in gone:
@@ -337,19 +340,68 @@ def _same_net(world: Any, net_id: str, cell_id: str, pin_id: str) -> bool:
     return world.net_of(cell_id, pin_id) == net_id
 
 
+def sweep_fields(world: Any) -> Refusal | None:
+    """Lay every swept kind's emitters afresh and confirm each placed need is reached."""
+    fields = world.physics.fields
+    emitters = {e.kind: e for e in fields.emitters()}
+    kinds = [kind for kind in emitters if fields.sweep(kind)]
+    if not kinds:
+        return None
+    for unit_id, unit in list(world.units.items()):
+        if unit.owner in {f"field:{kind}" for kind in kinds}:
+            world.remove_unit(unit_id)
+    wanted: dict[str, list[XY]] = {kind: [] for kind in kinds}
+    needing: list[tuple[Any, tuple[XY, ...], list[str]]] = []
+    for cell_id, placement in world.placements.items():
+        cell = world.netlist.cells[cell_id]
+        mine = [k for k in fields.needs(cell) if k in wanted]
+        if not mine:
+            continue
+        fp = world.footprint_of(cell_id)
+        own = footprint_cells(
+            placement.x, placement.y, fp.width, fp.height, placement.rot
+        )
+        needing.append((cell, own, mine))
+        for kind in mine:
+            wanted[kind].extend(own)
+    for spot in fields.cover(world, {k: tuple(v) for k, v in wanted.items()}):
+        placed = world.place_unit(spot)
+        if placed is not None:
+            return refusal(
+                "field", spot.kind, f"cannot place an emitter: {placed.detail}"
+            )
+    for cell, own, mine in needing:
+        for kind in mine:
+            covered = world.field_coverage(kind)
+            hit = (
+                any(c in covered for c in own)
+                if emitters[kind].reach.partial
+                else all(c in covered for c in own)
+            )
+            if not hit:
+                return refusal(
+                    "field", cell.id, f"no emitter covers its need for {kind!r}"
+                )
+    return None
+
+
 def cover(world: Any, cell: Any, cells: tuple[XY, ...]) -> Refusal | None:
-    """Ask the cover planner for the cell's needs and confirm every need is reached."""
-    needs = world.physics.fields.needs(cell)
+    """Lay the swept kinds afresh, then cover the cell's other needs and confirm each is reached."""
+    swept = sweep_fields(world)
+    if swept is not None:
+        return swept
+    fields = world.physics.fields
+    needs = [kind for kind in fields.needs(cell) if not fields.sweep(kind)]
     if not needs:
         return None
-    emitters = {e.kind: e for e in world.physics.fields.emitters()}
+    emitters = {e.kind: e for e in fields.emitters()}
     for kind in needs:
         if kind not in emitters:
             return refusal(
                 "field", cell.id, f"needs {kind!r}, which no emitter provides"
             )
     wanted = {kind: cells for kind in needs}
-    for spot in world.physics.fields.cover(world, wanted):
+    for spot in fields.cover(world, wanted):
         placed = world.place_unit(spot)
         if placed is not None:
             return refusal(
@@ -369,4 +421,4 @@ def cover(world: Any, cell: Any, cells: tuple[XY, ...]) -> Refusal | None:
     return None
 
 
-__all__ = ["cover", "inspect", "port_shut", "refusal"]
+__all__ = ["cover", "inspect", "port_shut", "refusal", "sweep_fields"]

@@ -1,7 +1,11 @@
 """The kernel protocol: per-layer occupancy with holders, queries, and a byte-exact save and load.
 
 Two occupants must agree byte for byte: the pure Python grid and the native grid. A holder is
-a string such as ``cell:g1``, ``wire:n1``, ``unit:u1`` or ``reserve:ch1``.
+a string such as ``cell:g1``, ``wire:n1``, ``unit:u1`` or ``reserve:ch1``. A wire holder may
+carry a run on each cell: the sides its wire continues to there, as bits ``N=1 E=2 S=4 W=8``;
+``free`` drops the runs of the cells it frees. ``note_unit`` tells a kernel the facts a
+native search reads about a unit (its footprint, the net owning it, whether it is a field
+emitter); occupancy and the saved bytes never depend on them.
 """
 
 from collections.abc import Iterable, Mapping
@@ -22,6 +26,13 @@ class Kernel(Protocol):
 
     def occupy(self, layer: str, cells: Iterable[XY], holder: Holder) -> None: ...
     def free(self, layer: str, cells: Iterable[XY], holder: Holder) -> None: ...
+    def set_runs(
+        self, layer: str, holder: Holder, runs: Iterable[tuple[XY, int]]
+    ) -> None: ...
+    def run_at(self, layer: str, holder: Holder, xy: XY) -> int: ...
+    def note_unit(
+        self, unit_id: str, footprint: str, owner: str, field: bool
+    ) -> None: ...
     def holders_at(self, layer: str, xy: XY) -> tuple[Holder, ...]: ...
     def holders(
         self, layer: str, cells: Iterable[XY]

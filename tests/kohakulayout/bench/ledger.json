@@ -1,22 +1,22 @@
 {
   "bench_engine_attempt": {
-    "engine_attempt_place_us": 318.8,
-    "engine_raw_place_us": 314.5,
-    "engine_solve_aon_us": 10089.4
+    "engine_attempt_place_us": 276.1,
+    "engine_raw_place_us": 258.5,
+    "engine_solve_aon_us": 6736.3
   },
   "bench_family_quality": {
     "quality_anneal_area": 384.0,
-    "quality_anneal_area_s1": 432,
+    "quality_anneal_area_s1": 384,
     "quality_anneal_area_s2": 384,
     "quality_anneal_area_s3": 384,
     "quality_anneal_area_s4": 432,
-    "quality_anneal_area_s5": 432,
+    "quality_anneal_area_s5": 384,
     "quality_anneal_area_s6": 384,
-    "quality_anneal_area_s7": 336,
-    "quality_anneal_area_s8": 384,
+    "quality_anneal_area_s7": 384,
+    "quality_anneal_area_s8": 432,
     "quality_anneal_area_shared": 384,
     "quality_anneal_complete": 8,
-    "quality_anneal_seconds": 17.7,
+    "quality_anneal_seconds": 13.6,
     "quality_baseline_area": 432.0,
     "quality_baseline_area_s1": 480,
     "quality_baseline_area_s2": 336,
@@ -28,19 +28,19 @@
     "quality_baseline_area_s8": 432,
     "quality_baseline_area_shared": 432,
     "quality_baseline_complete": 8,
-    "quality_baseline_seconds": 15.9,
+    "quality_baseline_seconds": 9.7,
     "quality_climb_area": 384.0,
     "quality_climb_area_s1": 384,
     "quality_climb_area_s2": 384,
     "quality_climb_area_s3": 384,
-    "quality_climb_area_s4": 336,
-    "quality_climb_area_s5": 384,
+    "quality_climb_area_s4": 384,
+    "quality_climb_area_s5": 432,
     "quality_climb_area_s6": 288,
     "quality_climb_area_s7": 384,
     "quality_climb_area_s8": 384,
     "quality_climb_area_shared": 384,
     "quality_climb_complete": 8,
-    "quality_climb_seconds": 15.9,
+    "quality_climb_seconds": 11.8,
     "quality_inorder_area": 384,
     "quality_inorder_area_s1": 384,
     "quality_inorder_area_s2": 384,
@@ -52,7 +52,7 @@
     "quality_inorder_area_s8": 384,
     "quality_inorder_area_shared": 384,
     "quality_inorder_complete": 3,
-    "quality_inorder_seconds": 1.1,
+    "quality_inorder_seconds": 0.8,
     "quality_regional_area": 432.0,
     "quality_regional_area_s1": 576,
     "quality_regional_area_s2": 384,
@@ -64,7 +64,7 @@
     "quality_regional_area_s8": 480,
     "quality_regional_area_shared": 480,
     "quality_regional_complete": 8,
-    "quality_regional_seconds": 11.4
+    "quality_regional_seconds": 7.6
   },
   "bench_floorplan": {
     "floorplan_area": 240,
@@ -74,34 +74,34 @@
   },
   "bench_flow": {
     "flow_nets": 200,
-    "flow_per_net_us": 15.0,
+    "flow_per_net_us": 12.5,
     "flow_rounds": 1
   },
   "bench_gates_inorder": {
-    "gates_assess_us": 42.2,
+    "gates_assess_us": 20.7,
     "gates_cells": 48,
-    "gates_inorder_place_us": 4887.5,
+    "gates_inorder_place_us": 3610.5,
     "gates_missing": 0
   },
   "bench_gates_power": {
     "gates_plain_emitters": 0,
-    "gates_plain_inorder_per_cell_us": 1066.0,
+    "gates_plain_inorder_per_cell_us": 1602.4,
     "gates_power_emitters": 3,
-    "gates_power_inorder_per_cell_us": 1511.1
+    "gates_power_inorder_per_cell_us": 1287.4
   },
   "bench_gates_route": {
     "gates_route_cells": 18,
     "gates_route_complete": 1,
     "gates_route_jumpers": 37,
     "gates_route_nets": 12,
-    "gates_route_per_cell_us": 4390.8,
-    "gates_route_per_net_us": 6586.2
+    "gates_route_per_cell_us": 3788.2,
+    "gates_route_per_net_us": 5682.3
   },
   "bench_gates_solvers": {
     "anneal_area": 96,
     "anneal_attempts": 1023,
     "anneal_complete": 1,
-    "anneal_seconds": 2.41,
+    "anneal_seconds": 1.78,
     "baseline_area": 96,
     "baseline_attempts": 55,
     "baseline_complete": 1,
@@ -109,7 +109,7 @@
     "climb_area": 120,
     "climb_attempts": 1009,
     "climb_complete": 1,
-    "climb_seconds": 1.87,
+    "climb_seconds": 1.49,
     "inorder_area": 120,
     "inorder_attempts": 9,
     "inorder_complete": 1,
@@ -117,23 +117,23 @@
     "regional_area": 144,
     "regional_attempts": 52,
     "regional_complete": 1,
-    "regional_seconds": 0.12
+    "regional_seconds": 0.13
   },
   "bench_kernels": {
-    "kernel_native_us_per_op": 2.91,
-    "kernel_ops": 414,
-    "kernel_python_us_per_op": 3.26
+    "kernel_native_us_per_op": 5.33,
+    "kernel_ops": 495,
+    "kernel_python_us_per_op": 5.6
   },
   "bench_null_place": {
     "null_cells": 26,
-    "null_digest_us": 32.6,
-    "null_place_us": 302.2,
-    "null_refuse_us": 13.1,
-    "null_snapshot_us": 726.7
+    "null_digest_us": 26.1,
+    "null_place_us": 308.8,
+    "null_refuse_us": 13.3,
+    "null_snapshot_us": 495.4
   },
   "bench_service": {
-    "service_direct_ms": 9.9,
-    "service_local_ms": 14.2,
-    "service_process_ms": 222.7
+    "service_direct_ms": 8.1,
+    "service_local_ms": 16.0,
+    "service_process_ms": 207.6
   }
 }

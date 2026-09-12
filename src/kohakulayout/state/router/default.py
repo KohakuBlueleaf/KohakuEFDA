@@ -7,7 +7,7 @@ from kohakulayout.ir.geometry import XY
 from kohakulayout.state.chain import recover
 from kohakulayout.state.router.pathfinder import Search
 from kohakulayout.state.router.protocol import Costs, refuse, register
-from kohakulayout.state.router.reservations import walls
+from kohakulayout.state.router.reservations import unit_walls, walls
 from kohakulayout.state.router.trees import (
     DEFAULT_POLICY,
     Plan,
@@ -44,11 +44,27 @@ class DefaultRouter:
         """The order the nets a placement touches route in: the widest span first; a router with a policy of its own overrides it."""
         return sorted(dict.fromkeys(pending), key=world.span, reverse=True)
 
+    def order_data(self, world: Any, net: Any) -> dict[str, Any] | None:
+        """The net order as data for the native twin; None when a subclass orders otherwise."""
+        if type(self).order is not DefaultRouter.order:
+            return None
+        return {"kind": "span"}
+
     def walls_for(self, world: Any, carrier: str) -> frozenset[XY]:
         key = (id(world.fabric), carrier)
         cached = self._walls.get(key)
         if cached is None or cached[0] is not world.fabric:
             cached = (world.fabric, walls(world, carrier))
+            self._walls[key] = cached
+        return cached[1]
+
+    def unit_walls_for(self, world: Any, carrier: str) -> frozenset[XY]:
+        """Where the carrier's own crossing unit may not stand, once per fabric."""
+        key = (id(world.fabric), f"units:{carrier}")
+        cached = self._walls.get(key)
+        if cached is None or cached[0] is not world.fabric:
+            unit = world.physics.carriers.crossing(carrier, carrier).unit
+            cached = (world.fabric, unit_walls(world, unit))
             self._walls[key] = cached
         return cached[1]
 
@@ -68,6 +84,7 @@ class DefaultRouter:
             layer=world.carrier_layer(net.carrier),
             costs=self.costs.model_copy(update={"ripup": present}),
             walls=self.walls_for(world, net.carrier),
+            unit_walls=self.unit_walls_for(world, net.carrier),
             history=self.history,
             allow_rip=allow_rip and self._rips_left > 0,
             protected=protected,

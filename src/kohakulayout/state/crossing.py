@@ -1,7 +1,10 @@
 """Where a wire may cross another on one cell: the other runs straight through, the pack allows it, and a crossing unit can stand there.
 
-The placement chain asks it for an attach cell another net's wire holds; the path finder
-asks it for every cell a path enters and for the cells a path starts or ends on.
+A wire's run on a cell is the set of sides it continues to there, kept by the kernel as
+bits ``N=1 E=2 S=4 W=8`` and written by the world from the wire's segments and the port
+behind each attach cell it uses. The placement chain asks for an attach cell another
+net's wire holds; the path finder asks for every cell a path enters and for the cells a
+path starts or ends on.
 """
 
 from typing import Any
@@ -11,6 +14,12 @@ from kohakulayout.ir.geometry import XY, footprint_cells
 from kohakulayout.state.kernel import holder_kind
 
 AXES: tuple[XY, XY] = ((1, 0), (0, 1))
+SIDES: dict[XY, int] = {(0, -1): 1, (1, 0): 2, (0, 1): 4, (-1, 0): 8}
+
+
+def side_bit(a: XY, b: XY) -> int:
+    """The run bit of the side ``b`` lies on from ``a``; zero when they are not neighbours."""
+    return SIDES.get((b[0] - a[0], b[1] - a[1]), 0)
 
 
 def straight_through(
@@ -19,27 +28,45 @@ def straight_through(
     other_net: str,
     xy: XY,
     direction: XY,
-    port: XY | None = None,
     bent: bool = False,
 ) -> bool:
-    """Whether the other net's wire runs through ``xy`` perpendicular to ``direction``; its port behind an attach cell counts as the wire's own side; with ``bent`` one side across is enough, the wire may turn on the cell."""
-    if other_net not in world.wires:
+    """Whether the other net's wire crosses a move along ``direction`` straight at ``xy``."""
+    run = world.kernel.run_at(layer, f"wire:{other_net}", xy)
+    if not run:
         return False
-    holder = f"wire:{other_net}"
-    kernel = world.kernel
-
-    def side(cell: XY) -> bool:
-        return cell == port or holder in kernel.holders_at(layer, cell)
-
     px, py = direction[1], direction[0]
-    x, y = xy
+
+    def side(dx: int, dy: int) -> bool:
+        return bool(run & SIDES.get((dx, dy), 0))
+
     if bent:
-        return side((x + px, y + py)) or side((x - px, y - py))
-    across = side((x + px, y + py)) and side((x - px, y - py))
-    along = side((x + direction[0], y + direction[1])) or side(
-        (x - direction[0], y - direction[1])
-    )
+        return side(px, py) or side(-px, -py)
+    across = side(px, py) and side(-px, -py)
+    along = side(direction[0], direction[1]) or side(-direction[0], -direction[1])
     return across and not along
+
+
+_REGIONS: dict[int, tuple[Any, dict[str, frozenset[XY]]]] = {}
+
+
+def region_cells(world: Any) -> dict[str, frozenset[XY]]:
+    """Every region's cells, built once per fabric."""
+    fabric = world.fabric
+    hit = _REGIONS.get(id(fabric))
+    if hit is None or hit[0] is not fabric:
+        hit = (fabric, {rid: frozenset(r.cells()) for rid, r in fabric.regions.items()})
+        _REGIONS[id(fabric)] = hit
+    return hit[1]
+
+
+def unit_allowed(world: Any, unit: Footprint, xy: XY) -> bool:
+    """Whether the pack lets the unit stand in every region holding ``xy``."""
+    regions = region_cells(world)
+    if not regions:
+        return True
+    boundaries = world.physics.boundaries
+    hits = [rid for rid, cells in regions.items() if xy in cells]
+    return bool(hits) and all(boundaries.unit_region(unit, rid) for rid in hits)
 
 
 def occluded_free(
@@ -72,8 +99,7 @@ def crossable(world: Any, layer: str, carrier: str, other_net: str, xy: XY) -> b
     if rule.mode == "forbidden":
         return False
     if not any(
-        straight_through(world, layer, other_net, xy, axis, None, rule.bent)
-        for axis in AXES
+        straight_through(world, layer, other_net, xy, axis, rule.bent) for axis in AXES
     ):
         return False
     if rule.mode != "unit":
@@ -81,8 +107,19 @@ def crossable(world: Any, layer: str, carrier: str, other_net: str, xy: XY) -> b
     return (
         rule.unit is not None
         and only_wires(world.kernel.holders_at(layer, xy))
+        and unit_allowed(world, rule.unit, xy)
         and occluded_free(world, rule.unit, xy)
     )
 
 
-__all__ = ["AXES", "crossable", "occluded_free", "only_wires", "straight_through"]
+__all__ = [
+    "AXES",
+    "SIDES",
+    "crossable",
+    "occluded_free",
+    "only_wires",
+    "region_cells",
+    "side_bit",
+    "straight_through",
+    "unit_allowed",
+]

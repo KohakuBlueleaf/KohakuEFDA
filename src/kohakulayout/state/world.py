@@ -26,6 +26,7 @@ from kohakulayout.state.attach import AttachMixin, Tables
 from kohakulayout.state.chain import cover, displaceable, inspect, port_shut, recover
 from kohakulayout.state.forms import freeze, load
 from kohakulayout.state.kernel import Kernel, ShareTable, holder_kind, make_kernel
+from kohakulayout.state.router.native_route import native_admits, native_attempt
 from kohakulayout.state.snapshot import Token
 from kohakulayout.state.transaction import Transaction
 from kohakulayout.state.wiring import WiringMixin
@@ -70,6 +71,9 @@ class World(AttachMixin, WiringMixin):
             (r.cell, r.pin): n.id for n in self.netlist.nets.values() for r in n.pins()
         }
         self._tables: Tables | None = None
+        self._retabled: set[str] = set()
+        self._retable_all = True
+        self.native_attempts = True
         self._coverage: dict[str, frozenset[XY]] = {}
         self._nets_by_cell: dict[str, list[Any]] | None = None
         self.units_rev = 0
@@ -142,6 +146,14 @@ class World(AttachMixin, WiringMixin):
         cell = self.netlist.cells[cell_id]
         return self.physics.boundaries.anchors(self, cell)
 
+    def anchor_rows(self, cell_id: str) -> Iterable[tuple[int, int, int]]:
+        """The cell's anchors as ``(x, y, rot)`` rows: the boundaries' own rows when they give them."""
+        cell = self.netlist.cells[cell_id]
+        rows = getattr(self.physics.boundaries, "anchor_rows", None)
+        if rows is not None:
+            return rows(self, cell)
+        return ((a.x, a.y, a.rot) for a in self.physics.boundaries.anchors(self, cell))
+
     def admits(
         self,
         cell_id: str,
@@ -155,6 +167,10 @@ class World(AttachMixin, WiringMixin):
         fp = self.footprint_of(cell_id)
         if cell is None or fp is None or rot not in fp.rotations:
             return False
+        if self.checker is None and self.native_attempts:
+            native = native_admits(self, cell, fp, x, y, rot)
+            if native is not None:
+                return native
         cells = footprint_cells(x, y, fp.width, fp.height, rot)
         if not all(self.in_grid(c) for c in cells):
             return False
@@ -245,6 +261,23 @@ class World(AttachMixin, WiringMixin):
             self.kernel.free(layer, cells, holder)
             self._record(lambda layer=layer: self.kernel.occupy(layer, cells, holder))
 
+    def _write_runs(
+        self,
+        holder: str,
+        runs: dict[str, list[tuple[XY, int]]],
+        before: dict[str, list[tuple[XY, int]]],
+    ) -> None:
+        """Write a holder's runs per layer over ``before``; the undo writes ``before`` back."""
+        for layer in sorted(set(runs) | set(before)):
+            new, old = dict(runs.get(layer, ())), dict(before.get(layer, ()))
+            cells = sorted(set(new) | set(old))
+            self.kernel.set_runs(layer, holder, [(xy, new.get(xy, 0)) for xy in cells])
+            self._record(
+                lambda layer=layer, old=old, cells=cells: self.kernel.set_runs(
+                    layer, holder, [(xy, old.get(xy, 0)) for xy in cells]
+                )
+            )
+
     # ---------------------------------------------------------- placement
     def place(self, cell_id: str, x: int, y: int, rot: int = 0) -> Refusal | None:
         """Place a leaf cell, route the nets it makes routable and grow the routed ones to its pins, then cover its needs around the wires; refuse and roll back otherwise."""
@@ -258,6 +291,10 @@ class World(AttachMixin, WiringMixin):
             raise StateError(f"{cell_id!r} has no footprint")
         if rot not in ROTATIONS:
             raise StateError(f"rotation {rot!r} is not one of {ROTATIONS}")
+        if self.checker is None and self.native_attempts:
+            native = native_attempt(self, cell, fp, x, y, rot)
+            if native is not None:
+                return native
         pre_digest = self.digest() if self.checker is not None else ""
         mark = self.mark()
         result = self._place(cell, fp, x, y, rot)
@@ -399,6 +436,7 @@ class World(AttachMixin, WiringMixin):
     def place_unit(
         self, spot: UnitPlacement, unit_id: str | None = None
     ) -> Refusal | None:
+        """Hold a unit's cells; only a swept field's emitter may cover another pin's open attach cell."""
         fp = spot.footprint
         cells = footprint_cells(spot.x, spot.y, fp.width, fp.height, spot.rot)
         layers = self.layers_for(fp)
@@ -409,10 +447,13 @@ class World(AttachMixin, WiringMixin):
         occupant = Occupant(kind="unit", unit_kind=spot.kind)
         owners = self.open_attach_owners()
         mine = spot.owner.removeprefix("net:")
+        emitter = spot.owner.startswith("field:") and self.physics.fields.sweep(
+            spot.kind
+        )
         for layer in layers:
             for xy in cells:
                 owner = owners.get(layer, {}).get(xy)
-                if owner is not None and owner != mine:
+                if owner is not None and owner != mine and not emitter:
                     return Refusal(
                         stage="port_shut",
                         subject=f"unit:{spot.kind}",
@@ -446,6 +487,12 @@ class World(AttachMixin, WiringMixin):
             )
         )
         self.library.setdefault(fp.id, fp)
+        self.kernel.note_unit(
+            unit_id,
+            fp.id,
+            mine if spot.owner.startswith("net:") else "",
+            spot.owner.startswith("field:"),
+        )
         self._occupy(layers, cells, f"unit:{unit_id}")
         return None
 

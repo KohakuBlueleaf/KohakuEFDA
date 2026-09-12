@@ -10,6 +10,7 @@ from typing import Any
 from kohakulayout.errors import StateError
 from kohakulayout.ir import Refusal, Wire
 from kohakulayout.ir.geometry import XY
+from kohakulayout.state.crossing import side_bit
 from kohakulayout.state.kernel import holder_kind
 
 
@@ -49,16 +50,47 @@ class WiringMixin:
         if forget is not None:
             forget()
 
+    def runs_of(self, wire: Wire) -> dict[str, list[tuple[XY, int]]]:
+        """Per layer, the sides the wire continues to on each cell, a used port behind included."""
+        out: dict[str, dict[XY, int]] = {}
+        for segment in wire.segments:
+            table = out.setdefault(segment.layer, {})
+            cells = segment.cells
+            for i, xy in enumerate(cells):
+                mask = table.get(xy, 0)
+                if i > 0:
+                    mask |= side_bit(xy, cells[i - 1])
+                if i + 1 < len(cells):
+                    mask |= side_bit(xy, cells[i + 1])
+                table[xy] = mask
+        net = self.netlist.nets[wire.net]
+        table = out.get(self.carrier_layer(net.carrier))
+        if table:
+            for ref in net.pins():
+                found = (
+                    self.choice(ref.cell, ref.pin)
+                    if ref.cell in self.placements
+                    else None
+                )
+                if found is not None and found[1] in table:
+                    table[found[1]] |= side_bit(found[1], found[2])
+        return {layer: sorted(table.items()) for layer, table in out.items()}
+
     def set_wire(self, wire: Wire) -> None:
-        """Record a routed wire and hold its cells; the router calls this after finding a path."""
+        """Record a routed wire, hold its cells and write its runs."""
         for segment in wire.segments:
             self._occupy((segment.layer,), tuple(segment.cells), f"wire:{wire.net}")
         self.wires[wire.net] = wire
         self.retable(wire.net)
         self._record(lambda: (self.wires.pop(wire.net, None), self.retable(wire.net)))
+        self._write_runs(f"wire:{wire.net}", self.runs_of(wire), {})
 
     def trim(self, net_id: str, cells: Iterable[XY]) -> bool:
-        """Take up the segments of a net's wire that run through ``cells`` and every segment hanging from them (one leaving or joining a taken segment, at its own port cell only through a junction unit of the wire), the rest staying a routed wire the router grows again; False when nothing stays, so the caller takes the wire up whole."""
+        """Take up the segments ``cells`` cut and every segment hanging from them.
+
+        A segment hangs from a taken one when an end of it lies on that segment's own cells; the
+        rest stays a routed wire. False when nothing stays.
+        """
         wire = self.wires.get(net_id)
         if wire is None:
             return False
@@ -67,6 +99,7 @@ class WiringMixin:
         gone = [seg for seg in segments if hit.intersection(seg.cells)]
         if not gone:
             return False
+        before = self.runs_of(wire)
         ports = {
             xy
             for key, port_id in wire.ports.items()
@@ -80,29 +113,44 @@ class WiringMixin:
                     if self.netlist.pin(ref) is None
                     or len(self.netlist.pin(ref).ports) <= 1
                 )
-        rule = self.physics.carriers.junction(self.netlist.nets[net_id].carrier)
-        kinds = {fp.id for fp in (rule.split, rule.merge) if fp is not None}
-        junctions = {
-            (unit.x, unit.y)
-            for unit_id in wire.units
-            if (unit := self.units.get(unit_id)) is not None and unit.footprint in kinds
-        }
 
-        def hangs(end: XY, lost: set[XY]) -> bool:
-            return end in lost and (end not in ports or end in junctions)
+        def hangs_at(i: int, end: XY) -> bool:
+            """Whether a segment's end lies on an earlier lane, or on any other off a port cell."""
+            if any(end in other.cells for other in segments[:i]):
+                return True
+            return end not in ports and any(
+                end in other.cells for j, other in enumerate(segments) if j != i
+            )
 
-        lost: set[XY] = set()
+        leaves = [hangs_at(i, seg.cells[0]) for i, seg in enumerate(segments)]
+        joins = [hangs_at(i, seg.cells[-1]) for i, seg in enumerate(segments)]
+
+        def own(i: int) -> set[XY]:
+            """A segment's own cells: the end it leaves from or joins at belongs to the earlier lane there."""
+            cells = set(segments[i].cells)
+            if leaves[i]:
+                cells.discard(segments[i].cells[0])
+            if joins[i]:
+                cells.discard(segments[i].cells[-1])
+            return cells
+
         while True:
-            lost = {c for seg in gone for c in seg.cells}
+            lost = set().union(
+                *(own(i) for i, seg in enumerate(segments) if seg in gone)
+            )
             more = [
                 seg
-                for seg in segments
+                for i, seg in enumerate(segments)
                 if seg not in gone
-                and (hangs(seg.cells[0], lost) or hangs(seg.cells[-1], lost))
+                and (
+                    (leaves[i] and seg.cells[0] in lost)
+                    or (joins[i] and seg.cells[-1] in lost)
+                )
             ]
             if not more:
                 break
             gone += more
+        lost = {c for seg in gone for c in seg.cells}
         kept = [seg for seg in segments if seg not in gone]
         if not kept:
             return False
@@ -149,6 +197,7 @@ class WiringMixin:
         self._record(
             lambda: (self.wires.__setitem__(net_id, wire), self.retable(net_id))
         )
+        self._write_runs(f"wire:{net_id}", self.runs_of(trimmed), before)
         for layer in {seg.layer for seg in gone}:
             for xy in sorted(freed):
                 for holder in self.kernel.holders_at(layer, xy):
@@ -170,6 +219,7 @@ class WiringMixin:
         wire = self.wires.get(net_id)
         if wire is None:
             return
+        self._write_runs(f"wire:{net_id}", {}, self.runs_of(wire))
         held = self.kernel.cells_of(f"wire:{net_id}")
         for layer, cells in held.items():
             self._free((layer,), tuple(sorted(cells)), f"wire:{net_id}")

@@ -7,7 +7,7 @@ from typing import Any
 
 from kohakulayout.ir import Refusal, Segment
 from kohakulayout.ir.geometry import XY
-from kohakulayout.state.crossing import crossable, occluded_free
+from kohakulayout.state.crossing import crossable, occluded_free, unit_allowed
 from kohakulayout.state.kernel import holder_kind
 from kohakulayout.state.router.pathfinder import Search, find
 from kohakulayout.state.router.protocol import Terminal, refuse, terminals
@@ -15,7 +15,11 @@ from kohakulayout.state.router.protocol import Terminal, refuse, terminals
 
 @dataclass
 class Plan:
-    """What a routed net will become, before anything is written to the world; ``lanes`` names the source and sink pin each segment serves when the router lays lanes, and is empty for a tree."""
+    """What a routed net will become, before anything is written to the world.
+
+    ``lanes`` names each segment's source and sink pin under the lane router; ``standing``
+    holds the whole plan's segments when this plan is one pin's part of it.
+    """
 
     net_id: str
     segments: list[Segment] = field(default_factory=list)
@@ -26,6 +30,7 @@ class Plan:
     ports: dict[str, str] = field(default_factory=dict)
     lanes: list[tuple[Any, Any]] = field(default_factory=list)
     cost: int = 0
+    standing: list[Segment] = field(default_factory=list)
 
 
 @dataclass
@@ -76,7 +81,7 @@ def seed_of(world: Any, net: Any) -> Seed | None:
 
 
 def may_join(world: Any, rule: Any, cell: XY, layer: str = "") -> bool:
-    """Whether a junction unit could stand on this tree cell: no unit there and the layers it occludes free."""
+    """Whether a junction unit could stand on this tree cell: allowed there and free of units."""
     if rule.mode != "unit":
         return True
     if layer and any(
@@ -84,7 +89,8 @@ def may_join(world: Any, rule: Any, cell: XY, layer: str = "") -> bool:
     ):
         return False
     return all(
-        fp is None or occluded_free(world, fp, cell) for fp in (rule.split, rule.merge)
+        fp is None or (unit_allowed(world, fp, cell) and occluded_free(world, fp, cell))
+        for fp in (rule.split, rule.merge)
     )
 
 
@@ -174,6 +180,26 @@ class TreePolicy:
         merging: bool,
     ) -> frozenset[XY]:
         return joinable
+
+    def native(self, world: Any, net: Any) -> dict[str, Any] | None:
+        """The policy as data for the native twin; None when it overrides a hook data cannot say.
+
+        The default keeps its lanes' order, ranks them alike and allows every origin and one-cell
+        lane.
+        """
+        if any(
+            getattr(type(self), hook) is not getattr(TreePolicy, hook)
+            for hook in ("lanes", "rank", "origins", "blockers", "single_cell_lane")
+        ):
+            return None
+        return {
+            "order": [[str(s), str(t), []] for s, t in self.lanes(world, net)],
+            "span": False,
+            "net_key": [],
+            "origins": {"kind": "all"},
+            "blockers": {"kind": "none"},
+            "single_joins": True,
+        }
 
 
 DEFAULT_POLICY = TreePolicy()

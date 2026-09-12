@@ -17,12 +17,18 @@ import numpy as np
 from kohakulayout._rust_bridge import rust_astar
 from kohakulayout.ir.geometry import XY
 from kohakulayout.physics.protocol import Occupant
-from kohakulayout.state.crossing import occluded_free, only_wires, straight_through
+from kohakulayout.state.crossing import (
+    occluded_free,
+    only_wires,
+    region_cells,
+    straight_through,
+)
 from kohakulayout.state.kernel import holder_kind
 from kohakulayout.state.router.protocol import Costs
 from kohakulayout.state.router.reservations import reservation_price
 
 DIRS: tuple[XY, ...] = ((0, -1), (1, 0), (0, 1), (-1, 0))
+MODES: dict[str, int] = {"forbidden": 0, "unit": 2}
 
 
 @dataclass
@@ -44,17 +50,21 @@ class Search:
     grid: dict[XY, tuple[str, ...]] | None = None
     shut: frozenset[XY] = frozenset()
     held: frozenset[XY] = frozenset()
-    ports: dict[XY, XY] = field(default_factory=dict)
     rules: str | None = None
     walls_key: str = ""
+    unit_walls_key: str = ""
     own: dict[XY, int] = field(default_factory=dict)
     end_on_crossing: bool = True
     float_scale: int = 0
+    unit_walls: frozenset[XY] = frozenset()
 
     def __post_init__(self) -> None:
         self.width = self.world.fabric.width
         self.height = self.world.fabric.height
         self.walls_key = f"{self.carrier}@{id(self.world.fabric)}:{len(self.walls)}"
+        self.unit_walls_key = (
+            f"units:{self.carrier}@{id(self.world.fabric)}:{len(self.unit_walls)}"
+        )
         owners = self.world.open_attach_owners().get(self.layer, {})
         self.shut = frozenset(
             xy for xy, net_id in owners.items() if net_id != self.net_id
@@ -63,10 +73,6 @@ class Search:
         self.held = frozenset(
             xy for xy, net_id in routed.items() if net_id != self.net_id
         )
-        ports = self.world.routed_attach_ports().get(self.layer, {})
-        self.ports = {
-            xy: port for xy, port in ports.items() if routed.get(xy) != self.net_id
-        }
 
     def holders(self, xy: XY) -> tuple[str, ...] | None:
         """The holders at ``xy`` on this layer, from a snapshot taken on first use."""
@@ -75,9 +81,9 @@ class Search:
         return self.grid.get(xy)
 
     def native_rules(self) -> str:
-        """The search as JSON tables for the native twin: every pack answer the search may ask, asked once."""
+        """The search's query as JSON for the native twin, built once."""
         if self.rules is None:
-            self.rules = json.dumps(rules_of(self))
+            self.rules = json.dumps(query_of(self))
         return self.rules
 
     def occupant(self, net_id: str, carrier: str) -> Occupant:
@@ -118,7 +124,9 @@ def own_crossing(search: Search, xy: XY, direction: XY | None) -> Entry | None:
     if rule.mode == "forbidden":
         return None
     if rule.mode == "unit" and (
-        rule.unit is None or not occluded_free(search.world, rule.unit, xy)
+        rule.unit is None
+        or xy in search.unit_walls
+        or not occluded_free(search.world, rule.unit, xy)
     ):
         return None
     return Entry(cost=search.costs.step + search.costs.crossing, crossing=search.net_id)
@@ -163,15 +171,10 @@ def entry(
             rule = world.physics.carriers.crossing(search.carrier, other.carrier)
             if (
                 rule.mode != "forbidden"
+                and (rule.mode != "unit" or xy not in search.unit_walls)
                 and direction is not None
                 and straight_through(
-                    world,
-                    search.layer,
-                    ref,
-                    xy,
-                    direction,
-                    search.ports.get(xy),
-                    rule.bent and terminal,
+                    world, search.layer, ref, xy, direction, rule.bent and terminal
                 )
             ):
                 result.crossing = ref
@@ -236,77 +239,103 @@ def entry(
     return result
 
 
-_UNIT_TABLES: dict[tuple[int, str], tuple[int, tuple[dict, dict, dict]]] = {}
+_REGISTERED: dict[int, tuple[Any, Any, tuple[str, ...]]] = {}
 
 
-def _unit_tables(world: Any, layer: str) -> tuple[dict, dict, dict]:
-    """The units on a layer with their footprints, owners and field flags, rebuilt when a unit comes or goes."""
-    key = (id(world), layer)
-    hit = _UNIT_TABLES.get(key)
-    if hit is not None and hit[0] == world.units_rev:
-        return hit[1]
-    units: dict[str, str] = {}
-    unit_owners: dict[str, str] = {}
-    unit_fields: dict[str, bool] = {}
-    for ref, unit in world.units.items():
-        if layer in world.layers_for(world.library[unit.footprint]):
-            units[ref] = unit.footprint
-            unit_owners[ref] = unit.owner.removeprefix("net:")
-            if unit.owner.startswith("field:"):
-                unit_fields[ref] = True
-    tables = (units, unit_owners, unit_fields)
-    _UNIT_TABLES[key] = (world.units_rev, tables)
-    return tables
-
-
-def rules_of(search: Search) -> dict[str, Any]:
-    """The tables the native search reads: nets, sharing and crossing per net on the layer, units, reservations."""
-    world = search.world
-    mine = search.occupant(search.net_id, search.carrier)
-    nets: dict[str, str] = {}
-    share_with: dict[str, bool] = {}
-    crossings: dict[str, tuple[str, str]] = {}
+def register_tables(grid: Any, world: Any) -> None:
+    """Hand the native grid what every search reads, once per netlist, physics and reservations."""
+    if not hasattr(grid, "set_nets"):
+        return
+    tags = tuple(sorted(world.reservations))
+    stamp = (world.netlist, world.physics, tags)
+    known = _REGISTERED.get(id(grid))
+    if known is not None and known[0] is stamp[0] and known[1] is stamp[1]:
+        if known[2] != tags:
+            for tag in tags:
+                grid.set_reservation(tag, world.reservations[tag].carrier)
+            _REGISTERED[id(grid)] = stamp
+        return
+    grid.set_nets([(net_id, net.carrier) for net_id, net in world.netlist.nets.items()])
+    carriers = list(world.fabric.carriers)
+    pairs: dict[str, dict[str, dict[str, Any]]] = {}
     shapes: dict[str, dict[str, Any]] = {}
-    units, unit_owners, unit_fields = _unit_tables(world, search.layer)
-    reservations: dict[str, int | None] = {}
-    nets[search.net_id] = search.carrier
-    own_rule = world.physics.carriers.crossing(search.carrier, search.carrier)
-    crossings[search.carrier] = (
-        own_rule.mode,
-        own_rule.unit.id if own_rule.unit else "",
-        own_rule.bent,
-    )
-    if own_rule.unit is not None:
-        shapes[own_rule.unit.id] = {
-            "width": own_rule.unit.width,
-            "height": own_rule.unit.height,
-            "layers": list(own_rule.unit.occludes),
-        }
-    for ref, wire in world.wires.items():
-        if ref == search.net_id or ref not in world.netlist.nets:
-            continue
-        if all(segment.layer != search.layer for segment in wire.segments):
-            continue
-        other = world.netlist.nets[ref]
-        nets[ref] = other.carrier
-        share_with[ref] = bool(
-            world.share.may_share(mine, search.occupant(ref, other.carrier))
-        )
-        if other.carrier not in crossings:
-            rule = world.physics.carriers.crossing(search.carrier, other.carrier)
+    for a in carriers:
+        mine = Occupant(kind="wire", carrier=a, id=a)
+        pairs[a] = {}
+        for b in carriers:
+            rule = world.physics.carriers.crossing(a, b)
             unit = rule.unit
-            crossings[other.carrier] = (rule.mode, unit.id if unit else "", rule.bent)
+            pairs[a][b] = {
+                "share": bool(
+                    world.share.may_share(mine, Occupant(kind="wire", carrier=b, id=b))
+                ),
+                "mode": MODES.get(rule.mode, 1),
+                "unit": unit.id if unit is not None else "",
+                "bent": bool(rule.bent),
+            }
             if unit is not None:
                 shapes[unit.id] = {
                     "width": unit.width,
                     "height": unit.height,
                     "layers": list(unit.occludes),
                 }
-    for ref, reservation in world.reservations.items():
-        if reservation.layer == search.layer:
-            reservations[ref] = reservation_price(
-                world, ref, search.carrier, search.costs
-            )
+    for fp in unit_footprints(world):
+        shapes.setdefault(
+            fp.id,
+            {"width": fp.width, "height": fp.height, "layers": list(fp.occludes)},
+        )
+    grid.set_pairs(json.dumps(pairs))
+    grid.set_shapes(json.dumps(shapes))
+    for tag in tags:
+        grid.set_reservation(tag, world.reservations[tag].carrier)
+    _REGISTERED[id(grid)] = stamp
+
+
+def unit_footprints(world: Any) -> list[Any]:
+    """Every crossing and junction unit the carriers may place, once each."""
+    carriers = list(world.fabric.carriers)
+    found: dict[str, Any] = {}
+    for a in carriers:
+        rule = world.physics.carriers.junction(a)
+        for fp in (rule.split, rule.merge):
+            if fp is not None:
+                found.setdefault(fp.id, fp)
+        for b in carriers:
+            unit = world.physics.carriers.crossing(a, b).unit
+            if unit is not None:
+                found.setdefault(unit.id, unit)
+    return list(found.values())
+
+
+_REGION_STAMPS: dict[int, tuple[Any, Any]] = {}
+
+
+def register_regions(grid: Any, world: Any) -> None:
+    """Hand the native grid the regions and where each unit may stand, once per fabric."""
+    if not hasattr(grid, "set_regions"):
+        return
+    known = _REGION_STAMPS.get(id(grid))
+    if (
+        grid.has_regions()
+        and known is not None
+        and known[0] is world.fabric
+        and known[1] is world.physics
+    ):
+        return
+    regions = region_cells(world)
+    boundaries = world.physics.boundaries
+    grid.set_regions(
+        [(rid, sorted(cells)) for rid, cells in regions.items()],
+        [
+            (fp.id, [rid for rid in regions if boundaries.unit_region(fp, rid)])
+            for fp in unit_footprints(world)
+        ],
+    )
+    _REGION_STAMPS[id(grid)] = (world.fabric, world.physics)
+
+
+def query_of(search: Search) -> dict[str, Any]:
+    """One search's own rules for the native twin: net, carrier, costs, flags and marked cells."""
     return {
         "net": search.net_id,
         "carrier": search.carrier,
@@ -326,30 +355,26 @@ def rules_of(search: Search) -> dict[str, Any]:
         "protected": sorted(search.protected),
         "walls": [],
         "walls_key": search.walls_key,
+        "unit_walls_key": search.unit_walls_key,
         "shut": sorted(search.shut),
         "held": sorted(search.held),
-        "ports": sorted((a[0], a[1], p[0], p[1]) for a, p in search.ports.items()),
         "history": [
             (xy[0], xy[1], n)
             for (layer, xy), n in search.history.items()
             if layer == search.layer
         ],
-        "nets": nets,
-        "share_with": share_with,
-        "crossings": crossings,
-        "shapes": shapes,
-        "units": units,
-        "unit_owners": unit_owners,
-        "unit_fields": unit_fields,
-        "all_nets": sorted(world.netlist.nets),
-        "reservations": reservations,
     }
 
 
 def register_walls(grid: Any, search: Search) -> None:
-    """Hand the search's walls to the native grid once per key, so the rules carry only the key."""
-    if hasattr(grid, "has_walls") and not grid.has_walls(search.walls_key):
+    """Hand the native grid the tables and the search's walls, once per key."""
+    if not hasattr(grid, "has_walls"):
+        return
+    register_tables(grid, search.world)
+    if not grid.has_walls(search.walls_key):
         grid.set_walls(search.walls_key, sorted(search.walls))
+    if not grid.has_walls(search.unit_walls_key):
+        grid.set_walls(search.unit_walls_key, sorted(search.unit_walls))
 
 
 def cost_limit(
@@ -476,19 +501,17 @@ def find(
     return None
 
 
-def _found_from(answer: str) -> Found | None:
-    """The native answer: the JSON of a path, or the word ``none`` when there is none."""
+def _found_from(answer: Any) -> Found | None:
+    """The native answer as a ``Found``; None for the word ``none``."""
     if answer == "none":
         return None
-    raw = json.loads(answer)
+    cells, cost, crossings, rips, displaces = answer
     return Found(
-        cells=tuple((x, y) for x, y in raw["cells"]),
-        cost=raw["cost"],
-        crossings=tuple(
-            ((x, y), net, reuse) for (x, y), net, reuse in raw["crossings"]
-        ),
-        rips=frozenset(raw["rips"]),
-        displaces=frozenset(raw.get("displaces", ())),
+        cells=tuple(cells),
+        cost=cost,
+        crossings=tuple((xy, net, reuse) for xy, net, reuse in crossings),
+        rips=frozenset(rips),
+        displaces=frozenset(displaces),
     )
 
 
@@ -546,11 +569,15 @@ def _reconstruct(
 
 __all__ = [
     "DIRS",
+    "MODES",
     "Found",
     "Search",
     "entry",
     "find",
     "occluded_free",
-    "rules_of",
+    "query_of",
+    "register_regions",
+    "register_tables",
     "straight_through",
+    "unit_footprints",
 ]

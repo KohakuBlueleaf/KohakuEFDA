@@ -48,10 +48,17 @@ def test_random_operations_agree() -> None:
         occupy = rng.random() < 0.6 or step < 20
         for kernel in (python, native):
             (kernel.occupy if occupy else kernel.free)(layer, cells, holder)
+        if occupy and holder.startswith("wire:"):
+            runs = [(xy, rng.randrange(16)) for xy in cells]
+            for kernel in (python, native):
+                kernel.set_runs(layer, holder, runs)
         if step % 40 == 0:
             assert python.save() == native.save()
             assert python.holders_at(layer, cells[0]) == native.holders_at(
                 layer, cells[0]
+            )
+            assert python.run_at(layer, holder, cells[0]) == native.run_at(
+                layer, holder, cells[0]
             )
             assert python.free_for(layer, cells) == native.free_for(layer, cells)
             assert python.cells_of(holder) == native.cells_of(holder)
@@ -62,9 +69,13 @@ def test_random_operations_agree() -> None:
             assert (python.occupancy(layer) == native.occupancy(layer)).all()
             assert (python.integral(layer) == native.integral(layer)).all()
     blob = python.save()
+    assert b'"runs":' in blob
     other = NativeKernel(20, 14, ("ground", "overhead"))
     other.load(blob)
     assert other.save() == blob
+    twin = PyKernel(20, 14, ("ground", "overhead"))
+    twin.load(blob)
+    assert twin.save() == blob
     assert "native" in KERNELS and isinstance(
         make_kernel("auto", 4, 4, ("ground",)), NativeKernel
     )
@@ -102,9 +113,12 @@ def test_a_native_world_solves_the_toy() -> None:
     assert Netlist.parse(text).digest()
 
 
-@pytest.mark.parametrize("seed", [3, 4, 5])
-def test_native_search_finds_what_python_finds(seed: int) -> None:
-    """Every search of a whole run answers the same on both sides: cells, cost, crossings and rips."""
+@pytest.mark.parametrize(
+    ("seed", "solver"),
+    [(3, "inorder"), (4, "inorder"), (5, "inorder"), (3, "regional")],
+)
+def test_native_search_finds_what_python_finds(seed: int, solver: str) -> None:
+    """Every search of a whole run answers the same on both sides while the grid changes."""
     netlist = random_circuit(seed, inputs=4, gates=8)
     prob = problem(netlist, width=48, height=24)
     ctx = Context(prob, seed=seed, budget=Budget(units=4000), kernel="native")
@@ -120,7 +134,7 @@ def test_native_search_finds_what_python_finds(seed: int) -> None:
         return native
 
     with patch.object(pathfinder, "find", both), patch.object(trees, "find", both):
-        get("inorder").run(ctx)
+        get(solver).run(ctx)
     assert len(searches) >= 15
     assert [n for n, _ in searches] == [p for _, p in searches]
 

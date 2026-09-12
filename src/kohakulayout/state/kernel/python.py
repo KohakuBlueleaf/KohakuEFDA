@@ -19,6 +19,9 @@ class PyKernel:
             layer: {} for layer in self.layers
         }
         self._index: dict[Holder, dict[str, set[XY]]] = {}
+        self._runs: dict[str, dict[XY, dict[Holder, int]]] = {
+            layer: {} for layer in self.layers
+        }
 
     # ------------------------------------------------------------ mutation
     def occupy(self, layer: str, cells: Iterable[XY], holder: Holder) -> None:
@@ -32,8 +35,12 @@ class PyKernel:
 
     def free(self, layer: str, cells: Iterable[XY], holder: Holder) -> None:
         grid = self._grid[layer]
+        runs = self._runs[layer]
         mine = self._index.get(holder, {}).get(layer)
         for xy in cells:
+            at = runs.get(xy)
+            if at is not None and at.pop(holder, None) is not None and not at:
+                del runs[xy]
             held = grid.get(xy)
             if held is None:
                 continue
@@ -49,14 +56,35 @@ class PyKernel:
             if not self._index[holder]:
                 del self._index[holder]
 
+    def set_runs(
+        self, layer: str, holder: Holder, runs: Iterable[tuple[XY, int]]
+    ) -> None:
+        table = self._runs[layer]
+        for xy, mask in runs:
+            at = table.setdefault(xy, {})
+            if mask:
+                at[holder] = mask
+            else:
+                at.pop(holder, None)
+            if not at:
+                del table[xy]
+
+    def note_unit(self, unit_id: str, footprint: str, owner: str, field: bool) -> None:
+        return None
+
     def clear(self) -> None:
         for layer in self.layers:
             self._grid[layer].clear()
+            self._runs[layer].clear()
         self._index.clear()
 
     # ------------------------------------------------------------- queries
     def holders_at(self, layer: str, xy: XY) -> tuple[Holder, ...]:
         return self._grid[layer].get(xy, ())
+
+    def run_at(self, layer: str, holder: Holder, xy: XY) -> int:
+        at = self._runs[layer].get(xy)
+        return at.get(holder, 0) if at is not None else 0
 
     def holders(
         self, layer: str, cells: Iterable[XY]
@@ -123,6 +151,14 @@ class PyKernel:
                 ]
                 for layer in self.layers
             },
+            "runs": {
+                layer: [
+                    [x, y, holder, mask]
+                    for (x, y), at in sorted(self._runs[layer].items())
+                    for holder, mask in sorted(at.items())
+                ]
+                for layer in self.layers
+            },
         }
         return json.dumps(payload, separators=(",", ":"), sort_keys=True).encode(
             "utf-8"
@@ -135,3 +171,6 @@ class PyKernel:
             for x, y, held in cells:
                 for holder in held:
                     self.occupy(layer, [(x, y)], holder)
+        for layer, runs in payload.get("runs", {}).items():
+            for x, y, holder, mask in runs:
+                self.set_runs(layer, holder, [((x, y), mask)])

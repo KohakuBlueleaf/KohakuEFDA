@@ -97,43 +97,55 @@ def junctions(
     return out
 
 
+def has_unit(world: Any, layer: str, xy: XY) -> bool:
+    """Whether any unit holds the cell on the layer."""
+    return any(holder_kind(h)[0] == "unit" for h in world.kernel.holders_at(layer, xy))
+
+
+def straight(cells: list[XY], index: int) -> bool:
+    """Whether the cell lies on one line with its two neighbours on the path; an end never does."""
+    if index <= 0 or index >= len(cells) - 1:
+        return False
+    before, after = cells[index - 1], cells[index + 1]
+    return before[0] == after[0] or before[1] == after[1]
+
+
 def repeaters(world: Any, net: Any, segments: list[Segment]) -> list[str] | Refusal:
-    """A repeater on every run longer than the carrier's limit, on the last cell before the limit that holds no unit; a refusal when no such cell is left."""
+    """A repeater on each stretch between units over the limit; a refusal without a repeater."""
     limit = world.physics.carriers.run_limit(net.carrier)
     footprint = world.physics.carriers.repeater(net.carrier)
     if limit is None:
-        return []
-    if footprint is None:
-        longest = max((len(s.cells) for s in segments), default=0)
-        if longest > limit:
-            return refuse(
-                net.id,
-                f"a {net.carrier!r} run of {longest} exceeds the limit of {limit} and no repeater exists",
-            )
         return []
     layer = world.carrier_layer(net.carrier)
     out: list[str] = []
     for segment in segments:
         cells = segment.cells
         start = 0
-        while len(cells) - start > limit:
-            last = min(start + limit, len(cells) - 2)
+        while start < len(cells):
+            end = next(
+                (
+                    i
+                    for i in range(start, len(cells))
+                    if has_unit(world, layer, cells[i])
+                ),
+                len(cells),
+            )
+            if end - start <= limit:
+                start = end + 1
+                continue
+            if footprint is None:
+                return refuse(
+                    net.id,
+                    f"a {net.carrier!r} run of {end - start} exceeds the limit of {limit} and no repeater exists",
+                )
             index = next(
                 (
                     i
-                    for i in range(last, start, -1)
-                    if not any(
-                        holder_kind(h)[0] == "unit"
-                        for h in world.kernel.holders_at(layer, cells[i])
-                    )
+                    for i in range(start + limit - 1, start + 1, -1)
+                    if straight(cells, i)
                 ),
-                start,
+                start + 1,
             )
-            if index <= start:
-                return refuse(
-                    net.id,
-                    f"a {net.carrier!r} run of {len(cells) - start} exceeds the limit of {limit} with no cell for a repeater",
-                )
             placed = place(world, net.id, footprint, cells[index], "repeater")
             if isinstance(placed, Refusal):
                 return placed
@@ -145,9 +157,11 @@ def repeaters(world: Any, net: Any, segments: list[Segment]) -> list[str] | Refu
 __all__ = [
     "crossings",
     "emitter_at",
+    "has_unit",
     "junctions",
     "place",
     "recover",
     "repeaters",
+    "straight",
     "unit_at",
 ]

@@ -178,11 +178,13 @@ class AttachMixin:
         self._tables = tables
         for net_id in tables.pins:
             self.retable(net_id)
+        self._retable_all = True
         return tables
 
     def untable(self) -> None:
         """Drop the tables; the next reader rebuilds them from the placements."""
         self._tables = None
+        self._retable_all = True
 
     def table_cell(self, cell_id: str) -> None:
         """Write a newly placed cell's pins into the tables, its nets patched after."""
@@ -234,6 +236,7 @@ class AttachMixin:
     def retable(self, net_id: str) -> None:
         """Write the net's placed pins into the tables again, after its wire came or went."""
         tables = self._tables
+        self._retabled.add(net_id)
         if tables is None:
             return
         for kind, layer, cell in tables.entries.pop(net_id, ()):

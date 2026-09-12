@@ -30,7 +30,7 @@ def freeze(world: Any, hierarchical: bool = False) -> Layout:
 
 
 def load(world: Any, layout: Layout) -> None:
-    """Occupy the kernel from a flat layout and replace the world's records; no checks."""
+    """Occupy the kernel from a flat layout with every wire's runs, and replace the records."""
     flat = layout.flatten(world.problem.netlist)
     world.kernel.clear()
     world.placements, world.wires, world.units, world.reservations = {}, {}, {}, {}
@@ -55,6 +55,12 @@ def load(world: Any, layout: Layout) -> None:
             if fp
             else ((unit.x, unit.y),)
         )
+        world.kernel.note_unit(
+            key,
+            unit.footprint,
+            unit.owner.removeprefix("net:") if unit.owner.startswith("net:") else "",
+            unit.owner.startswith("field:"),
+        )
         for layer in world.layers_for(fp) if fp else (world.fabric.layers[0],):
             world.kernel.occupy(layer, cells, f"unit:{key}")
         world.units[key] = unit
@@ -63,6 +69,9 @@ def load(world: Any, layout: Layout) -> None:
             reservation.layer, reservation.cells, f"reserve:{reservation.tag}"
         )
         world.reservations[reservation.tag] = reservation
+    for key, wire in world.wires.items():
+        for layer, runs in world.runs_of(wire).items():
+            world.kernel.set_runs(layer, f"wire:{key}", runs)
     world.seq = 0
 
 
