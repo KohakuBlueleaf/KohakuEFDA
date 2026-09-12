@@ -3,7 +3,7 @@
 from collections.abc import Iterable
 from typing import Any
 
-from kohakulayout.ir import Cell, Net, Placement, Refusal
+from kohakulayout.ir import Cell, Footprint, Net, Placement, Refusal
 from kohakulayout.ir.geometry import XY, footprint_cells
 from kohakulayout.physics.protocol import Anchor
 
@@ -39,6 +39,10 @@ class DefaultBoundaries:
     def anchors(self, world: Any, cell: Cell) -> Iterable[Anchor]:
         return free_anchors(world, cell)
 
+    def anchor_rows(self, world: Any, cell: Cell) -> Iterable[tuple[int, int, int]]:
+        """The anchors as ``(x, y, rot)`` rows, in ``anchors``' order."""
+        return ((a.x, a.y, a.rot) for a in self.anchors(world, cell))
+
     def legal(self, world: Any, placement: Placement) -> Refusal | None:
         return None
 
@@ -49,3 +53,6 @@ class DefaultBoundaries:
 
     def crossing_region(self, carrier: str, region: str) -> bool:
         return region == "build"
+
+    def unit_region(self, unit: Footprint, region: str) -> bool:
+        return True
