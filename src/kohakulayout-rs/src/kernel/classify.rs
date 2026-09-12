@@ -1,14 +1,18 @@
-//! The tables one A* search reads: the rules as handed in, their names as indices, and a layer's cells
-//! classified once per grid state, each priced for entry with its crossing, rip and displacement.
+//! The tables one A* search reads: a layer's cells classified once per grid state, for every net at
+//! once, and one search's query laid out as grids, so each cell is priced for entry with its
+//! crossing, rip and displacement when the search reaches it.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::BTreeSet;
+use std::sync::Arc;
 
 use serde::Deserialize;
 
 use super::grid::{Grid, XY};
+use super::tables::{CarrierView, Tables};
 
+/// One search's rules: its net, carrier and costs, and the cells shut, held or charged for it.
 #[derive(Deserialize)]
-pub struct Rules {
+pub struct Query {
     pub net: String,
     pub carrier: String,
     pub step: i64,
@@ -36,94 +40,81 @@ pub struct Rules {
     #[serde(default)]
     pub walls_key: String,
     #[serde(default)]
+    pub unit_walls_key: String,
+    #[serde(default)]
     pub shut: Vec<XY>,
     #[serde(default)]
     pub held: Vec<XY>,
     #[serde(default)]
-    pub ports: Vec<(i64, i64, i64, i64)>,
-    #[serde(default)]
     pub history: Vec<(i64, i64, i64)>,
-    #[serde(default)]
-    pub nets: BTreeMap<String, String>,
-    #[serde(default)]
-    pub share_with: BTreeMap<String, bool>,
-    #[serde(default)]
-    pub crossings: BTreeMap<String, (String, String, bool)>,
-    #[serde(default)]
-    pub shapes: BTreeMap<String, Shape>,
-    #[serde(default)]
-    pub units: BTreeMap<String, String>,
-    #[serde(default)]
-    pub unit_owners: BTreeMap<String, String>,
-    #[serde(default)]
-    pub unit_fields: BTreeMap<String, bool>,
-    #[serde(default)]
-    pub all_nets: BTreeSet<String>,
-    #[serde(default)]
-    pub reservations: BTreeMap<String, Option<i64>>,
 }
 
 fn yes() -> bool {
     true
 }
 
-#[derive(Deserialize, Clone)]
-pub struct Shape {
-    pub width: i64,
-    pub height: i64,
-    pub layers: Vec<String>,
-}
-
-/// The rules with their cell tables laid out as grids, prepared once and shared by every search over them.
-pub struct Prepared {
-    pub rules: Rules,
+/// A query with its cell sets laid out as grids and its net names as indices.
+pub struct View {
+    pub query: Query,
     pub(super) width: usize,
     pub(super) height: usize,
-    pub(super) walls: Vec<bool>,
+    pub(super) walls: Arc<Vec<bool>>,
+    pub(super) unit_walls: Arc<Vec<bool>>,
     pub(super) shut: Vec<bool>,
     pub(super) held: Vec<bool>,
     pub(super) history: Vec<i64>,
-    pub(super) ports: HashMap<usize, XY>,
-    pub(super) names: Names,
+    pub(super) protected: Vec<bool>,
+    pub(super) me: Option<u32>,
 }
 
-impl Prepared {
-    pub fn new(rules: Rules, width: i64, height: i64, walls: &[XY]) -> Prepared {
+impl View {
+    /// Lay a query out over the shared `walls` and `unit_walls` grids.
+    pub fn new(
+        query: Query,
+        width: i64,
+        height: i64,
+        walls: Arc<Vec<bool>>,
+        unit_walls: Arc<Vec<bool>>,
+        tables: &Tables,
+    ) -> View {
         let (w, h) = (width.max(0) as usize, height.max(0) as usize);
         let cells = w * h;
-        let names = Names::new(&rules);
-        let mut out = Prepared {
-            names,
-            rules,
+        let mut out = View {
+            me: tables.net(&query.net),
+            protected: tables
+                .nets
+                .iter()
+                .map(|n| query.protected.contains(n))
+                .collect(),
+            query,
             width: w,
             height: h,
-            walls: vec![false; cells],
+            walls,
+            unit_walls,
             shut: vec![false; cells],
             held: vec![false; cells],
             history: vec![0; cells],
-            ports: HashMap::new(),
         };
-        for (ax, ay, px, py) in out.rules.ports.clone() {
-            if let Some(i) = out.at((ax, ay)) {
-                out.ports.insert(i, (px, py));
+        if !out.query.walls.is_empty() {
+            let mut merged = (*out.walls).clone();
+            for xy in out.query.walls.clone() {
+                if let Some(i) = out.at(xy) {
+                    merged[i] = true;
+                }
             }
+            out.walls = Arc::new(merged);
         }
-        for xy in out.rules.walls.clone().iter().chain(walls.iter()) {
-            if let Some(i) = out.at(*xy) {
-                out.walls[i] = true;
-            }
-        }
-        for xy in out.rules.shut.clone() {
+        for xy in out.query.shut.clone() {
             if let Some(i) = out.at(xy) {
                 out.shut[i] = true;
             }
         }
-        for xy in out.rules.held.clone() {
+        for xy in out.query.held.clone() {
             if let Some(i) = out.at(xy) {
                 out.held[i] = true;
             }
         }
-        for (x, y, n) in out.rules.history.clone() {
+        for (x, y, n) in out.query.history.clone() {
             if let Some(i) = out.at((x, y)) {
                 out.history[i] = n;
             }
@@ -140,104 +131,26 @@ impl Prepared {
     }
 }
 
-/// The rules' names as indices, so a probe compares numbers: nets with their sharing, crossing and protection, units with their footprint and owner.
-pub(super) struct Names {
-    pub(super) nets: Vec<String>,
-    pub(super) net_index: HashMap<String, u32>,
-    share: Vec<bool>,
-    cross_mode: Vec<u8>,
-    cross_unit: Vec<String>,
-    cross_bent: Vec<bool>,
-    protected: Vec<bool>,
-    known: Vec<bool>,
-    pub(super) unit_index: HashMap<String, u32>,
-    pub(super) unit_ids: Vec<String>,
-    pub(super) unit_footprint: Vec<String>,
-    pub(super) unit_owner: Vec<Option<u32>>,
-    pub(super) unit_field: Vec<bool>,
-}
-
-impl Names {
-    fn new(rules: &Rules) -> Names {
-        let mut names = Names {
-            nets: Vec::new(),
-            net_index: HashMap::new(),
-            share: Vec::new(),
-            cross_mode: Vec::new(),
-            cross_unit: Vec::new(),
-            cross_bent: Vec::new(),
-            protected: Vec::new(),
-            known: Vec::new(),
-            unit_index: HashMap::new(),
-            unit_ids: Vec::new(),
-            unit_footprint: Vec::new(),
-            unit_owner: Vec::new(),
-            unit_field: Vec::new(),
-        };
-        let mut all: BTreeSet<&str> = rules.nets.keys().map(String::as_str).collect();
-        all.extend(rules.all_nets.iter().map(String::as_str));
-        all.extend(rules.unit_owners.values().map(String::as_str));
-        all.extend(rules.protected.iter().map(String::as_str));
-        for net in all {
-            let carrier = rules.nets.get(net).map(String::as_str).unwrap_or("");
-            let (mode, unit, bent) = rules
-                .crossings
-                .get(carrier)
-                .map(|c| (c.0.as_str(), c.1.clone(), c.2))
-                .unwrap_or(("forbidden", String::new(), false));
-            names
-                .net_index
-                .insert(net.to_string(), names.nets.len() as u32);
-            names.nets.push(net.to_string());
-            names
-                .share
-                .push(*rules.share_with.get(carrier).unwrap_or(&false));
-            names.cross_mode.push(match mode {
-                "forbidden" => 0,
-                "unit" => 2,
-                _ => 1,
-            });
-            names.cross_unit.push(unit);
-            names.cross_bent.push(bent);
-            names.protected.push(rules.protected.contains(net));
-            names.known.push(rules.all_nets.contains(net));
-        }
-        for (unit, footprint) in &rules.units {
-            names
-                .unit_index
-                .insert(unit.clone(), names.unit_footprint.len() as u32);
-            names.unit_ids.push(unit.clone());
-            names.unit_footprint.push(footprint.clone());
-            let owner = rules
-                .unit_owners
-                .get(unit)
-                .and_then(|o| names.net_index.get(o).copied());
-            names.unit_owner.push(owner);
-            names
-                .unit_field
-                .push(*rules.unit_fields.get(unit).unwrap_or(&false));
-        }
-        names
-    }
-}
-
-#[derive(Clone, Copy)]
-pub(super) struct WireRef {
-    net: u32,
-    share: bool,
-    cross: bool,
-    rippable: bool,
-}
-
-/// One cell of the layer as the search sees it: closed outright, priced, under a unit, or held by wires.
+/// One classified cell: blocked, reserved, under a unit, or held by wires with their runs.
 #[derive(Clone, Default)]
-pub(super) struct Cell {
+pub struct Cell {
     blocked: bool,
-    extra: i64,
+    reserves: Vec<u32>,
     unit: Option<u32>,
     unknown_unit: bool,
-    wires: Vec<WireRef>,
+    wires: Vec<(u32, u8)>,
     only_wires: bool,
+}
+
+impl Cell {
+    /// Whether nothing holds the cell.
+    pub fn is_empty(&self) -> bool {
+        !self.blocked
+            && self.reserves.is_empty()
+            && self.unit.is_none()
+            && !self.unknown_unit
+            && self.wires.is_empty()
+    }
 }
 
 #[derive(Clone, Default)]
@@ -249,6 +162,17 @@ pub(super) struct Entry {
     pub(super) displaces: Vec<u32>,
 }
 
+/// The run bit of a unit step: `N=1 E=2 S=4 W=8`.
+fn side_bit(dx: i64, dy: i64) -> u8 {
+    match (dx, dy) {
+        (0, -1) => 1,
+        (1, 0) => 2,
+        (0, 1) => 4,
+        (-1, 0) => 8,
+        _ => 0,
+    }
+}
+
 fn split(holder: &str) -> (&str, &str) {
     match holder.find(':') {
         Some(i) => (&holder[..i], &holder[i + 1..]),
@@ -256,106 +180,88 @@ fn split(holder: &str) -> (&str, &str) {
     }
 }
 
-/// One search's view of a layer: the grid, its classified cells and the prepared rules.
+/// Classify one cell's holders; a wire of an unknown net blocks the cell.
+pub fn classify_cell(grid: &Grid, layer: &str, tables: &Tables, xy: XY, held: &[String]) -> Cell {
+    let mut cell = Cell { only_wires: !held.is_empty(), ..Cell::default() };
+    for holder in held {
+        let (kind, reference) = split(holder);
+        match kind {
+            "cell" => {
+                cell.blocked = true;
+                cell.only_wires = false;
+            }
+            "reserve" => {
+                cell.only_wires = false;
+                match tables.reservation_index.get(reference) {
+                    Some(index) => cell.reserves.push(*index),
+                    None => cell.blocked = true,
+                }
+            }
+            "unit" => match tables.unit_index.get(reference) {
+                Some(u) => {
+                    cell.unit = Some(*u);
+                    if !tables.units[*u as usize].field {
+                        cell.only_wires = false;
+                    }
+                }
+                None => {
+                    cell.unknown_unit = true;
+                    cell.only_wires = false;
+                }
+            },
+            "wire" => match tables.net(reference) {
+                Some(net) => cell.wires.push((net, grid.run_at(layer, holder, xy))),
+                None => cell.blocked = true,
+            },
+            _ => {}
+        }
+    }
+    cell
+}
+
+/// A layer's cells for the tables, for every net at once.
+pub fn classify(grid: &Grid, layer: &str, tables: &Tables) -> Vec<Cell> {
+    let (w, h) = (grid.width.max(0) as usize, grid.height.max(0) as usize);
+    let mut cells = vec![Cell::default(); w * h];
+    let Some(map) = grid.layer_map(layer) else {
+        return cells;
+    };
+    for (xy, held) in map {
+        if xy.0 < 0 || xy.1 < 0 || xy.0 >= w as i64 || xy.1 >= h as i64 {
+            continue;
+        }
+        cells[xy.1 as usize * w + xy.0 as usize] = classify_cell(grid, layer, tables, *xy, held);
+    }
+    cells
+}
+
+/// One search over a classified layer.
 pub(super) struct Search<'a> {
     pub(super) grid: &'a Grid,
     pub(super) cells: &'a [Cell],
-    pub(super) prepared: &'a Prepared,
+    pub(super) empty: &'a [bool],
+    pub(super) view: &'a View,
+    pub(super) carrier: &'a CarrierView,
+    pub(super) tables: &'a Tables,
     pub(super) own: &'a [u8],
-    pub(super) me: Option<u32>,
 }
 
 impl<'a> Search<'a> {
-    pub(super) fn classify(grid: &Grid, layer: &str, prepared: &Prepared) -> Vec<Cell> {
-        let rules = &prepared.rules;
-        let names = &prepared.names;
-        let mut cells = vec![Cell::default(); prepared.width * prepared.height];
-        let Some(map) = grid.layer_map(layer) else {
-            return cells;
-        };
-        for (xy, held) in map {
-            let Some(i) = prepared.at(*xy) else {
-                continue;
-            };
-            let cell = &mut cells[i];
-            cell.only_wires = !held.is_empty();
-            for holder in held {
-                let (kind, reference) = split(holder);
-                match kind {
-                    "cell" => {
-                        cell.blocked = true;
-                        cell.only_wires = false;
-                    }
-                    "reserve" => {
-                        cell.only_wires = false;
-                        match rules.reservations.get(reference) {
-                            Some(Some(price)) => cell.extra += price,
-                            _ => cell.blocked = true,
-                        }
-                    }
-                    "unit" => match names.unit_index.get(reference) {
-                        Some(u) => {
-                            cell.unit = Some(*u);
-                            if !names.unit_field[*u as usize] {
-                                cell.only_wires = false;
-                            }
-                        }
-                        None => {
-                            cell.unknown_unit = true;
-                            cell.only_wires = false;
-                        }
-                    },
-                    "wire" => {
-                        if reference == rules.net {
-                            cell.blocked = true;
-                            continue;
-                        }
-                        let Some(net) = names.net_index.get(reference).copied() else {
-                            cell.blocked = true;
-                            continue;
-                        };
-                        let n = net as usize;
-                        cell.wires.push(WireRef {
-                            net,
-                            share: names.share[n],
-                            cross: names.cross_mode[n] != 0,
-                            rippable: !names.protected[n],
-                        });
-                    }
-                    _ => {}
-                }
-            }
-        }
-        cells
-    }
-
-    pub(super) fn holds_wire(&self, xy: XY, net: u32) -> bool {
-        match self.prepared.at(xy) {
-            Some(i) => self.cells[i].wires.iter().any(|w| w.net == net),
-            None => false,
-        }
-    }
-
-    pub(super) fn straight_through(&self, other: u32, xy: XY, dir: XY, terminal: bool) -> bool {
+    /// Whether a move along `dir` crosses a wire with run `run` straight.
+    pub(super) fn straight_through(&self, other: u32, run: u8, dir: XY, terminal: bool) -> bool {
         let (px, py) = (dir.1, dir.0);
-        let (x, y) = xy;
-        let port = self
-            .prepared
-            .at(xy)
-            .and_then(|i| self.prepared.ports.get(&i).cloned());
-        let side = |n: XY| self.holds_wire(n, other) || port == Some(n);
-        if terminal && self.prepared.names.cross_bent[other as usize] {
-            return side((x + px, y + py)) || side((x - px, y - py));
+        let side = |dx: i64, dy: i64| run & side_bit(dx, dy) != 0;
+        if terminal && self.carrier.cross_bent[other as usize] {
+            return side(px, py) || side(-px, -py);
         }
-        let across = side((x + px, y + py)) && side((x - px, y - py));
-        let along = self.holds_wire((x + dir.0, y + dir.1), other)
-            || self.holds_wire((x - dir.0, y - dir.1), other);
+        let across = side(px, py) && side(-px, -py);
+        let along = side(dir.0, dir.1) || side(-dir.0, -dir.1);
         across && !along
     }
 
-    /// Whether a unit's shape has its occluded layers free at `xy`, a displaced unit's holder not counted.
+    /// Whether a unit's occluded layers are free at `xy`, the holder `ignore` not counted.
     pub(super) fn free_shape(&self, footprint: &str, xy: XY, ignore: Option<&str>) -> bool {
-        let Some(shape) = self.prepared.rules.shapes.get(footprint) else {
+        let Some(shape) = self.tables.shapes.get(footprint) else {
             return false;
         };
         let cells: Vec<XY> = (0..shape.height)
@@ -380,41 +286,51 @@ impl<'a> Search<'a> {
         }
     }
 
-    /// The cost of crossing one of the net's own standing lanes: across its run only, with the carrier's own crossing unit where one is needed.
+    /// The cost of crossing one of the net's own lanes, across its run only.
     fn own_crossing(&self, xy: XY, index: usize, dir: Option<XY>) -> Option<Entry> {
-        let d = dir?;
+        let dir = dir?;
         let along = if self.own[index] == 1 {
-            d.1 == 0
+            dir.1 == 0
         } else {
-            d.0 == 0
+            dir.0 == 0
         };
         if along {
             return None;
         }
-        let me = self.me?;
-        let names = &self.prepared.names;
-        let m = me as usize;
-        if names.cross_mode[m] == 0 {
+        let me = self.view.me?;
+        if self.carrier.own_mode == 0 {
             return None;
         }
         let cell = &self.cells[index];
         if !cell.wires.is_empty() || cell.unit.is_some() || cell.unknown_unit {
             return None;
         }
-        if names.cross_mode[m] == 2 {
-            let footprint = &names.cross_unit[m];
-            if footprint.is_empty() || !self.free_shape(footprint, xy, None) {
+        if self.carrier.own_mode == 2 {
+            let footprint = &self.carrier.own_unit;
+            if footprint.is_empty()
+                || self.view.unit_walls[index]
+                || !self.free_shape(footprint, xy, None)
+            {
                 return None;
             }
         }
         Some(Entry {
-            cost: self.prepared.rules.step + self.prepared.rules.crossing,
+            cost: self.view.query.step + self.view.query.crossing,
             crossing: Some(me),
             ..Entry::default()
         })
     }
 
-    /// The cost of entering a cell moving `dir`, or None when it is closed; a `terminal` is the path's own start, where only what holds the cell matters; a cell of the net's own standing lanes is crossed, at either end or on the way.
+    /// Whether a cell costs one step and records nothing: open, empty and off the owned axes.
+    #[inline]
+    pub(super) fn plain(&self, index: usize) -> bool {
+        self.empty[index]
+            && self.own[index] == 0
+            && !self.view.walls[index]
+            && !self.view.shut[index]
+    }
+
+    /// The cost of entering a cell moving `dir`, or None when it is closed.
     pub(super) fn entry(
         &self,
         xy: XY,
@@ -422,81 +338,93 @@ impl<'a> Search<'a> {
         dir: Option<XY>,
         terminal: bool,
     ) -> Option<Entry> {
-        let rules = &self.prepared.rules;
-        let names = &self.prepared.names;
-        if !terminal && (self.prepared.walls[index] || self.prepared.shut[index]) {
+        let view = self.view;
+        let query = &view.query;
+        let tables = self.tables;
+        if !terminal && (view.walls[index] || view.shut[index]) {
             return None;
         }
+        if self.empty[index] && self.own[index] == 0 {
+            return Some(Entry { cost: query.step, ..Entry::default() });
+        }
         let cell = &self.cells[index];
-        if cell.blocked {
+        if cell.blocked || cell.wires.iter().any(|(net, _)| Some(*net) == view.me) {
             return None;
         }
         if self.own[index] != 0 {
             return self.own_crossing(xy, index, dir);
         }
-        let mut result = Entry { cost: rules.step + cell.extra, ..Entry::default() };
+        let mut result = Entry { cost: query.step, ..Entry::default() };
+        for reservation in &cell.reserves {
+            if tables.reservations[*reservation as usize] != query.carrier {
+                return None;
+            }
+            result.cost += query.corridor;
+        }
         if cell.wires.is_empty() && cell.unit.is_none() && !cell.unknown_unit {
             return Some(result);
         }
-        let held = self.prepared.held[index];
-        let rip_cost = rules.ripup * (1 + self.prepared.history[index]);
-        for wire in &cell.wires {
-            if wire.share {
-                result.cost += rules.share;
+        let held = view.held[index];
+        let rip_cost = query.ripup * (1 + view.history[index]);
+        for (net, run) in &cell.wires {
+            let n = *net as usize;
+            if self.carrier.share[n] {
+                result.cost += query.share;
                 continue;
             }
-            if wire.cross {
+            let mode = self.carrier.cross_mode[n];
+            if mode != 0 && (mode != 2 || !view.unit_walls[index]) {
                 if let Some(d) = dir {
-                    if self.straight_through(wire.net, xy, d, terminal) {
-                        result.crossing = Some(wire.net);
-                        result.cost += rules.crossing;
+                    if self.straight_through(*net, *run, d, terminal) {
+                        result.crossing = Some(*net);
+                        result.cost += query.crossing;
                         continue;
                     }
                 }
             }
-            if rules.allow_rip && wire.rippable && !held {
-                result.rips.push(wire.net);
+            if query.allow_rip && !view.protected[n] && !held {
+                result.rips.push(*net);
                 result.cost += rip_cost;
                 continue;
             }
             return None;
         }
         let mut unit = cell.unit;
-        if let Some(u) = unit.filter(|u| names.unit_field[*u as usize]) {
+        if let Some(u) = unit.filter(|u| tables.units[*u as usize].field) {
             result.displaces.push(u);
-            result.cost += rules.displace;
+            result.cost += query.displace;
             unit = None;
         }
         if unit.is_some() || cell.unknown_unit {
-            let owner = unit.and_then(|u| names.unit_owner[u as usize]);
+            let owner = unit.and_then(|u| tables.net(&tables.units[u as usize].owner));
             if let Some(crossing) = result.crossing {
                 let c = crossing as usize;
-                let footprint = &names.cross_unit[c];
+                let footprint = &self.carrier.cross_unit[c];
                 let unit_footprint = unit
-                    .map(|u| names.unit_footprint[u as usize].as_str())
+                    .map(|u| tables.units[u as usize].footprint.as_str())
                     .unwrap_or("");
-                if names.cross_mode[c] != 2 || footprint.is_empty() || unit_footprint != footprint {
+                if self.carrier.cross_mode[c] != 2
+                    || footprint.is_empty()
+                    || unit_footprint != footprint
+                {
                     return None;
                 }
                 result.reuse = true;
             } else if owner.is_some_and(|o| result.rips.contains(&o)) {
             } else {
-                let rippable = owner.filter(|o| {
-                    let n = *o as usize;
-                    names.known[n] && rules.allow_rip && !names.protected[n] && !held
-                });
-                let o = rippable?;
+                let o =
+                    owner.filter(|o| query.allow_rip && !view.protected[*o as usize] && !held)?;
                 result.rips.push(o);
                 result.cost += rip_cost;
             }
         } else if let Some(crossing) = result.crossing {
             let c = crossing as usize;
-            let footprint = &names.cross_unit[c];
+            let footprint = &self.carrier.cross_unit[c];
             let gone = result
                 .displaces
                 .first()
-                .map(|u| format!("unit:{}", names.unit_ids[*u as usize]));
-            if names.cross_mode[c] == 2
+                .map(|u| format!("unit:{}", tables.units[*u as usize].id));
+            if self.carrier.cross_mode[c] == 2
                 && (footprint.is_empty()
                     || !cell.only_wires
                     || !self.free_shape(footprint, xy, gone.as_deref()))

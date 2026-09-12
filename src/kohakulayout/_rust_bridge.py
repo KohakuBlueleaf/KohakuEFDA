@@ -70,8 +70,8 @@ def rust_astar(
     rules: Any,
     avoid: list | None = None,
     own: list | None = None,
-) -> str | None:
-    """The native path search on a native grid: the found path as JSON, ``none``, or None to use Python."""
+) -> Any:
+    """The native search's answer, ``none`` when there is no path, or None to search in Python."""
     if not native_wanted() or not hasattr(grid, "astar"):
         return None
     try:
@@ -79,3 +79,33 @@ def rust_astar(
     except Exception:  # noqa: BLE001
         return None
     return "none" if answer is None else answer
+
+
+def rust_attempt(grid: Any, doc: str) -> str | None:
+    """The native placement attempt on a native grid: its answer as JSON, or None to place in Python."""
+    if not native_wanted() or not hasattr(grid, "attempt"):
+        return None
+    try:
+        return grid.attempt(doc)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def rust_admits(grid: Any, doc: str) -> bool | None:
+    """Whether a native grid admits a candidate over its mirror, or None to decide in Python."""
+    if not native_wanted() or not hasattr(grid, "admits"):
+        return None
+    try:
+        return grid.admits(doc)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def rust_route_pass(grid: Any, doc: str) -> str | None:
+    """The native routing pass on a native grid: its answer as JSON, or None to route in Python."""
+    if not native_wanted() or not hasattr(grid, "route_pass"):
+        return None
+    try:
+        return grid.route_pass(doc)
+    except Exception:  # noqa: BLE001
+        return None
