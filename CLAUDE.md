@@ -26,7 +26,7 @@ it there first. Never delegate that research to subagents.
 src/kohakuefda/          library: data/ model/ i18n/ flow/ plan/ layout/ route/ verify/ render/ cli/
 src/kohakuefda-viewer/   Vue 3 viewer (JavaScript only); builds into src/kohakuefda/web_dist/
 src/kohakulayout/        KohakuLayout: the netlist-to-layout framework (design in .internal/kohakulayout/)
-src/kohakulayout-rs/     its native twin (pest, serde, pyo3; built with maturin into .venv)
+src/kohakulayout-rs/     its native twin (pest, serde, pyo3; Cargo.toml at the root, maturin builds it into .venv)
 data/<versionId>/        normalised dataset + manifest (checked in); data/raw/ is ignored
 scripts/dev/             comment_budget.py and other dev tools
 tests/                   flat pytest; tests/fixtures/ is test-owned data

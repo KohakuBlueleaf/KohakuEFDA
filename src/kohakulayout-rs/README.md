@@ -34,9 +34,12 @@ a Python function byte for byte and is held to it by `tests/kohakulayout/parity/
 ## Building
 
 ```
-cd src/kohakulayout-rs
-VIRTUAL_ENV=../../.venv maturin develop --release
+maturin develop --release    # at the repository root, inside the venv
 ```
+
+The crate's `Cargo.toml` and `Cargo.lock` sit at the repository root beside `pyproject.toml`
+(`[lib] path = "src/kohakulayout-rs/src/lib.rs"`); `[tool.maturin]` in `pyproject.toml` names the
+module.
 
 `KOHAKULAYOUT_BACKEND=python` forces the Python path everywhere; `native` makes a missing
 module an error. `kl_check.py bench` requires the module.

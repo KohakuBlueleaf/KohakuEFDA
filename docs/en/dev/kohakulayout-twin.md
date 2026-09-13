@@ -17,11 +17,13 @@ checked against its Python original by `tests/kohakulayout/parity/`.
 ## Building
 
 ```
-cd src/kohakulayout-rs
-VIRTUAL_ENV=../../.venv maturin develop --release
+maturin develop --release    # at the repository root, inside the venv
 ```
 
-Python 3.14 needs pyo3 0.26 or newer, which the crate pins. Without the module the
+The crate's `Cargo.toml` sits at the root beside `pyproject.toml`; its sources are
+`src/kohakulayout-rs/src/`.
+
+The crate needs rustc 1.88 or newer (`rust-version` in `Cargo.toml`); Python 3.14 needs pyo3 0.26 or newer, which the crate pins. Without the module the
 framework runs unchanged on its Python paths.
 
 ## How it is used

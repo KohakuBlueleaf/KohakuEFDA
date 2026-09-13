@@ -49,13 +49,19 @@ package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["kohakuefda*", "kohakulayout*"]
+include = ["kohakuefda*", "kohakulayout*", "kohakulayout_rs*"]
 
 [tool.setuptools.package-data]
 "kohakuefda.data.static" = ["*.json", "examples/*.toml"]
 "kohakuefda" = ["web_dist/**/*"]
 "kohakulayout.ir.text" = ["*.lark"]
 "kohakulayout.templates.physics.gates" = ["fixtures/*.kl"]
+
+[tool.maturin]
+# `maturin develop --release` at the root: the twin into the venv, the src packages editable.
+python-source = "src"
+module-name = "kohakulayout_rs"
+features = ["pyo3/extension-module"]
 
 [tool.black]
 target-version = ["py313"]

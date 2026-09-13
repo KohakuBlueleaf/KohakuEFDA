@@ -378,11 +378,12 @@ uv pip install -e ".[dev]"       # + pytest, ruff, black
 ```
 
 **The native twin (optional, several times faster).** The build backend is setuptools,
-so `pip install -e .` does not build the crate. Use maturin from its directory:
+so `pip install -e .` does not build the crate. Use maturin at the repository root, where
+the crate's `Cargo.toml` sits beside `pyproject.toml`:
 
 ```bash
-uv pip install -e ".[native]"                          # installs maturin
-cd src/kohakulayout-rs && maturin develop --release    # builds kohakulayout_rs into the venv
+uv pip install -e ".[native]"                          # installs maturin (rustc 1.88 or newer)
+maturin develop --release                              # builds kohakulayout_rs into the venv
 python -c "import kohakulayout_rs; print('ok')"
 ```
 

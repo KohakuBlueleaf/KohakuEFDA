@@ -13,7 +13,7 @@ use crate::ir::rate::Rate;
 use crate::{Error, Result};
 
 #[derive(Parser)]
-#[grammar = "text/kl.pest"]
+#[grammar = "kohakulayout-rs/src/text/kl.pest"]
 pub struct KlParser;
 
 type P<'i> = Pair<'i, Rule>;

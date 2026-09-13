@@ -86,6 +86,10 @@ docs/_build/
 # PyBuilder
 .pybuilder/
 target/
+# The twin's extension module: maturin builds it into its package, never checked in.
+src/kohakulayout_rs/*.so
+src/kohakulayout_rs/*.pyd
+src/kohakulayout_rs/*.dylib
 
 # Jupyter Notebook
 .ipynb_checkpoints
