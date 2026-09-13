@@ -1,4 +1,4 @@
-"""The regional construction on the framework: cells no net touches first, the first cells pulled to a third of the Core AIC Area, no bounding-box term, every fitting window, one routed lookahead."""
+"""The regional construction on the framework: cells no net touches first, the first cells pulled to a third of the Core AIC Area, no bounding-box term, every fitting window, one routed lookahead, an insertion given up after ``INSERT_FAILURES`` refused anchors."""
 
 import random
 from typing import Any
@@ -16,13 +16,15 @@ from kohakulayout.solvers.regional.candidates import Proposals
 from kohakulayout.solvers.regional.search import DEFAULTS as FRAMEWORK_DEFAULTS
 from kohakulayout.solvers.regional.search import Search
 
+INSERT_FAILURES = 16
+
 DEFAULTS: dict[str, Any] = {
     **{k: v for k, v in FRAMEWORK_DEFAULTS.items() if k != "origin_weight"},
     "center_weight": 0.2,
     "depot_step": 2,
     "depot_window": 20,
     "extent_weight": 0.0,
-    "insert_failures": FRAMEWORK_DEFAULTS["candidates"],
+    "insert_failures": INSERT_FAILURES,
     "lookahead": 1,
 }
 
