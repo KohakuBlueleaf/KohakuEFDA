@@ -92,6 +92,12 @@ class Context:
         self.refusals.append(refusal)
         self.emit("refusal", refusal)
 
+    def charge(self, units: int = 1) -> None:
+        """Spend ``units`` of the budget and tell the plugins (``on_budget``)."""
+        self.budget.charge(units)
+        if units:
+            self.plugins.notify("on_budget", self, units)
+
     # ----------------------------------------------------------- attempts
     def attempt(
         self,

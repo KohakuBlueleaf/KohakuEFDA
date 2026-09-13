@@ -5,7 +5,7 @@ and checkpoints, and owns nothing about how to search.
 
 | file | what |
 |---|---|
-| `context.py` | `Context`: problem, physics, world, seeded rng, budget, plugins, progress sink, `builder()`, `attempt(fn, strict=True)` (a returned refusal rolls back; with `strict` so does the last refusal met), `snapshot`/`restore`, `assess`, `consider`/`accept`/`discard`, `frame`, `checkpoint`/`resume`, `gather`, `scope` |
+| `context.py` | `Context`: problem, physics, world, seeded rng, budget, plugins, progress sink, `builder()`, `charge(units)` (the budget spent and `on_budget` told; the builder charges every operation through it), `attempt(fn, strict=True)` (a returned refusal rolls back; with `strict` so does the last refusal met), `snapshot`/`restore`, `assess`, `consider`/`accept`/`discard`, `frame`, `checkpoint`/`resume`, `gather`, `scope` |
 | `builder.py` | `Builder`, the only door: place, place_instance, withdraw, route, unroute, reserve, marks, anchors, admits, first_open, diagnostic, finish |
 | `budget.py` | `Budget(units, seconds)`: `charge` raising `BudgetExhausted` naming the knob, `limit` scopes, `remaining`, `exhausted` |
 | `attempt.py` | `Attempt`, `Result`, `Block` |

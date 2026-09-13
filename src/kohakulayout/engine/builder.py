@@ -30,23 +30,23 @@ class Builder:
             x, y = anchor[0], anchor[1]
             rot = anchor[2] if len(anchor) > 2 else 0
         refusal = self.world.place(cell, x, y, rot)
-        self.ctx.budget.charge(1)
+        self.ctx.charge(1)
         return self._note(refusal)
 
     def place_instance(
         self, instance: str, x: int, y: int, rot: int = 0
     ) -> Refusal | None:
         refusal = self.world.place_instance(instance, x, y, rot)
-        self.ctx.budget.charge(1)
+        self.ctx.charge(1)
         return self._note(refusal)
 
     def withdraw(self, cell: str) -> None:
         self.world.withdraw(cell)
-        self.ctx.budget.charge(1)
+        self.ctx.charge(1)
 
     def route(self, net: str) -> Refusal | None:
         refusal = self.world.route(net)
-        self.ctx.budget.charge(1)
+        self.ctx.charge(1)
         return self._note(refusal)
 
     def unroute(self, net: str) -> None:

@@ -7,7 +7,7 @@ means unchanged, `DROP` discards a frame, `False` from `pre_assess` or `pre_acce
 |---|---|
 | `protocol.py` | `EnginePlugin` with every hook returning None: `pre_attempt`, `post_attempt`, `pre_assess`, `post_assess`, `pre_accept`, `post_accept`, `on_frame`, `on_checkpoint`, `on_budget` |
 | `manager.py` | `PluginManager`: `transform`, `first`, `notify` |
-| `budget.py` | `BudgetPlugin`: charges an attempt's cost before it runs |
+| `budget.py` | `BudgetPlugin`: charges an attempt's cost before it runs, through `ctx.charge` |
 | `sampler.py` | `FrameSampler(every, layout_every)`: frame cadence; start, end, constructed and checkpoint frames always pass |
 | `screen.py` | `ScreenPlugin(screens)` with the `SCREENS` registry: `AreaBound`, `MissingCount` |
 | `dedup.py` | `DedupPlugin`: assessments cached by layout digest |

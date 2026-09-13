@@ -1,4 +1,4 @@
-"""Budget accounting: an attempt is charged its cost before it runs."""
+"""Budget accounting: an attempt is charged its cost before it runs; the builder charges each operation through the context."""
 
 from typing import Any
 
@@ -10,8 +10,7 @@ class BudgetPlugin(EnginePlugin):
     priority = 10
 
     def pre_attempt(self, ctx: Any, attempt: Any) -> Any:
-        ctx.budget.charge(attempt.cost)
-        ctx.plugins.notify("on_budget", ctx, attempt.cost)
+        ctx.charge(attempt.cost)
         return None
 
 
