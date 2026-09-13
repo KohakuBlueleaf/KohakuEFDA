@@ -69,7 +69,7 @@ class Trajectory:
                 break
             heat = self.heat("construction")
             name, body = moves.step(step)
-            result = ctx.attempt(body, label=name)
+            result = ctx.attempt(body, label=name, strict=False)
             candidate = metrics(ctx.world)
             candidate_potential = self.potential()
             if result.refusal is not None or ctx.world.digest() == token.digest:

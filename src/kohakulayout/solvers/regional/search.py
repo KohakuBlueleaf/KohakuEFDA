@@ -71,6 +71,7 @@ class Search:
         self.best_count = 0
         self.best_token: Any = None
         self.best_missing: list[str] = []
+        self.empty = ctx.snapshot() if not self.world.placements else None
 
     @staticmethod
     def neighbourhood(netlist: Any) -> dict[str, list[str]]:
@@ -110,7 +111,10 @@ class Search:
             or trial % self.settings["restart_cycle"] == 0
         )
         if restart:
-            self.ctx.attempt(clear, label="clear")
+            if self.empty is not None:
+                self.ctx.restore(self.empty)
+            else:
+                self.ctx.attempt(clear, label="clear")
             return
         self.ctx.restore(self.best_token)
         removed = sorted(self.region(trial) | set(self.best_missing))
@@ -230,6 +234,7 @@ class Search:
             result = ctx.attempt(
                 lambda b, t=trial, f=failed: f.extend(self.construct(b, t)),
                 label=f"trial {trial}",
+                strict=False,
             )
             if isinstance(result.refusal, Refusal):
                 continue
