@@ -68,10 +68,17 @@ class Flows:
         memo[net_id] = out
         return out
 
+    def crossings(self, net_id: str) -> frozenset[XY]:
+        """The net's cells where two of its own lanes cross on a bridge: one node per axis."""
+        graph = self.graph(net_id)
+        bridges = self.bridges_of.get(self.kl.nets[net_id].carrier, set())
+        return frozenset(xy for xy in bridges if len(graph.get(xy, ())) == 4)
+
     def flows(self, net_id: str) -> dict[tuple[XY, XY], Fraction]:
         """The rate each directed step carries: on a tree, each pin's supply pushed along the orientation, a sink taking its demand as it passes, a branch sharing what arrives evenly; elsewhere every lane's rate along its path."""
         graph = self.graph(net_id)
         net = self.kl.nets[net_id]
+        crossings = self.crossings(net_id)
         supply: dict[XY, Fraction] = {}
         demand: dict[XY, Fraction] = {}
         for source, sink, rate in lane_facts(net):
@@ -82,34 +89,42 @@ class Flows:
             if goal in graph:
                 demand[goal] = demand.get(goal, Fraction(0)) + rate
         edges = sum(len(others) for others in graph.values()) // 2
-        if not graph or edges != len(graph) - 1:
-            return self.lane_flows(graph, net)
+        if not graph or edges != len(graph) + len(crossings) - 1:
+            return self.lane_flows(graph, net, crossings)
         directed = self.orientation(net_id)
-        ahead: dict[XY, list[XY]] = {}
-        waiting: dict[XY, int] = {}
+
+        def node(cell: XY, a: XY, b: XY) -> tuple[XY, int | None]:
+            return (cell, int(a[0] == b[0])) if cell in crossings else (cell, None)
+
+        ahead: dict[tuple[XY, int | None], list[tuple[XY, int | None]]] = {}
+        waiting: dict[tuple[XY, int | None], int] = {}
         for a, b in directed:
-            ahead.setdefault(a, []).append(b)
-            waiting[b] = waiting.get(b, 0) + 1
-        ready = [c for c in graph if waiting.get(c, 0) == 0]
-        carried: dict[XY, Fraction] = {}
+            head = node(b, a, b)
+            ahead.setdefault(node(a, a, b), []).append(head)
+            waiting[head] = waiting.get(head, 0) + 1
+        nodes = [(c, None) for c in graph if c not in crossings]
+        nodes += [(c, axis) for c in sorted(crossings) for axis in (0, 1)]
+        ready = [n for n in nodes if waiting.get(n, 0) == 0]
+        carried: dict[tuple[XY, int | None], Fraction] = {}
         out: dict[tuple[XY, XY], Fraction] = {}
         while ready:
-            cell = ready.pop()
-            have = carried.get(cell, Fraction(0)) + supply.get(cell, Fraction(0))
+            here = ready.pop()
+            cell = here[0]
+            have = carried.get(here, Fraction(0)) + supply.get(cell, Fraction(0))
             have = max(have - demand.get(cell, Fraction(0)), Fraction(0))
-            onward = sorted(ahead.get(cell, ()))
+            onward = sorted(ahead.get(here, ()))
             for other in onward:
-                out[(cell, other)] = have / len(onward)
+                out[(cell, other[0])] = have / len(onward)
                 carried[other] = carried.get(other, Fraction(0)) + have / len(onward)
                 waiting[other] -= 1
                 if waiting[other] == 0:
                     ready.append(other)
         if len(out) != len(directed):
-            return self.lane_flows(graph, net)
+            return self.lane_flows(graph, net, crossings)
         return out
 
     def lane_flows(
-        self, graph: dict[XY, set[XY]], net: Any
+        self, graph: dict[XY, set[XY]], net: Any, crossings: frozenset[XY] = frozenset()
     ) -> dict[tuple[XY, XY], Fraction]:
         """Every lane's rate along its path from source to sink; the reading for a net that is not a tree."""
         out: dict[tuple[XY, XY], Fraction] = {}
@@ -118,26 +133,43 @@ class Flows:
             goal = self.attach.get(sink)
             if start is None or goal is None or start not in graph or goal not in graph:
                 continue
-            for a, b in pairwise(self.path(graph, start, goal)):
+            for a, b in pairwise(self.path(graph, start, goal, crossings)):
                 out[(a, b)] = out.get((a, b), Fraction(0)) + rate
         return out
 
     @staticmethod
-    def path(graph: dict[XY, set[XY]], start: XY, goal: XY) -> list[XY]:
-        """The cells from ``start`` to ``goal`` along the net, breadth first; empty when none joins them."""
-        parent: dict[XY, XY | None] = {start: None}
-        frontier = [start]
-        while frontier and goal not in parent:
-            cell = frontier.pop(0)
-            for other in graph[cell]:
-                if other not in parent:
-                    parent[other] = cell
-                    frontier.append(other)
-        if goal not in parent:
+    def path(
+        graph: dict[XY, set[XY]],
+        start: XY,
+        goal: XY,
+        crossings: frozenset[XY] = frozenset(),
+    ) -> list[XY]:
+        """The cells from ``start`` to ``goal`` along the net, breadth first, straight through each of ``crossings``; empty when none joins them."""
+        State = tuple[XY, XY | None]
+        parent: dict[State, State | None] = {(start, None): None}
+        frontier: list[State] = [(start, None)]
+        found: State | None = (start, None) if start == goal else None
+        while frontier and found is None:
+            cell, came = frontier.pop(0)
+            onward = sorted(graph[cell])
+            if cell in crossings and came is not None:
+                ahead = (2 * cell[0] - came[0], 2 * cell[1] - came[1])
+                onward = [ahead] if ahead in graph[cell] else []
+            for other in onward:
+                state = (other, cell)
+                if state not in parent:
+                    parent[state] = (cell, came)
+                    frontier.append(state)
+                    if other == goal:
+                        found = state
+                        break
+        if found is None:
             return []
-        cells = [goal]
-        while parent[cells[-1]] is not None:
-            cells.append(parent[cells[-1]])
+        cells: list[XY] = []
+        state: State | None = found
+        while state is not None:
+            cells.append(state[0])
+            state = parent[state]
         return list(reversed(cells))
 
     def junction(

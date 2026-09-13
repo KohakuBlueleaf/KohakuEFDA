@@ -10,6 +10,7 @@ from kohakuefda.model.dataset import Dataset
 from kohakuefda.model.scenario import Scenario
 from kohakuefda.physics.facts import lane_facts, rate_of
 from kohakuefda.synth import kl_id, problem_of, project_pin_id
+from kohakuefda.synth.flows import Flows
 from kohakuefda.synth.problem import assign, components, constraint_kind, lanes_of
 from kohakulayout.ir import Problem
 from kohakulayout.ir.text import parse_text
@@ -131,3 +132,17 @@ def test_the_fixture_is_the_synth_output(problem: Problem) -> None:
     assert path.exists(), "write the fixture with scripts/dev/endfield_fixture.py"
     doc = parse_text(path.read_text(encoding="utf-8"))
     assert doc.problem.digest() == problem.digest()
+
+
+def test_a_path_runs_straight_through_a_crossing_of_the_net_itself() -> None:
+    graph = {
+        (0, 1): {(1, 1)},
+        (1, 1): {(0, 1), (2, 1), (1, 0), (1, 2)},
+        (2, 1): {(1, 1)},
+        (1, 0): {(1, 1)},
+        (1, 2): {(1, 1)},
+    }
+    crossing = frozenset({(1, 1)})
+    assert Flows.path(graph, (0, 1), (2, 1), crossing) == [(0, 1), (1, 1), (2, 1)]
+    assert Flows.path(graph, (0, 1), (1, 2), crossing) == []
+    assert Flows.path(graph, (0, 1), (1, 2)) == [(0, 1), (1, 1), (1, 2)]
