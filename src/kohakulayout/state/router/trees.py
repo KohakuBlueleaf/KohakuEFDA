@@ -167,7 +167,7 @@ class TreePolicy:
     def single_cell_lane(
         self, world: Any, net: Any, source: Any, sink: Any, split: bool, merge: bool
     ) -> bool:
-        """Whether a lane may be one cell (its two pins' attach cells or a lane of one of them coinciding), with ``split`` when that cell lies on a lane of its source and ``merge`` when on a lane of its sink; the default allows every one."""
+        """Whether a lane may be one cell (its two pins' attach cells or a lane of one of them coinciding), with ``split`` when that cell lies on a lane of its source and ``merge`` when on a lane of its sink; a lane refused one cell searches a path without it. The default allows every one."""
         return True
 
     def origins(

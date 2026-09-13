@@ -305,13 +305,16 @@ def lay(
     queue = list(policy.lanes(world, net))
     again: set[tuple[Any, Any]] = set()
     forced: set[tuple[Any, Any]] = set()
+    again_only = False
     position = 0
     while position < len(queue):
         source, sink = queue[position]
         position += 1
         if (source, sink) in pins:
             continue
-        if only is not None and (source, sink) != only and (source, sink) not in again:
+        if (source, sink) not in again and (
+            again_only or (only is not None and (source, sink) != only)
+        ):
             continue
         a, b = by_ref.get(str(source)), by_ref.get(str(sink))
         if a is None or b is None:
@@ -380,16 +383,24 @@ def lay(
                 sorted(crossed),
                 sorted(search.own),
             )
-        both = starts & goals
-        if both:
-            only = single_cell(world, net, search, a, both, plan)
-            if only is None:
+        both, single = starts & goals, None
+        while both:
+            held = len(plan.crossings)
+            single = single_cell(world, net, search, a, both, plan)
+            if single is None:
                 return refuse(net.id, f"lane {source}>{sink}: its only cell is held")
-            if not policy.single_cell_lane(
-                world, net, source, sink, only in source_tree, only in sink_tree
+            if policy.single_cell_lane(
+                world, net, source, sink, single in source_tree, single in sink_tree
             ):
-                return refuse(net.id, f"lane {source}>{sink} would be one cell")
-            cells: tuple[XY, ...] = (only,)
+                break
+            del plan.crossings[held:]
+            starts, goals, single = starts - {single}, goals - {single}, None
+            both = starts & goals
+        if single is not None:
+            again_only = True
+            cells: tuple[XY, ...] = (single,)
+        elif not starts or not goals:
+            return refuse(net.id, f"lane {source}>{sink} would be one cell")
         else:
             avoid = tree_cells - starts - goals - frozenset(search.own)
             path = find(search, starts, goals, avoid | reserved, first)

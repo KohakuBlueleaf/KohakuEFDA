@@ -152,8 +152,10 @@ pub fn lay(
             .collect();
         owned.sort();
         let owned_cells: Set<XY> = owned.iter().map(|(c, _)| *c).collect();
-        let both: BTreeSet<XY> = starts.intersection(&goals).cloned().collect();
-        let cells: Vec<XY> = if !both.is_empty() {
+        let mut both: BTreeSet<XY> = starts.intersection(&goals).cloned().collect();
+        let mut only: Option<XY> = None;
+        while !both.is_empty() {
+            let held = l.crossings.len();
             let found = single_cell(
                 grid,
                 tables,
@@ -170,13 +172,22 @@ pub fn lay(
                 let detail = format!("lane {source}>{sink}: its only cell is held");
                 return Ok(Answer::Refused { detail });
             };
-            filter = Filter::Again;
             let joins = source_tree.contains(&cell) || sink_tree.contains(&cell);
-            if !doc.policy.single_joins && joins {
-                let detail = format!("lane {source}>{sink} would be one cell");
-                return Ok(Answer::Refused { detail });
+            if doc.policy.single_joins || !joins {
+                only = Some(cell);
+                break;
             }
+            l.crossings.truncate(held);
+            starts.remove(&cell);
+            goals.remove(&cell);
+            both = starts.intersection(&goals).cloned().collect();
+        }
+        let cells: Vec<XY> = if let Some(cell) = only {
+            filter = Filter::Again;
             vec![cell]
+        } else if starts.is_empty() || goals.is_empty() {
+            let detail = format!("lane {source}>{sink} would be one cell");
+            return Ok(Answer::Refused { detail });
         } else {
             let mut starts_in: Vec<XY> = Vec::new();
             let mut used = Set::default();

@@ -202,7 +202,7 @@ class LanePolicy(TreePolicy):
     def single_cell_lane(
         self, world: Any, net: Any, source: Any, sink: Any, split: bool, merge: bool
     ) -> bool:
-        """Whether a one-cell lane may stand: always under ``JOIN_ONLY_LANES``, else only port to port."""
+        """Whether a one-cell lane may stand: always under ``JOIN_ONLY_LANES``, else only port to port; a refused one searches a path."""
         return JOIN_ONLY_LANES or not (split or merge)
 
     def native(self, world: Any, net: Any) -> dict[str, Any] | None:
