@@ -94,9 +94,13 @@ class Context:
 
     # ----------------------------------------------------------- attempts
     def attempt(
-        self, fn: Callable[[Builder], Any], label: str = "attempt", cost: int = 0
+        self,
+        fn: Callable[[Builder], Any],
+        label: str = "attempt",
+        cost: int = 0,
+        strict: bool = True,
     ) -> Result:
-        """Run ``fn`` on the builder inside a transaction; a returned refusal rolls it back."""
+        """Run ``fn`` on the builder inside a transaction; a returned refusal rolls it back, and with ``strict`` so does the last refusal it met."""
         attempt = Attempt(label=label, fn=fn, cost=cost)
         world = self.world
         before = world.seq
@@ -118,7 +122,8 @@ class Context:
         charged = self.budget.used
         with world.transaction() as tx:
             value = attempt.fn(builder)
-            refusal = value if isinstance(value, Refusal) else builder.last
+            met = builder.last if strict else None
+            refusal = value if isinstance(value, Refusal) else met
             if refusal is None:
                 tx.commit()
         if isinstance(value, Refusal) and value is not builder.last:
