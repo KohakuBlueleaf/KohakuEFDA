@@ -16,7 +16,6 @@ keywords = ["arknights", "endfield", "factory", "layout", "planner", "eda"]
 dependencies = [
     "numpy>=2.0",
     "highspy>=1.8",
-    "networkx>=3.3",
     "pydantic>=2.7",
     "typer>=0.15",
     "rich>=13.7",
@@ -25,7 +24,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# CP-SAT exact placement for small instances; the SA path works without it.
+# CP-SAT for the structural family's exact slot; the HiGHS one (highspy) works without it.
 cpsat = ["ortools>=9.10"]
 # PNG rendering; the CLI text/rich renderers work without it.
 viz = ["matplotlib>=3.9"]
@@ -53,7 +52,6 @@ where = ["src"]
 include = ["kohakuefda*", "kohakulayout*"]
 
 [tool.setuptools.package-data]
-"kohakuefda.i18n" = ["*.json"]
 "kohakuefda.data.static" = ["*.json", "examples/*.toml"]
 "kohakuefda" = ["web_dist/**/*"]
 "kohakulayout.ir.text" = ["*.lark"]

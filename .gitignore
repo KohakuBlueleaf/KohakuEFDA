@@ -86,10 +86,6 @@ docs/_build/
 # PyBuilder
 .pybuilder/
 target/
-# The compiled Rust extension: built locally, never checked in.
-src/kohakuefda/_native*.pyd
-src/kohakuefda/_native*.so
-src/kohakuefda/_native*.dylib
 
 # Jupyter Notebook
 .ipynb_checkpoints

@@ -2,8 +2,9 @@
 name = "kohakulayout-rs"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.82"
 description = "The native twin of KohakuLayout: text form, canonical JSON, flatten, digest, and the occupancy kernel"
-license = "MIT"
+license = "Apache-2.0"
 
 [lib]
 name = "kohakulayout_rs"
