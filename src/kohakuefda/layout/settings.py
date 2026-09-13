@@ -126,7 +126,7 @@ LAYOUT_DEFAULTS: dict[str, Any] = {
     "seconds": 600.0,
     "max_actions": 0,
     "backend": "auto",
-    "frame_every": 8,
+    "frame_every": 100,
     "spread_attempts": 0,
     "workers": 0,
     "solver_options": "{}",

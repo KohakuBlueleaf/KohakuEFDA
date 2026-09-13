@@ -121,7 +121,8 @@ def test_cancellation_preserves_terminal_frame_after_live_observation(
 
 def test_frame_sampling_does_not_change_the_layout(dataset, netlist):
     layouts = []
-    for every in (1, 50):
+    live = {}
+    for every in (10, 50):
         frames = []
         _, layout = layout_stage(
             dataset,
@@ -140,4 +141,8 @@ def test_frame_sampling_does_not_change_the_layout(dataset, netlist):
         )
         layouts.append(layout.model_dump())
         assert frames[0]["kind"] == "catalogue" and frames[-1]["kind"] == "final"
+        live[every] = sum(f["kind"] in ("build", "improve") for f in frames)
+        actions = frames[-1]["outcome"]["work"]["actions"]
+        assert live[every] >= actions // every - 2, (every, live[every], actions)
+    assert live[10] > live[50]
     assert layouts[0] == layouts[1]

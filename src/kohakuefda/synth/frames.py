@@ -69,24 +69,30 @@ def catalogue_of(dataset: Dataset, cells: list[CellInstance]) -> list[dict]:
 
 
 class LayoutEveryFrame(EnginePlugin):
-    """A frame with the world's layout every ``every`` charged mutations, and a layout on every frame the solver sends."""
+    """A frame with the world's layout every ``every`` charged units of budget: inside a construction attempt as it stands, after an improvement move once it has settled."""
 
     name = "endfield-frames"
     priority = 10
 
     def __init__(self, every: int = 1) -> None:
         self.every = max(1, every)
-        self.charges = 0
+        self.charged = 0
+        self.due = False
 
     def on_budget(self, ctx: Any, charge: int) -> None:
-        """Every ``every`` charged mutations, a frame with the layout as it stands, mid-attempt included."""
-        self.charges += 1
-        if self.charges % self.every == 0:
+        before = self.charged // self.every
+        self.charged += charge
+        if self.charged // self.every == before:
+            return
+        if ctx.phase.rsplit("/", 1)[-1] == "improve":
+            self.due = True
+        else:
             ctx.frame(layout=True)
 
-    def on_frame(self, ctx: Any, frame: Any) -> Any:
-        if frame.layout is None:
-            return frame.model_copy(update={"layout": ctx.world.freeze()})
+    def post_attempt(self, ctx: Any, *rest: Any) -> Any:
+        if self.due:
+            self.due = False
+            ctx.frame(layout=True)
         return None
 
 

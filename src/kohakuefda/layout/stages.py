@@ -39,7 +39,7 @@ from kohakuefda.verify.layout import check_layout
 from kohakuefda.verify.report import Report
 from kohakuefda.verify.rules.rates import rate_findings
 from kohakulayout.engine import CallbackSink
-from kohakulayout.engine.plugins import default_plugins
+from kohakulayout.engine.plugins import FrameSampler, default_plugins
 from kohakulayout.pipeline import solve
 
 log = logging.getLogger(__name__)
@@ -140,6 +140,9 @@ def layout_stage(
         observer.catalogue(settings)
     plugins = [*default_plugins()]
     if observe is not None:
+        plugins = [
+            FrameSampler(layout_every=1) if p.name == "sampler" else p for p in plugins
+        ]
         plugins.append(LayoutEveryFrame(int(settings["frame_every"])))
     if cancelled is not None:
         plugins.append(Cancel(cancelled, CancelledError))
