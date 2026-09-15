@@ -9,6 +9,7 @@ from kohakulayout.solvers.local.compact import cut_candidates, relocate
 from kohakulayout.solvers.local.frontier import Frontier, endpoint_distances
 from kohakulayout.solvers.local.policy import decide, layout_delta, temperature
 from kohakulayout.solvers.regional.candidates import Proposals
+from kohakulayout.solvers.regional.search import Search
 from kohakulayout.templates.physics.gates import from_expressions, problem
 
 
@@ -86,3 +87,32 @@ def test_parallel_spread_slices_complete_the_toy() -> None:
         budget=Budget(seconds=60),
     )
     assert result.outcome == "complete" and result.assessment.valid
+
+
+def route_refusals_of_an_insertion(net_failures: int) -> tuple[int, bool]:
+    """How many route refusals the insertion of ``y`` meets behind a wall reserved for another carrier, and whether it placed."""
+    ctx = placed_context()
+    world = ctx.world
+    net = next(
+        n for n in world.netlist.nets.values() if any(r.cell == "y" for r in n.pins())
+    )
+    layer = world.carrier_layer(net.carrier)
+    wall = [(12, y) for y in range(world.fabric.height)]
+    assert ctx.attempt(lambda b: b.reserve("wall", layer, wall, "other")).ok
+    search = Search(
+        ctx, {"candidates": 12, "gap": 1, "lookahead": 1, "net_failures": net_failures}
+    )
+    search.proposals.reset(1)
+    anchors = search.proposals.ranked("y", 0, random.Random(1))
+    before = len(ctx.refusals)
+    result = ctx.attempt(lambda b: search.insert(b, "y", anchors), strict=False)
+    assert result.ok
+    routed = [r for r in ctx.refusals[before:] if r.stage == "route"]
+    return len(routed), "y" in world.placements
+
+
+def test_an_insertion_gives_a_cell_up_after_route_failures_on_one_net() -> None:
+    every, placed_every = route_refusals_of_an_insertion(0)
+    two, placed_two = route_refusals_of_an_insertion(2)
+    assert not placed_every and not placed_two
+    assert two == 2 and every > 2

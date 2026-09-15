@@ -29,6 +29,7 @@ DEFAULTS: dict[str, Any] = {
     "extent_weight": 1.0,
     "lookahead": 3,
     "insert_failures": 8,
+    "net_failures": 0,
 }
 
 
@@ -141,25 +142,38 @@ class Search:
         )
 
     def insert(self, builder: Any, cell_id: str, anchors: list[Any]) -> bool:
-        """The first ``lookahead`` anchors that place are compared by routed wire cells; the cheapest stays, and with a lookahead of one the first that places stays as it is. ``insert_failures`` refusals end the scan."""
+        """The first ``lookahead`` anchors that place are compared by routed wire cells; the cheapest stays, and with a lookahead of one the first that places stays as it is. ``insert_failures`` refusals end the scan, as do ``net_failures`` route refusals naming one net."""
         lookahead = max(1, int(self.settings.get("lookahead", 1)))
         patience = int(self.settings.get("insert_failures", 8))
+        net_patience = int(self.settings.get("net_failures", 0))
         best: tuple[int, Any] | None = None
         tried = 0
         refused = 0
+        nets: dict[str, int] = {}
+
+        def exhausted(refusal: Any) -> bool:
+            nonlocal refused
+            refused += 1
+            if net_patience and refusal.stage == "route":
+                nets[refusal.subject] = nets.get(refusal.subject, 0) + 1
+                if nets[refusal.subject] >= net_patience:
+                    return True
+            return refused >= patience
+
         for anchor in anchors:
             if not builder.admits(cell_id, anchor.x, anchor.y, anchor.rot):
                 continue
             if lookahead == 1:
-                if builder.place(cell_id, anchor) is None:
+                refusal = builder.place(cell_id, anchor)
+                if refusal is None:
                     self.proposals.occupy(cell_id, anchor.x, anchor.y, anchor.rot)
                     return True
-                refused += 1
-                if refused >= patience:
+                if exhausted(refusal):
                     return False
                 continue
             mark = builder.mark()
-            if builder.place(cell_id, anchor) is None:
+            refusal = builder.place(cell_id, anchor)
+            if refusal is None:
                 cost = sum(
                     len(seg.cells)
                     for w in self.world.wires.values()
@@ -168,10 +182,9 @@ class Search:
                 if best is None or cost < best[0]:
                     best = (cost, anchor)
                 tried += 1
-            else:
-                refused += 1
+            done = refusal is not None and exhausted(refusal)
             builder.restore(mark)
-            if tried >= lookahead or refused >= patience:
+            if tried >= lookahead or done:
                 break
         if best is None:
             return False
