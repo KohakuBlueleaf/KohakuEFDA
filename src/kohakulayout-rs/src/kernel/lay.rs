@@ -138,6 +138,20 @@ pub fn lay(
             let detail = format!("lane {source}>{sink} has only reserved cells");
             return Ok(Answer::Refused { detail });
         }
+        starts.retain(|c| !tree_cells.contains(c) || source_tree.contains(c));
+        goals.retain(|c| !tree_cells.contains(c) || sink_tree.contains(c));
+        if starts.is_empty() || goals.is_empty() {
+            let detail = format!("lane {source}>{sink} would end on its own lanes");
+            return Ok(Answer::Refused { detail });
+        }
+        let other =
+            |c: &XY| tree_cells.contains(c) && !source_tree.contains(c) && !sink_tree.contains(c);
+        starts.retain(|c| !other(c));
+        goals.retain(|c| !other(c));
+        if starts.is_empty() || goals.is_empty() {
+            let detail = format!("lane {source}>{sink} would end on the net's other lanes");
+            return Ok(Answer::Refused { detail });
+        }
         let crossable = crossable_own(
             grid,
             &doc.layer,

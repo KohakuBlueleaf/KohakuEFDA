@@ -2,12 +2,17 @@
 
 from typing import Any
 
-from kohakulayout.ir import Cell, Net, Netlist, PinRef
+from kohakulayout.ir import Cell, Net, Netlist, PinRef, Segment, Wire
 from kohakulayout.state import LaneRouter, StateCheck, World
 from kohakulayout.state.router.lanes import attach_pins, lane_pins
 from kohakulayout.state.router.protocol import terminals
 from kohakulayout.state.router.trees import TreePolicy
-from kohakulayout.templates.physics.gates import LIBRARY, GatesPhysics, problem
+from kohakulayout.templates.physics.gates import (
+    LIBRARY,
+    GatesPhysics,
+    from_expressions,
+    problem,
+)
 
 A0, A1 = PinRef(cell="a0", pin="y"), PinRef(cell="a1", pin="y")
 O0, O1 = PinRef(cell="o0", pin="a"), PinRef(cell="o1", pin="a")
@@ -97,4 +102,54 @@ def test_a_lane_crosses_another_lane_of_its_own_net_with_the_carriers_unit() -> 
     rule = world.physics.carriers.crossing("wire", "wire")
     units = [world.units[u] for u in wire.units]
     assert [(u.x, u.y) for u in units if u.footprint == rule.unit.id] == [min(shared)]
+    assert check.failures == []
+
+
+def test_a_lane_never_ends_on_its_own_source_trunk() -> None:
+    """The trunk to the first sink runs over the second sink's only attach cell; the lane to the second sink is refused rather than ending on the trunk without a junction (a standing trunk by the attach tables, one laid in the same plan by the lane router's own rule)."""
+    world = World(
+        problem(from_expressions(["y = a & b", "z = a & c"]), width=16, height=8),
+        GatesPhysics(),
+        router=LaneRouter(max_rips=0),
+    )
+    check = StateCheck().mount(world)
+    with world.transaction() as tx:
+        for cell_id, x, y in (
+            ("a", 0, 1),
+            ("b", 0, 0),
+            ("c", 0, 7),
+            ("g1", 12, 0),
+            ("g2", 6, 3),
+        ):
+            assert world.place(cell_id, x, y) is None
+        tx.commit()
+    assert world.attach_cells("g2")["a"] == (5, 3)
+    trunk = [
+        (1, 1),
+        (2, 1),
+        (3, 1),
+        (4, 1),
+        (4, 2),
+        (4, 3),
+        (5, 3),
+        (5, 2),
+        (5, 1),
+        *((x, 1) for x in range(6, 12)),
+        (11, 0),
+    ]
+    layer = world.carrier_layer("wire")
+    with world.transaction() as tx:
+        for net_id in list(world.wires):
+            world.unroute(net_id)
+        world.set_wire(
+            Wire(
+                net="n1",
+                segments=(Segment(carrier="wire", layer=layer, cells=tuple(trunk)),),
+            )
+        )
+        refusal = world.route("n1", grow=True)
+        tx.commit()
+    assert refusal is not None and refusal.stage == "route"
+    ends = [tuple(seg.cells[-1]) for seg in world.wires["n1"].segments]
+    assert (5, 3) not in ends[1:] and len(world.wires["n1"].segments) == 1
     assert check.failures == []

@@ -365,6 +365,10 @@ def lay(
         starts, goals = starts - reserved, goals - reserved
         if not starts or not goals:
             return refuse(net.id, f"lane {source}>{sink} has only reserved cells")
+        starts -= tree_cells - source_tree
+        goals -= tree_cells - sink_tree
+        if not starts or not goals:
+            return refuse(net.id, f"lane {source}>{sink} would end on its own lanes")
         own = crossable_own(world, search, plan.segments, junction_at, crossed, behind)
         search.own = {
             c: axis for c, axis in own.items() if c not in source_tree | sink_tree
