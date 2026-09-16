@@ -144,7 +144,7 @@ class DefaultRouter:
             present = max(present + 1, int(present * self.growth))
         world.rollback_to(mark)
         detail = last.detail if last is not None else ""
-        return refuse(net_id, f"not routed: {detail}")
+        return refuse(net_id, f"not routed: {detail}", last.attrs if last else None)
 
     def remember(self, world: Any, plan: Plan) -> None:
         """Charge history on the plan's cells another wire held, so a contested cell prices higher next time; the world's undo log reverts the charge with a rollback."""

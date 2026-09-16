@@ -436,6 +436,16 @@ def grow(
             return refuse(
                 net.id,
                 f"no path from {min(origins)} to any of {sorted(targets)[:4]}",
+                (
+                    {
+                        "route": {
+                            "frontier": sorted(search.frontier),
+                            "layer": search.layer,
+                        }
+                    }
+                    if search.frontier
+                    else None
+                ),
             )
         join, end = path.cells[0], path.cells[-1]
         if not settled:

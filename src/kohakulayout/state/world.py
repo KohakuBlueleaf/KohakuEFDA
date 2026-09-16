@@ -74,6 +74,7 @@ class World(AttachMixin, WiringMixin):
         self._retabled: set[str] = set()
         self._retable_all = True
         self.native_attempts = True
+        self.report_frontier = False
         self._coverage: dict[str, frozenset[XY]] = {}
         self._nets_by_cell: dict[str, list[Any]] | None = None
         self.units_rev = 0
@@ -291,7 +292,7 @@ class World(AttachMixin, WiringMixin):
             raise StateError(f"{cell_id!r} has no footprint")
         if rot not in ROTATIONS:
             raise StateError(f"rotation {rot!r} is not one of {ROTATIONS}")
-        if self.checker is None and self.native_attempts:
+        if self.checker is None and self.native_attempts and not self.report_frontier:
             native = native_attempt(self, cell, fp, x, y, rot)
             if native is not None:
                 return native

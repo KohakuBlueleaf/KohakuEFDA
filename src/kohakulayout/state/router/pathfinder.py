@@ -57,6 +57,7 @@ class Search:
     end_on_crossing: bool = True
     float_scale: int = 0
     unit_walls: frozenset[XY] = frozenset()
+    frontier: frozenset[XY] = frozenset()
 
     def __post_init__(self) -> None:
         self.width = self.world.fabric.width
@@ -399,7 +400,8 @@ def find(
         return None
     starts_in = [c for c in order if c in sources]
     starts_in += sorted(sources - set(starts_in))
-    grid = getattr(search.world.kernel, "_grid", None)
+    report = bool(getattr(search.world, "report_frontier", False))
+    grid = None if report else getattr(search.world.kernel, "_grid", None)
     if grid is not None:
         register_walls(grid, search)
         native = rust_astar(
@@ -436,9 +438,11 @@ def find(
         heapq.heappush(heap, (as_f(h) if floats else h, counter, cell, None))
         counter += 1
     expansions = 0
+    blocked: set[XY] = set()
     while heap:
         estimate, _, cell, direction = heapq.heappop(heap)
         if limit is not None and (estimate > (f32(limit / scale) if floats else limit)):
+            search.frontier = frozenset(blocked) if report else frozenset()
             return None
         state = (cell, direction)
         g = best[state]
@@ -450,6 +454,7 @@ def find(
             continue
         expansions += 1
         if expansions > search.costs.max_steps:
+            search.frontier = frozenset(blocked) if report else frozenset()
             return None
         here = meta.get(state)
         moves = (
@@ -470,6 +475,8 @@ def find(
                 continue
             step = entry(search, nxt, move)
             if step is None:
+                if report:
+                    blocked.add(nxt)
                 continue
             if floats:
                 move_cost = as_f(step.cost)
@@ -498,6 +505,7 @@ def find(
                     heap, (cost + (as_f(h) if floats else h), counter, nxt, move)
                 )
                 counter += 1
+    search.frontier = frozenset(blocked) if report else frozenset()
     return None
 
 

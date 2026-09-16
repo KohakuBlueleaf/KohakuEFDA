@@ -59,8 +59,10 @@ def make_router(name: str, **params: Any) -> Any:
     return cls(**params)
 
 
-def refuse(net_id: str, detail: str) -> Refusal:
-    return Refusal(stage="route", subject=f"net:{net_id}", detail=detail)
+def refuse(net_id: str, detail: str, attrs: dict[str, Any] | None = None) -> Refusal:
+    return Refusal(
+        stage="route", subject=f"net:{net_id}", detail=detail, attrs=attrs or {}
+    )
 
 
 def terminals(world: Any, net: Any) -> tuple[Terminal, ...] | Refusal:

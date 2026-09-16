@@ -413,6 +413,16 @@ def lay(
                     net.id,
                     f"no path for lane {source}>{sink} from {min(starts)} to any of "
                     f"{sorted(goals)[:4]}",
+                    (
+                        {
+                            "route": {
+                                "frontier": sorted(search.frontier),
+                                "layer": search.layer,
+                            }
+                        }
+                        if search.frontier
+                        else None
+                    ),
                 )
             cells = path.cells
             plan.crossings.extend(path.crossings)
@@ -479,7 +489,7 @@ class LaneRouter(DefaultRouter):
         The router's net order breaks ties, then the lane order within a net; the first lane
         without a path refuses. The twin's routing pass answers first when it finds the refusal.
         """
-        if self.native_routing:
+        if self.native_routing and not getattr(world, "report_frontier", False):
             refusal = native_route_all(self, world, cell_id, pending, grown)
             if refusal is not None:
                 return refusal

@@ -105,9 +105,13 @@ def route_refusals_of_an_insertion(net_failures: int) -> tuple[int, bool]:
     search.proposals.reset(1)
     anchors = search.proposals.ranked("y", 0, random.Random(1))
     before = len(ctx.refusals)
+    world.report_frontier = True
     result = ctx.attempt(lambda b: search.insert(b, "y", anchors), strict=False)
     assert result.ok
     routed = [r for r in ctx.refusals[before:] if r.stage == "route"]
+    reported = routed[0].attrs["route"]
+    frontier = {tuple(c) for c in reported["frontier"]}
+    assert reported["layer"] == layer and frontier & set(wall)
     return len(routed), "y" in world.placements
 
 
