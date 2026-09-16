@@ -130,6 +130,7 @@ def run_case(
         "error": error,
         "search_seconds": elapsed,
         "work": dict(outcome.get("work", {})),
+        "placed": outcome.get("placed"),
         "settings": dict(outcome.get("settings", {})),
         "routed": routed,
         "first_observed_routed_seconds": first["elapsed"] if first else None,
@@ -301,7 +302,7 @@ def main(
                     {"runs": rows, "reliability": reliability(rows)},
                 )
                 console.print(
-                    f"{case} {name} seed={seed}: {row['status']}, routed={row['routed']}, rates={row['rates']}, {row['search_seconds']:.2f}s"
+                    f"{case} {name} seed={seed}: {row['status']}, placed={row['placed']}/{row['cells']}, routed={row['routed']}, rates={row['rates']}, {row['search_seconds']:.2f}s"
                 )
 
 

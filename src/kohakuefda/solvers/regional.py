@@ -1,4 +1,4 @@
-"""The regional construction on the framework: cells no net touches first, the first cells pulled to a third of the Core AIC Area, no bounding-box term, every fitting window, one routed lookahead, an insertion given up after ``INSERT_FAILURES`` refused anchors or ``NET_FAILURES`` route refusals on one net."""
+"""The regional construction on the framework: cells no net touches first, the first cells pulled to a third of the Core AIC Area, every cell pulled toward its place in a wirelength embedding of the lane graph, no bounding-box term, every fitting window, one routed lookahead, an insertion given up after ``INSERT_FAILURES`` refused anchors or ``NET_FAILURES`` route refusals on one net."""
 
 import random
 from typing import Any
@@ -18,6 +18,8 @@ from kohakulayout.solvers.regional.search import Search
 
 INSERT_FAILURES = 16
 NET_FAILURES = 0
+EMBED_WEIGHT = 0.3
+EMBED_STEPS = 300
 
 DEFAULTS: dict[str, Any] = {
     **{k: v for k, v in FRAMEWORK_DEFAULTS.items() if k != "origin_weight"},
@@ -27,6 +29,7 @@ DEFAULTS: dict[str, Any] = {
     "extent_weight": 0.0,
     "insert_failures": INSERT_FAILURES,
     "net_failures": NET_FAILURES,
+    "embed_weight": EMBED_WEIGHT,
     "lookahead": 1,
 }
 
@@ -36,27 +39,87 @@ def _param(name: str, value: Any) -> Param:
     return Param(name=name, type=kind, default=value)
 
 
+def embed(
+    pairs: list[tuple[str, str]], box: tuple[int, int, int, int]
+) -> dict[str, XY]:
+    """A place in the box for every cell of ``pairs``: a force-directed layout of the lane graph (springs along lanes, repulsion between all), scaled into the box with a margin; the same pairs give the same places."""
+    names = sorted({c for pair in pairs for c in pair})
+    if not names:
+        return {}
+    index = {c: i for i, c in enumerate(names)}
+    n = len(names)
+    edges = np.array([[index[a], index[b]] for a, b in pairs if a != b], dtype=int)
+    angles = np.arange(n) * (2 * np.pi / n)
+    pos = np.stack([np.cos(angles), np.sin(angles)], axis=1) * n
+    for step in range(EMBED_STEPS):
+        delta = pos[:, None, :] - pos[None, :, :]
+        dist = np.maximum(np.sqrt((delta**2).sum(axis=2)), 1e-3)
+        force = (
+            delta / dist[:, :, None] * np.minimum(1.0 / dist, 1.0)[:, :, None]
+        ).sum(axis=1) * n
+        if len(edges):
+            span = pos[edges[:, 0]] - pos[edges[:, 1]]
+            np.add.at(force, edges[:, 0], -span * 0.1)
+            np.add.at(force, edges[:, 1], span * 0.1)
+        pos += force * (0.5 * (1 - step / EMBED_STEPS) + 0.02)
+    x0, y0, x1, y1 = box
+    mx, my = (x1 - x0) * 0.1, (y1 - y0) * 0.1
+    low, high = pos.min(axis=0), pos.max(axis=0)
+    scale = np.where(high - low > 0, high - low, 1.0)
+    unit = (pos - low) / scale
+    return {
+        c: (
+            float(x0 + mx + unit[i, 0] * (x1 - x0 - 2 * mx)),
+            float(y0 + my + unit[i, 1] * (y1 - y0 - 2 * my)),
+        )
+        for c, i in index.items()
+    }
+
+
 class EndfieldProposals(Proposals):
-    """Anchor ranking: the first cells pulled to a third of the area, the rest to its corner, every fitting window kept."""
+    """Anchor ranking: the first cells pulled to a third of the area, the rest to its corner, every cell with lanes toward its place in the lane graph's embedding, every fitting window kept."""
 
     def ranked(self, cell_id: str, trial: int, rng: Any) -> list[Any]:
         self.ranking = cell_id
         return super().ranked(cell_id, trial, rng)
 
+    @property
+    def places(self) -> dict[str, XY]:
+        """Every laned cell's place in the embedding, computed once."""
+        found = getattr(self, "_places", None)
+        if found is None:
+            netlist = self.world.netlist
+            pairs = [
+                (s, t)
+                for net in netlist.nets.values()
+                for (s, _), (t, _), _ in lane_facts(net)
+                if netlist.cells[s].kind != PART_KIND
+                and netlist.cells[t].kind != PART_KIND
+            ]
+            found = self._places = embed(pairs, self.box)
+        return found
+
     def pull(self, array: np.ndarray, first: bool) -> np.ndarray:
-        """The pull: the centre third for the first cell and for a cell with no target that is not a depot part, the corner for the rest."""
+        """The pull: the centre third for the first cell and for a cell with no target that is not a depot part, the corner for the rest; plus the distance to the cell's place in the embedding, when it has one."""
         x0, y0, x1, y1 = self.box
         ranking = getattr(self, "ranking", None)
         if first and self.world.placements and ranking is not None:
             first = self.world.netlist.cells[ranking].kind != PART_KIND
         if not first:
-            return self.settings["corner_weight"] * (
-                array[:, 0] - x0 + array[:, 1] - y0
+            out = self.settings["corner_weight"] * (array[:, 0] - x0 + array[:, 1] - y0)
+        else:
+            cx, cy = x0 + (x1 - x0) // 3, y0 + (y1 - y0) // 3
+            out = self.settings["center_weight"] * (
+                np.abs(array[:, 0] - cx) + np.abs(array[:, 1] - cy)
             )
-        cx, cy = x0 + (x1 - x0) // 3, y0 + (y1 - y0) // 3
-        return self.settings["center_weight"] * (
-            np.abs(array[:, 0] - cx) + np.abs(array[:, 1] - cy)
-        )
+        place = self.places.get(ranking) if ranking is not None else None
+        weight = self.settings["embed_weight"]
+        if place is None or not weight:
+            return out
+        fp = self.world.footprint_of(ranking)
+        tx = place[0] - (fp.width - 1) / 2 if fp is not None else place[0]
+        ty = place[1] - (fp.height - 1) / 2 if fp is not None else place[1]
+        return out + weight * (np.abs(array[:, 0] - tx) + np.abs(array[:, 1] - ty))
 
     def attach_clear(self, clear: np.ndarray, cell_id: str, rot: int) -> np.ndarray:
         return clear
