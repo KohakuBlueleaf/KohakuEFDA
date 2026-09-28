@@ -27,6 +27,10 @@ Pin = tuple[str, str]
 Lane = tuple[Pin, Pin, Fraction]
 
 
+FAN_TREES = False
+LOOP_LANES = False
+
+
 class LaneTable:
     """A net's lane facts read once: lanes, rates, partners, the pipe tree's ends and lane roles."""
 
@@ -82,13 +86,18 @@ def table_of(net: Any) -> LaneTable:
 
 
 class LanePolicy(TreePolicy):
-    """The project's tree shape, lane by lane: a pin is reached when a lane of its has both ends placed; a lane joins or leaves a straight cell of the standing lanes, never the bend in front of a port (the port cell behind an attach cell counts); on a pipe tree with several sources and sinks a join stays on the trunk before its first branch and a branch after its last join."""
+    """The project's tree shape, lane by lane: a pin is reached when a lane of its has both ends placed; a lane joins or leaves a straight cell of the standing lanes, never the bend in front of a port (the port cell behind an attach cell counts); on a pipe tree with several sources and sinks a join stays on the trunk before its first branch and a branch after its last join. ``near`` lays the shorter span first instead of the wider."""
+
+    def __init__(self, near: bool = False, sides: bool = False) -> None:
+        super().__init__()
+        self.near = near
+        self.sides = sides
 
     def root(self, world: Any, net: Any, sources: list[Any]) -> Any:
-        """The source the tree grows from: on a pipe tree its fullest source, else the placed source whose lane to a placed sink carries the most and, at one rate, spans farthest."""
+        """The source the tree grows from: on a pipe tree from several sources the placed source farthest from its sink, on another pipe tree the fullest source, else the placed source whose lane to a placed sink carries the most and, at one rate, spans farthest."""
         table = table_of(net)
         rates = table.rates
-        if table.tree:
+        if table.tree and not self.fans_in(world, net):
             fullest = max(
                 net.sources,
                 key=lambda r: sum(
@@ -115,14 +124,18 @@ class LanePolicy(TreePolicy):
                 best = max(best, (rate, span))
             return best
 
+        if self.fans_in(world, net):
+            return max(sources, key=lambda t: key(t)[1])
         return max(sources, key=key)
 
     def trunk(self, world: Any, net: Any, root: Any, sinks: list[Any]) -> list[Any]:
-        """The first sink the trunk runs to: on a pipe tree its fullest sink when placed, else the placed sink whose lane carries the most and, at one rate, lies farthest."""
+        """The first sink the trunk runs to: on a pipe tree its fullest sink when placed, on a belt tree from one source the placed sink that lies farthest, else the placed sink whose lane carries the most and, at one rate, lies farthest."""
         if root is None or not sinks:
             return sinks
         table = table_of(net)
         rates = table.rates
+        if self.fans_out(net):
+            rates = {}
         if table.tree:
             main = max(
                 net.sinks,
@@ -156,7 +169,8 @@ class LanePolicy(TreePolicy):
         if not facts:
             return super().lanes(world, net)
         ranked = sorted(
-            enumerate(facts), key=lambda e: (*lane_key(world, table, e[1]), e[0])
+            enumerate(facts),
+            key=lambda e: (*lane_key(world, table, e[1], self.near, self.sides), e[0]),
         )
         return [
             (PinRef(cell=s[0], pin=s[1]), PinRef(cell=t[0], pin=t[1]))
@@ -168,7 +182,10 @@ class LanePolicy(TreePolicy):
         table = table_of(net)
         fact = table.by_pair.get(((source.cell, source.pin), (sink.cell, sink.pin)))
         if fact is not None:
-            return (net.carrier != "pipe", *lane_key(world, table, fact))
+            return (
+                net.carrier != "pipe",
+                *lane_key(world, table, fact, self.near, self.sides),
+            )
         return (net.carrier != "pipe", 2, Fraction(0), 0)
 
     def blockers(
@@ -249,11 +266,24 @@ class LanePolicy(TreePolicy):
         found: tuple[Any, ...],
         seed: Any,
     ) -> tuple[Any, ...]:
-        """Readiness lane by lane: a pin is reached once one of its lanes has its partner placed; a pin the standing wire holds stays; when that leaves no source or no sink to grow from, every pin stays."""
+        """Readiness lane by lane: a pin is reached once one of its lanes has its partner placed; a pin the standing wire holds stays; when that leaves no source or no sink to grow from, every pin stays. A belt tree from one source waits, its source alone kept, until every sink is placed, so its trunk runs to the farthest and the branches find a cell to leave it."""
         on_wire = {c for seg in seed.segments for c in seg.cells} if seed else set()
-        partners = table_of(net).partners
+        table = table_of(net)
+        partners = table.partners
         if not partners:
             return found
+        if (
+            self.fans_out(net)
+            and not on_wire
+            and any(r.cell not in world.placements for r in net.sinks)
+        ):
+            return tuple(t for t in found if t.direction == "out")
+        if (
+            self.fans_in(world, net)
+            and not on_wire
+            and any(r.cell not in world.placements for r in net.sources)
+        ):
+            return tuple(t for t in found if t.direction == "in")
         kept = tuple(
             t
             for t in found
@@ -268,6 +298,22 @@ class LanePolicy(TreePolicy):
         ):
             return found
         return kept
+
+    @staticmethod
+    def fans_in(world: Any, net: Any) -> bool:
+        """Whether the net is a pipe tree from several machines (not conduit outlets beside their consumer): laid once every source stands, its trunk from the farthest, so the nearer ones find a straight cell to join."""
+        return (
+            net.carrier == "pipe"
+            and len(net.sources) > 1
+            and all(world.netlist.cells[r.cell].kind != "outlet" for r in net.sources)
+        )
+
+    @staticmethod
+    def fans_out(net: Any) -> bool:
+        """Whether the net is a belt tree from one source to several sinks laid as the community does (``FAN_TREES``: the trunk to the farthest sink once every sink stands); off, every belt tree follows the engine's rule."""
+        if not FAN_TREES:
+            return False
+        return net.carrier != "pipe" and len(net.sources) == 1 and len(net.sinks) > 1
 
     def origins(
         self,
@@ -396,10 +442,43 @@ def span_of(world: Any, source: Pin, sink: Pin) -> int:
     return 0 if p is None or q is None else abs(p[0] - q[0]) + abs(p[1] - q[1])
 
 
-def lane_key(world: Any, table: LaneTable, fact: Lane) -> tuple[int, Fraction, int]:
-    """One lane's key: its role on a pipe tree, then the higher rate, then the wider span."""
+def loops_back(world: Any, net: Any) -> bool:
+    """Whether another net runs from the net's sink cells back to its source cells."""
+    sources = {r.cell for r in net.sources}
+    sinks = {r.cell for r in net.sinks}
+    return any(
+        other.id != net.id
+        and any(r.cell in sinks for r in other.sources)
+        and any(r.cell in sources for r in other.sinks)
+        for other in world.netlist.nets.values()
+    )
+
+
+def from_aside(world: Any, source: Pin, sink: Pin) -> bool:
+    """Whether the lane arrives from beside its sink: the two pins' attach cells share no column and no row; False while one is unplaced."""
+    a = [c for _, c, _ in world.port_choices(source[0]).get(source[1], ())]
+    b = [c for _, c, _ in world.port_choices(sink[0]).get(sink[1], ())]
+    if not a or not b:
+        return False
+    across = min(x for x, _ in a) > max(x for x, _ in b) or max(x for x, _ in a) < min(
+        x for x, _ in b
+    )
+    down = min(y for _, y in a) > max(y for _, y in b) or max(y for _, y in a) < min(
+        y for _, y in b
+    )
+    return across and down
+
+
+def lane_key(
+    world: Any, table: LaneTable, fact: Lane, near: bool = False, sides: bool = False
+) -> tuple[int, ...]:
+    """One lane's key: its role on a pipe tree, under ``sides`` a lane arriving from
+    beside its sink before one dropping onto it, then the higher rate, then the wider
+    span (the shorter under ``near``)."""
     source, sink, rate = fact
-    return (table.role(source, sink), -rate, -span_of(world, source, sink))
+    span = span_of(world, source, sink)
+    aside = (0 if from_aside(world, source, sink) else 1,) if sides else ()
+    return (table.role(source, sink), *aside, -rate, span if near else -span)
 
 
 def lane_ends(
@@ -443,43 +522,70 @@ def tree_ends(net: Any) -> tuple[Pin | None, Pin | None]:
 
 
 class EndfieldRouter(LaneRouter):
-    """The framework's lane router with the project's net order; ``lanes`` installs the project's lane policy, ``wire_model`` picks a bundle of lanes (``lanes``) or one tree per net (``tree``)."""
+    """The framework's lane router with the project's net order; ``lanes`` installs the project's lane policy, ``wire_model`` picks a bundle of lanes (``lanes``), one tree per net (``tree``) or trees for the nets that fan out or in and lanes for the rest (``mixed``); ``lane_order`` lays the wider span first (``wide``), the shorter (``near``), or the shorter with every lane arriving from beside its sink before the drops onto it (``sides``)."""
 
     id = "endfield"
 
     def __init__(
-        self, *args: Any, lanes: bool = False, wire_model: str = "lanes", **kwargs: Any
+        self,
+        *args: Any,
+        lanes: bool = False,
+        wire_model: str = "lanes",
+        lane_order: str = "wide",
+        **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.wire_model = wire_model
+        self.near = lane_order in ("near", "sides")
+        self.sides = lane_order == "sides"
         if lanes:
-            self.policy = LanePolicy()
+            self.policy = LanePolicy(near=self.near, sides=self.sides)
+
+    def as_tree(self, world: Any, net: Any) -> bool:
+        """Whether the net is laid as one tree: always under ``tree``, and under ``mixed`` when
+        it fans out or in, so a low-rate item feeds several machines from one belt with
+        splitters while a one-to-one flow stays a lane of its own; a belt net that loops
+        back (``LOOP_LANES``: another net runs from its sinks to its sources, as seeds
+        and moss do between planters and collectors) is a bundle of lanes, each pair
+        its own short belt as the community lays it."""
+        if self.wire_model == "tree":
+            return True
+        if self.wire_model != "mixed":
+            return False
+        if LOOP_LANES and net.carrier != "pipe" and loops_back(world, net):
+            return False
+        return len(net.sinks) > 1 or len(net.sources) > 1
 
     def plan(self, world: Any, net: Any, search: Any, seed: Any) -> Any:
-        if self.wire_model == "tree":
+        if self.as_tree(world, net):
             return grow(world, net, search, seed, self.policy)
         return super().plan(world, net, search, seed)
 
     def route(self, world: Any, net_id: str) -> Any:
-        if self.wire_model == "tree":
+        if self.as_tree(world, world.netlist.nets[net_id]):
             return LaneRouter.__mro__[1].route(self, world, net_id)
         return super().route(world, net_id)
 
     def route_all(
         self, world: Any, cell_id: str, pending: list[str], grown: set[str]
     ) -> Any:
-        """One tree per net routes the nets in the project's net order; the lane bundle lays their lanes in the project's lane order across nets."""
-        if self.wire_model != "tree":
+        """One tree per net routes the nets in the project's net order; the lane bundle lays their lanes in the project's lane order across nets; under ``mixed`` the tree nets go first, the rest as lanes. A net inside an instance (``<instance>/<net>``) is never routed here: its macro brings its wire."""
+        pending = [n for n in pending if "/" not in n]
+        if self.wire_model == "lanes":
             return super().route_all(world, cell_id, pending, grown)
-        for net_id in self.order(world, cell_id, pending, grown):
+        trees = [n for n in pending if self.as_tree(world, world.netlist.nets[n])]
+        for net_id in self.order(world, cell_id, trees, grown):
             refusal = world.route(net_id, grow=net_id in grown)
             if refusal is not None:
                 return refusal
-        return None
+        lanes = [n for n in pending if n not in trees]
+        if not lanes:
+            return None
+        return super().route_all(world, cell_id, lanes, grown)
 
     def order_data(self, world: Any, net: Any) -> dict[str, Any] | None:
-        """The net order as data for the native twin; None for a subclass."""
-        if type(self) is not EndfieldRouter:
+        """The net order as data for the native twin; None for a subclass or under ``near``."""
+        if type(self) is not EndfieldRouter or self.near:
             return None
 
         def frac(value: Any) -> list[int]:
@@ -512,7 +618,7 @@ class EndfieldRouter(LaneRouter):
     def order(
         self, world: Any, cell_id: str, pending: list[str], grown: set[str]
     ) -> list[str]:
-        """The order for the nets a placement touches: pipes first, a pipe tree's trunk before its joins, its joins before its branches, then the lane of the highest rate, then the widest span; a net ranks by the first of its lanes at the new cell."""
+        """The order for the nets a placement touches: pipes first, a pipe tree's trunk before its joins, its joins before its branches, then the lane of the highest rate, then the widest span (the shortest under ``near``); a net ranks by the first of its lanes at the new cell."""
 
         def key(net_id: str) -> tuple[bool, int, Fraction, int]:
             net = world.netlist.nets[net_id]
@@ -520,9 +626,10 @@ class EndfieldRouter(LaneRouter):
             rank = 2
             if table_of(net).tree:
                 rank, lanes = tree_lane(world, net, cell_id, net_id in grown)
+            sign = 1 if self.near else -1
             first = min(
-                ((-rate, -span_of(world, a, b)) for a, b, rate in lanes),
-                default=(-net.rate, -world.span(net_id)),
+                ((-rate, sign * span_of(world, a, b)) for a, b, rate in lanes),
+                default=(-net.rate, sign * world.span(net_id)),
             )
             return (net.carrier != "pipe", rank, first[0], first[1])
 

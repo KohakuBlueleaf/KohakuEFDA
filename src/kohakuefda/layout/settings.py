@@ -21,10 +21,17 @@ import json
 import math
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from fractions import Fraction
 from typing import Any
 
 from kohakuefda.layout.router import EndfieldRouter
-from kohakuefda.solvers import EndfieldAnneal, EndfieldClimb, EndfieldRegional
+from kohakuefda.solvers import (
+    EndfieldAnneal,
+    EndfieldClimb,
+    EndfieldFloorplan,
+    EndfieldLinesPlan,
+    EndfieldRegional,
+)
 from kohakulayout.engine import Budget
 from kohakulayout.errors import SolverError
 from kohakulayout.solvers import get, known
@@ -112,6 +119,8 @@ SOLVER_NAMES: dict[str, str] = {
     "baseline": "baseline",
     "regional": EndfieldRegional.id,
     "inorder": "inorder",
+    "rows": EndfieldFloorplan.id,
+    "lines": EndfieldLinesPlan.id,
 }
 DESCRIPTIONS: dict[str, str] = {
     "hc": "Regional construction, then hill climbing over the coordinate moves.",
@@ -119,6 +128,8 @@ DESCRIPTIONS: dict[str, str] = {
     "baseline": "A first-complete spread on a lattice, then greedy shrinking.",
     "regional": "Seeded frontier construction on a clearance map, then shrinking.",
     "inorder": "The pack's anchors in order, one attempt per cell; the null strategy.",
+    "rows": "Rows on the bus: one row per chain stage with side cells beside their partners, legalised, then mutated under a surrogate.",
+    "lines": "Lines from the bus: the bus laid as a line, one unloader in front of each machine it feeds, rows by stage one lane apart packed over the ports they feed, groups side by side.",
 }
 LAYOUT_DEFAULTS: dict[str, Any] = {
     "solver": "hc",
@@ -140,7 +151,7 @@ ROUTER_COSTS: dict[str, float] = {
     "ripup": 20,
     "displace": 0,
     "detour": 25.0,
-    "slack": 160.0,
+    "slack": 400.0,
 }
 ROUTER_NEGOTIATION: dict[str, Any] = {
     "max_rips": 0,
@@ -256,7 +267,11 @@ def budget_of(params: dict[str, Any]) -> Budget:
 
 
 def _defaults_of(solver_id: str) -> dict[str, Any]:
-    return {p.name: p.default for p in get(solver_id).params}
+    """The solver's declared defaults as the studio can carry them: a fraction as its text."""
+    return {
+        p.name: str(p.default) if isinstance(p.default, Fraction) else p.default
+        for p in get(solver_id).params
+    }
 
 
 class Options:

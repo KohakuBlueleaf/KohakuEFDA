@@ -30,10 +30,12 @@ from kohakuefda.model.plan import Finding, Plan
 from kohakuefda.model.scenario import Scenario
 from kohakuefda.plan.netlist import build_netlist
 from kohakuefda.plan.planner import plan as plan_scenario
+from kohakuefda.plan.units import extract
 from kohakuefda.synth import problem_of
 from kohakuefda.synth.frames import Cancel, FrameObserver, LayoutEveryFrame
 from kohakuefda.synth.layout import layout_of
 from kohakuefda.synth.modules import modules_of
+from kohakuefda.verify.complexity import complexity, with_units
 from kohakuefda.verify.evaluate import evaluate
 from kohakuefda.verify.layout import check_layout
 from kohakuefda.verify.report import Report
@@ -226,6 +228,13 @@ def verify_stage(
         evaluation = evaluate(dataset, layout)
         findings += rate_findings(dataset, plan, evaluation)
     report = Report(
-        subject=subject, dataset_version=dataset.version.id, findings=findings
+        subject=subject,
+        dataset_version=dataset.version.id,
+        findings=findings,
+        complexity=(
+            with_units(complexity(layout), extract(dataset, plan))
+            if layout is not None
+            else None
+        ),
     )
     return report, evaluation
