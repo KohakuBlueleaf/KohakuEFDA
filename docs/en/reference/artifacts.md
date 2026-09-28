@@ -32,7 +32,7 @@ Every artifact carries `schema_version` and `dataset_version`. Rates are exact f
 | Field | Content |
 |---|---|
 | `scenario`, `plan_status` | As in the plan. |
-| `cells[]` | One per machine. Each has `width`, `height`, `machines[]` (one placed machine at the origin, none for an outside input), `id`, `kind` (`recipe`, `dump`, `unloader`, `loader`, `entry`, `zone`, `depot`, `core`), `machine_id`, `recipe_id`, `pins[]`, `env` (the environment a recipe needs or a zone creates), `group` (`bus`, `zone<n>` or `null`), `constraint` (`free` inside the area, `edge` on its border, `slot` on a fixed bus slot, `park` anywhere out of the way). |
+| `cells[]` | One per machine. Each has `width`, `height`, `machines[]` (one placed machine at the origin, none for an outside input), `id`, `kind` (`recipe`, `dump`, `unloader`, `loader`, `stash`, `entry`, `inlet`, `outlet`, `zone`, `depot`, `core`), `machine_id`, `recipe_id`, `pins[]`, `env` (the environment a recipe needs or a zone creates), `group` (`bus`, `zone<n>` or `null`), `constraint` (`free` inside the area, `edge` on its border, `slot` on a fixed bus slot, `park` anywhere out of the way), `unit` (the repeat unit and copy, `<tile>#<copy>`, or `null` for what is built once). |
 | `cells[].pins[]` | `id`, `direction` (`in`/`out`), `kind` (`belt`/`pipe`), `item_id`, `rate`, `cell`, `edge` (the default port), `alternatives[]` of `{index, cell, edge}` (every port the lane may use). |
 | `nets[]` | `id`, `item_id`, `kind`, `rate` (planned), `nominal` (sum of sink lane rates), `trunk_lanes`, `sources[]` and `sinks[]` of `{cell_id, pin_id, rate}`, `via_depot_ok`. |
 | `findings[]` | Netlist findings. |
@@ -84,6 +84,7 @@ Machines in a generated layout are named `<cell id>:m0` and pylons `pylon<n>`; u
 |---|---|
 | `subject` | The file checked, or the basement and level for a generated layout. |
 | `findings[]` | Geometry, rate, netlist and layout findings. |
+| `complexity` | Over a layout, what it asks the player to build: `belt_cells`, `pipe_cells`, `bends`, `splitters`, `convergers`, `belt_bridges`, `pipe_junctions`, `pipe_bridges`, `kinds` (distinct machine and logistics ids), `straight` (the share of wire cells on straight runs of at least eight), and `unit_types`, `unit_copies`, `global_nets` once the layout is built from units. |
 
 A report is `ok` when no finding has severity `error`.
 

@@ -24,7 +24,7 @@ item_liquid_water = "unlimited"
 
 Each key is an item id; the value is the rate in units per minute at which the item is available, or `"unlimited"`. Supply is what the depot (or a pump on a vein) can deliver; mining rigs, electric rigs and the depot's stock are out of scope, so the rate is your number, not a computed one.
 
-Solid supply reaches the factory through Depot Unloaders at 30 per minute each; the layout stage places one unloader per belt of supply. Fluid supply reaches it by pipe from outside the area, one outside input per lane of up to 120 per minute, wherever the pump or vent stands. A capped supply becomes a constraint on the plan; an unlimited one only tells the plan the item is raw and need not be made.
+Solid supply reaches the factory through Depot Unloaders at 30 per minute each; the layout stage places one unloader per belt of supply. Liquid supply comes out of a Conduit Outlet beside each machine that uses it; the matching inlet stands at the pump, outside the area. Gas supply reaches it by pipe from outside the area, one outside input per lane of up to 120 per minute, wherever the vent stands. A capped supply becomes a constraint on the plan; an unlimited one only tells the plan the item is raw and need not be made.
 
 An item that is neither supplied nor makeable by an allowed recipe stops the recipes that need it, and the plan reports it as `plan.unsupplied`.
 

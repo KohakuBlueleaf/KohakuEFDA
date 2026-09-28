@@ -78,7 +78,7 @@ The pack's deck:
 | `endfield.zone` | error | A grouped machine outside its unit's gas zone, an environment recipe's machine inside no zone, two gas zones overlapping. |
 | `endfield.core` | error | More than one Automation-Core. |
 | `endfield.conduit` | error | A conduit link naming an unplaced end, not joining an inlet to an outlet, or with its ends more than 300 cells apart. |
-| `endfield.wiring` | error | A wire that branches or merges on a cell with no junction unit, merges or splits on a port cell, ends on no port or unit, or visits a cell twice. |
+| `endfield.wiring` | error | A wire that branches or merges on a cell with no junction unit, merges or splits on a port cell, ends on no port or unit (a junction of another wire of the same item beside the end continues it), or visits a cell twice. |
 
 ## Rates (verifier)
 

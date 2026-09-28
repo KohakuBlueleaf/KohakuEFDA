@@ -49,7 +49,7 @@ See Basement.
 
 ### Depot
 
-The base's storage (仓库). Unbounded in the model; reached through Depot Loaders and Unloaders on the Depot Bus (仓库存取线). → [The factory model](foundations/the-factory-model.md#the-depot).
+The base's storage (仓库). Unbounded in the model; reached through Depot Unloaders on the Depot Bus (仓库存取线) and Protocol Stashes, which forward to it remotely. → [The factory model](foundations/the-factory-model.md#the-depot).
 
 ### Depot line
 

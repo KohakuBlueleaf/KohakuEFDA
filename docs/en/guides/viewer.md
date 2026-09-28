@@ -45,7 +45,7 @@ Clicking a stage card shows its view:
 
 **Layout.** The line as it is built, one machine at a time with the belts and pipes it needs already on the grid, then as the moves improve it, with the cost curve beside it: bricks on the bus, outside inputs on the border, every belt and pipe coloured by what flows on it (pipes dashed); then the result with its pylons and their squares. The timeline scrubs through every recorded frame (play, step, speed, follow), and *Show the result* jumps to the end.
 
-**Check.** The finished layout with badges for what takes from the depot (⇩), sends to the depot (⇧), comes from outside (≈) and returns outside (⇣); hover a machine for how busy it is and what it waits on, a belt or pipe for what flows on it, an outside input for what enters and from which border. Chips count errors, warnings and notes; links open the layout, blueprint tiles and report pages.
+**Check.** The finished layout with badges for what takes from the depot (⇩), sends to the depot (⇧, Depot Loaders and Protocol Stashes), comes from outside (≈), returns outside (⇣), goes into a conduit (⤓) and comes out of one (⤒); hover a machine for how busy it is and what it waits on, a belt or pipe for what flows on it, an outside input for what enters and from which border. Chips count errors, warnings and notes; links open the layout, blueprint tiles and report pages.
 
 ## Runs
 

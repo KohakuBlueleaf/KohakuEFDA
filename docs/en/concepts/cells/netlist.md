@@ -1,6 +1,6 @@
 ---
 title: Netlist
-summary: How a plan becomes one cell per machine plus the core, bus parts, bricks, outside inputs, zone units and treatment units, and how their pins are joined into one net per item.
+summary: How a plan becomes one cell per machine plus the core, bus parts, unloaders, stashes, conduit ends, outside inputs, zone units and treatment units, and how their pins are joined into one net per item, or per conduit end.
 tags:
   - concepts
   - cells
@@ -18,8 +18,10 @@ Every recipe use in the plan becomes as many recipe cells as it has whole machin
 | Balance | Cells |
 |---|---|
 | a supplied solid | one Depot Unloader brick per belt lane (after the core's output ports when the scenario asks for them) |
-| a supplied liquid or gas | one outside input per pipe lane, on the area's border |
-| a delivered or depot-bound solid | one Depot Loader brick per belt lane (after the core's input ports when asked) |
+| a supplied gas | one outside input per pipe lane, on the area's border |
+| a supplied liquid | a Conduit Outlet beside every machine that uses it, naming the item; its inlet stands at the pump outside the area (DEP-20) |
+| a delivered or depot-bound solid | one Protocol Stash per belt lane, anywhere; it forwards to the depot remotely (DEP-14, DEP-21) |
+| a liquid made here and used by several machines | a Conduit Inlet on the maker's port and a linked Conduit Outlet beside each user; a maker feeding one user pipes to it directly |
 | a dumped fluid | one Water Treatment Unit per 30 per minute |
 | an environment | one Gas Dispersing Unit per zone, each heading the group of the machines it serves, with its gas as an outside input |
 | bricks in Wuling | one Depot Bus Port and the fewest sections whose chain seats them, all in the `bus` group |
@@ -44,3 +46,18 @@ A net does not say which source feeds which sink; the router decides that, and t
 | `netlist.entries` | info | Which fluids enter at the area's border. |
 
 `kohakuefda netlist scenario.toml` prints the cells and nets; `-o netlist.json` writes them.
+
+## Repeat units
+
+The plan repeats, and the netlist says how. A recipe use whose solid output flows only into one
+other use at a whole-number machine ratio joins that use's *tile*, so many machines per copy;
+a use that is shared, whose ratio is not whole, or part of whose output goes to the depot heads
+a tile of its own, copied as many times as it has machines; the uses of a cycle (planters and
+seed collectors) form one node copied by the greatest common divisor of their counts. Liquids
+bind nothing, since conduits bring them to an outlet beside each consumer. Every cell of a
+tile copy carries `unit = "<tile>#<copy>"`; a Conduit Outlet or Inlet follows the cell it
+serves; what only some copies hold, and every group (a zone, the bus), is built once and has no
+unit. Lanes pair the pins of one copy among themselves first, so a copy is wired inside itself
+wherever the rates allow. For 18 batteries a minute on the Hub this reads as three identical
+lines of 24 machines and five moss tiles of four.
+
