@@ -15,7 +15,7 @@ from kohakuefda.model.dataset import Dataset
 from kohakuefda.model.footprints import machine_footprint
 from kohakuefda.model.geometry import Edge, edge_step, rotate_cell, rotate_edge
 from kohakuefda.model.layout import Cell as XY
-from kohakuefda.model.layout import Entry, Layout, Placed, Segment, Unit
+from kohakuefda.model.layout import Entry, Layout, Link, Placed, Segment, Unit
 from kohakuefda.model.placement import PlacedBlock, Placement
 from kohakuefda.model.plan import Finding
 from kohakuefda.physics.boundaries import OPPOSITE, rect_of
@@ -347,6 +347,12 @@ class Translation(Flows):
             units=self.units(),
             segments=self.segments(),
             entries=entries,
+            links=[
+                Link(inlet=f"{k.inlet}:m0", outlet=f"{k.outlet}:m0")
+                for k in self.netlist.links
+                if k.inlet in self.layout.placements
+                and k.outlet in self.layout.placements
+            ],
         )
 
 

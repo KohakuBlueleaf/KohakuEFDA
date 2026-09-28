@@ -1,10 +1,12 @@
 """The wires of a framework layout as flows: the net's graph, its orientation and the flow on every step.
 
 A wire is a set of segments the router laid: each runs from the tree to the pin it
-reached, so a segment ending on a source's attach cell flows the other way. The pack's
-lane facts say what each pin supplies or takes; the supply is pushed along that
-orientation, split evenly where the net branches and summed where it joins, and the
-translation reads the result to orient every piece and to decide what each junction is.
+reached, in no flow order of its own. The pack's lane facts say what each pin supplies
+or takes; on a tree every step is directed from the side that supplies more than it
+takes, elsewhere a segment ending on a source's attach cell flows the other way. The
+supply is pushed along that orientation, split evenly where the net branches and
+summed where it joins, and the translation reads the result to orient every piece and
+to decide what each junction is.
 """
 
 from fractions import Fraction
@@ -40,7 +42,7 @@ class Flows:
         return out
 
     def orientation(self, net_id: str) -> set[tuple[XY, XY]]:
-        """Every step of the net the way the router laid it: along each segment, and against a segment that ends on a source's attach cell no sink shares and no other segment starts from (a join, stored from the tree to the source; a lane ending where another lane leaves a source merges into it); kept per net, the layout never changes under a translation."""
+        """Every step of the net directed: on a tree with rates, each step away from the side whose share of the supply passes its share of the demand (``tree_orientation``); elsewhere the way the router laid it: along each segment, and against a segment that ends on a source's attach cell no sink shares and no other segment starts from (a join, stored from the tree to the source; a lane ending where another lane leaves a source merges into it); kept per net, the layout never changes under a translation."""
         memo = self.__dict__.setdefault("_orientation", {})
         if net_id in memo:
             return memo[net_id]
@@ -65,7 +67,77 @@ class Flows:
             if len(cells) > 1 and tree_ward:
                 cells.reverse()
             out.update(pairwise(cells))
+        out = self.tree_orientation(net_id, out) or out
         memo[net_id] = out
+        return out
+
+    def rates(
+        self, net_id: str, graph: dict[XY, set[XY]]
+    ) -> tuple[dict[XY, Fraction], dict[XY, Fraction]]:
+        """The supply at each source's attach cell and the demand at each sink's, from the net's lane facts, over the cells the wire has."""
+        supply: dict[XY, Fraction] = {}
+        demand: dict[XY, Fraction] = {}
+        for source, sink, rate in lane_facts(self.kl.nets[net_id]):
+            start = self.attach.get(source)
+            goal = self.attach.get(sink)
+            if start in graph:
+                supply[start] = supply.get(start, Fraction(0)) + rate
+            if goal in graph:
+                demand[goal] = demand.get(goal, Fraction(0)) + rate
+        return supply, demand
+
+    def tree_orientation(
+        self, net_id: str, laid: set[tuple[XY, XY]]
+    ) -> set[tuple[XY, XY]] | None:
+        """The steps of a tree net each directed from the side whose share of the supply passes its share of the demand, a step both sides balance as laid; ``None`` for a net that is no tree, has no rates or attaches on a crossing."""
+        graph = self.graph(net_id)
+        crossings = self.crossings(net_id)
+        edges = sum(len(others) for others in graph.values()) // 2
+        if not edges or edges != len(graph) + len(crossings) - 1:
+            return None
+        supply, demand = self.rates(net_id, graph)
+        total_supply = sum(supply.values(), Fraction(0))
+        total_demand = sum(demand.values(), Fraction(0))
+        if not total_supply or not total_demand:
+            return None
+        if crossings & (set(supply) | set(demand)):
+            return None
+        Node = tuple[XY, int | None]
+
+        def node(cell: XY, a: XY, b: XY) -> Node:
+            return (cell, int(a[0] == b[0])) if cell in crossings else (cell, None)
+
+        adjacency: dict[Node, set[Node]] = {}
+        for a, others in graph.items():
+            for b in others:
+                adjacency.setdefault(node(a, a, b), set()).add(node(b, a, b))
+        root = min(adjacency)
+        order = [root]
+        parent: dict[Node, Node | None] = {root: None}
+        for here in order:
+            for other in sorted(adjacency[here]):
+                if other not in parent:
+                    parent[other] = here
+                    order.append(other)
+        if len(order) != len(adjacency):
+            return None
+        beyond_supply = {n: supply.get(n[0], Fraction(0)) for n in order}
+        beyond_demand = {n: demand.get(n[0], Fraction(0)) for n in order}
+        out: set[tuple[XY, XY]] = set()
+        for here in reversed(order):
+            above = parent[here]
+            if above is None:
+                continue
+            beyond_supply[above] += beyond_supply[here]
+            beyond_demand[above] += beyond_demand[here]
+            surplus = (
+                beyond_supply[here] * total_demand - beyond_demand[here] * total_supply
+            )
+            a, b = above[0], here[0]
+            if surplus > 0 or (surplus == 0 and (b, a) in laid):
+                out.add((b, a))
+            else:
+                out.add((a, b))
         return out
 
     def crossings(self, net_id: str) -> frozenset[XY]:
@@ -79,15 +151,7 @@ class Flows:
         graph = self.graph(net_id)
         net = self.kl.nets[net_id]
         crossings = self.crossings(net_id)
-        supply: dict[XY, Fraction] = {}
-        demand: dict[XY, Fraction] = {}
-        for source, sink, rate in lane_facts(net):
-            start = self.attach.get(source)
-            goal = self.attach.get(sink)
-            if start in graph:
-                supply[start] = supply.get(start, Fraction(0)) + rate
-            if goal in graph:
-                demand[goal] = demand.get(goal, Fraction(0)) + rate
+        supply, demand = self.rates(net_id, graph)
         edges = sum(len(others) for others in graph.values()) // 2
         if not graph or edges != len(graph) + len(crossings) - 1:
             return self.lane_flows(graph, net, crossings)
@@ -246,7 +310,7 @@ class Flows:
         return junctions | self.bridges_of.get(carrier, set())
 
     def oriented(self, net_id: str) -> list[list[XY]]:
-        """The net's live pieces between its units, each in flow order; a junction no unit needs joins its two pieces."""
+        """The net's live pieces between its units, each in flow order; a junction no unit needs joins its two pieces; a piece another piece covers whole (a seat at a cell the tree already holds) is dropped."""
         net = self.kl.nets[net_id]
         junctions = self.junction_cells(net_id)
         cuts = junctions | self.bridges_of.get(net.carrier, set())
@@ -283,7 +347,14 @@ class Flows:
             joined = (tail or []) + [xy] + (head or [])
             pieces = [p for p in pieces if p is not tail and p is not head]
             pieces.append(joined)
-        return pieces
+        return [
+            p
+            for i, p in enumerate(pieces)
+            if not any(
+                j != i and set(p) <= set(q) and len(q) > len(p)
+                for j, q in enumerate(pieces)
+            )
+        ]
 
     def travel(self, net_id: str) -> dict[XY, tuple[int, int]]:
         """The direction the flow leaves each cell by: along the pieces, and into a sink's port."""

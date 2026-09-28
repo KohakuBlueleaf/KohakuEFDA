@@ -11,8 +11,16 @@ from kohakuefda.model.scenario import Scenario
 from kohakuefda.physics.facts import lane_facts, rate_of
 from kohakuefda.synth import kl_id, problem_of, project_pin_id
 from kohakuefda.synth.flows import Flows
-from kohakuefda.synth.problem import assign, components, constraint_kind, lanes_of
-from kohakulayout.ir import Problem
+from kohakuefda.synth.layout import layout_of
+from kohakuefda.synth.problem import (
+    assign,
+    components,
+    constraint_kind,
+    lanes_of,
+    split_lanes,
+)
+from kohakulayout.ir import Layout as FrameworkLayout
+from kohakulayout.ir import Placement, Problem
 from kohakulayout.ir.text import parse_text
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -53,6 +61,46 @@ def test_the_problem_checks_clean(problem: Problem, netlist) -> None:
         )
 
 
+def test_conduit_links_ride_the_problem_and_come_back_as_layout_links(
+    dataset: Dataset, problem: Problem, netlist
+) -> None:
+    outlets = [c for c in problem.netlist.cells.values() if c.kind == "outlet"]
+    assert outlets and all(c.needs == () for c in outlets)
+    facts = problem.netlist.attrs["endfield"]
+    assert facts["links"] == [f"{k.inlet}:{k.outlet}" for k in netlist.links]
+    linked = {text.split(":")[1] for text in facts["links"]}
+    for cell in outlets:
+        item = project_pin_id(cell.pins[0].id).split(":")[1]
+        if cell.id in linked:
+            assert "config" not in cell.attrs["endfield"]
+        else:
+            assert cell.attrs["endfield"]["config"] == [f"item:{item}"]
+    stash = next(c for c in problem.netlist.cells.values() if c.kind == "stash")
+    assert stash.needs == ("power",) and stash.constraint.kind == "free"
+    scenario = Scenario.from_toml(FIXTURES / "scenario_wuling_hetonite.toml")
+    linked = netlist_stage(dataset, scenario, plan_stage(dataset, scenario))
+    linked_problem = problem_of(dataset, linked)
+    facts = linked_problem.netlist.attrs["endfield"]
+    assert facts["links"] == [f"{k.inlet}:{k.outlet}" for k in linked.links]
+    assert facts["links"]
+    for inlet_id, outlet_id in (text.split(":") for text in facts["links"]):
+        inlet = linked_problem.netlist.cells[inlet_id]
+        outlet = linked_problem.netlist.cells[outlet_id]
+        assert inlet.kind == "inlet" and outlet.kind == "outlet"
+        assert inlet.pins[0].direction == "in" and outlet.pins[0].direction == "out"
+        assert "config" not in outlet.attrs["endfield"]
+    link = linked.links[0]
+    placed = {
+        link.inlet: Placement(cell=link.inlet, x=4, y=4, rot=0),
+        link.outlet: Placement(cell=link.outlet, x=10, y=4, rot=0),
+    }
+    layout = FrameworkLayout(placements=placed)
+    _, project = layout_of(linked_problem, layout, dataset, linked)
+    assert [(k.inlet, k.outlet) for k in project.links] == [
+        (f"{link.inlet}:m0", f"{link.outlet}:m0")
+    ]
+
+
 def test_pins_keep_their_default_port_and_alternatives(
     problem: Problem, netlist
 ) -> None:
@@ -74,7 +122,7 @@ def test_nets_carry_every_lane_of_the_plan(problem: Problem, netlist) -> None:
             for n in problem.netlist.nets.values()
             if n.attrs["endfield"]["net"] == spec.id
         ]
-        assert len(mine) == len(components(lanes))
+        assert len(mine) == len(split_lanes(spec, lanes))
         carried = [rate for net in mine for _, _, rate in lane_facts(net)]
         assert sum(carried, Fraction(0)) == sum(
             (rate for _, _, rate in lanes), Fraction(0)

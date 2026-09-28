@@ -428,7 +428,7 @@ def _net(comp: Component) -> Net:
 
 
 def role_of(dataset: Dataset, placed: Placed) -> str:
-    """What a machine does to flow: crafter, source, sink, dump, zone, inlet, outlet, or none for a machine without ports."""
+    """What a machine does to flow: crafter, source (an outlet naming its item is fed from outside), sink, dump, zone, inlet, outlet, or none for a machine without ports."""
     machine_id = placed.machine_id
     if not dataset.machines[machine_id].ports:
         return "none"
@@ -443,7 +443,7 @@ def role_of(dataset: Dataset, placed: Placed) -> str:
     if machine_id.startswith(CONDUIT_INLET):
         return "inlet"
     if machine_id.startswith(CONDUIT_OUTLET):
-        return "outlet"
+        return "source" if placed.config.get("item") else "outlet"
     return "crafter"
 
 
@@ -472,7 +472,7 @@ def port_specs(
             rate = (
                 Fraction(placed.config["rate"])
                 if "rate" in placed.config
-                else SOURCE_RATES[placed.machine_id]
+                else SOURCE_RATES.get(placed.machine_id, dataset.constants.pipe_per_min)
             )
             out[key] = (item, rate)
         elif role == "sink" and port.direction is PortDir.OUT:
