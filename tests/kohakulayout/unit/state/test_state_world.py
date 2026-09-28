@@ -7,6 +7,8 @@ from kohakulayout.ir import Netlist, Problem, Refusal, Segment, Wire
 from kohakulayout.physics import Emitter, GreedyCover, Reach, UnitPlacement, get
 from kohakulayout.physics.protocol import Occupant
 from kohakulayout.state import PyKernel, StateCheck, World
+from kohakulayout.state.router.pathfinder import Search
+from kohakulayout.state.router.protocol import Costs
 from kohakulayout.templates.physics.null import LIBRARY, NullPhysics
 from kohakulayout.templates.physics.null import problem as null_problem
 
@@ -159,6 +161,28 @@ def test_reservations_block_other_carriers(
     assert world.reservations == {}
 
 
+def test_a_carrier_reservation_admits_every_unit_and_a_hold_admits_none(
+    null_world: World, state_check: StateCheck
+) -> None:
+    world = null_world
+    dot = LIBRARY["CELL"].model_copy(update={"id": "J"})
+    with world.transaction() as tx:
+        world.reserve("ch", "ground", [(0, 5), (1, 5), (2, 5)], carrier="wire")
+        emitter = UnitPlacement(kind="j", footprint=dot, x=0, y=5, owner="field:j")
+        assert world.place_unit(emitter) is None
+        own = UnitPlacement(kind="j", footprint=dot, x=1, y=5, owner="net:n1")
+        assert world.place_unit(own) is None
+        assert any(u.owner == "net:n1" for u in world.units.values())
+        world.reserve("other", "ground", [(0, 6), (1, 6), (2, 6)], carrier="pipe")
+        crossing = UnitPlacement(kind="j", footprint=dot, x=1, y=6, owner="net:n1")
+        assert world.place_unit(crossing) is None
+        world.reserve("hold", "ground", [(0, 7), (1, 7), (2, 7)])
+        held = UnitPlacement(kind="j", footprint=dot, x=1, y=7, owner="net:n1")
+        assert world.place_unit(held).stage == "overlap"
+        tx.commit()
+    assert state_check.failures == []
+
+
 def test_snapshot_restore_and_frozen_forms(
     null_world: World, state_check: StateCheck
 ) -> None:
@@ -299,3 +323,67 @@ def test_python_kernel_round_trips_bytes() -> None:
     assert kernel.save() == blob
     assert kernel.holders_on("ground") == ("cell:a", "wire:n")
     assert kernel.integral("ground")[-1, -1] == 2
+
+
+def test_one_attach_choice_of_an_unreached_pin_is_kept_for_its_net(
+    kl_fixtures,
+) -> None:
+    netlist = Netlist.parse((kl_fixtures / "port_choice.kl").read_text())
+    physics = get("gates")
+    fabric = physics.fabric({"width": 12, "height": 5})
+    problem = Problem(physics=physics.ref, fabric=fabric, netlist=netlist, params={})
+    world = World(problem, physics)
+    with world.transaction() as tx:
+        assert world.place("b", 0, 2) is None
+        assert world.place("k", 7, 1) is None
+        assert world.place("z", 8, 1) is None
+        tx.commit()
+    choices = {attach for _, attach, _ in world.port_choices("z")["a"]}
+    assert len(choices) == 2
+    claims = world.claimed_attach_owners()["ground"]
+    assert [claims.get(c) for c in sorted(choices)].count({"n"}) == 1
+    assert world.open_attach_owners().get("ground", {}).keys().isdisjoint(choices)
+
+    def search(net_id: str) -> Search:
+        return Search(
+            world=world,
+            net_id=net_id,
+            carrier="wire",
+            layer="ground",
+            costs=Costs(),
+            walls=frozenset(),
+            history={},
+        )
+
+    kept = next(c for c in choices if claims.get(c) == {"n"})
+    assert kept in search("other").shut and (choices - {kept}).isdisjoint(
+        search("other").shut
+    )
+    assert not (choices & search("n").shut)
+    with world.transaction() as tx:
+        world.set_wire(
+            Wire(
+                net="n",
+                segments=(
+                    Segment(
+                        carrier="wire",
+                        layer="ground",
+                        cells=(
+                            (1, 2),
+                            (2, 2),
+                            (3, 2),
+                            (4, 2),
+                            (5, 2),
+                            (6, 2),
+                            (6, 3),
+                            (7, 3),
+                        ),
+                    ),
+                ),
+                ports={"z.a": "p1"},
+            )
+        )
+        tx.commit()
+    assert "ground" not in world.claimed_attach_owners() or not (
+        choices & set(world.claimed_attach_owners()["ground"])
+    )

@@ -39,6 +39,9 @@ def _offsets(
     return _OFFSETS[key][1]
 
 
+CLAIMS = True
+
+
 class AttachMixin:
     placements: dict[str, Any]
     wires: dict[str, Any]
@@ -241,7 +244,13 @@ class AttachMixin:
             return
         for kind, layer, cell in tables.entries.pop(net_id, ()):
             table = getattr(tables, kind).get(layer, {})
-            if kind == "ports" or table.get(cell) == net_id:
+            if kind == "claims":
+                nets = table.get(cell)
+                if nets is not None:
+                    nets.discard(net_id)
+                    if not nets:
+                        table.pop(cell, None)
+            elif kind == "ports" or table.get(cell) == net_id:
                 table.pop(cell, None)
         written: list[tuple[str, str, XY]] = []
         wire = self.wires.get(net_id)
@@ -255,10 +264,58 @@ class AttachMixin:
                 tables.routed.setdefault(layer, {})[found[1]] = net_id
                 tables.ports.setdefault(layer, {})[found[1]] = found[2]
                 written += [("routed", layer, found[1]), ("ports", layer, found[1])]
-            elif len(choices) == 1:
+                continue
+            if len(choices) == 1:
                 tables.open.setdefault(layer, {})[found[1]] = net_id
                 written.append(("open", layer, found[1]))
+            if not CLAIMS:
+                continue
+            claims = tables.claims.setdefault(layer, {})
+            attach = self.claim_of(
+                net_id, layer, choices, claims, self.partner_centre(net_id, cell_id)
+            )
+            claims.setdefault(attach, set()).add(net_id)
+            written.append(("claims", layer, attach))
         tables.entries[net_id] = written
+
+    def claim_of(
+        self,
+        net_id: str,
+        layer: str,
+        choices: tuple[Choice, ...],
+        claims: dict[XY, set[str]],
+        near: tuple[float, float] | None = None,
+    ) -> XY:
+        """The one attach cell an unrouted pin keeps: of its free choices no other net
+        claims the one nearest ``near`` (the first when ``near`` is None or equal),
+        else its first free choice, else its first."""
+        free = [c[1] for c in choices if self.kernel.free_for(layer, (c[1],))]
+        unclaimed = [c for c in free if not (claims.get(c, set()) - {net_id})]
+        if unclaimed and near is not None:
+            return min(
+                unclaimed, key=lambda c: abs(c[0] - near[0]) + abs(c[1] - near[1])
+            )
+        return (unclaimed or free or [choices[0][1]])[0]
+
+    def partner_centre(self, net_id: str, cell_id: str) -> tuple[float, float] | None:
+        """The mean of the attach cells the net's placed pins on the other side of ``cell_id``'s pins may use; None without any."""
+        net = self.netlist.nets.get(net_id)
+        if net is None:
+            return None
+        mine = any(r.cell == cell_id for r in net.sinks)
+        partners = net.sources if mine else net.sinks
+        cells = [
+            c[1]
+            for r in partners
+            if r.cell != cell_id
+            for c in self.port_choices(r.cell).get(r.pin, ())
+        ]
+        if not cells:
+            return None
+        return (
+            sum(x for x, _ in cells) / len(cells),
+            sum(y for _, y in cells) / len(cells),
+        )
 
     def open_attach_owners(self) -> dict[str, dict[XY, str]]:
         """Per layer, the net owning the only attach cell of a placed pin its wire does not hold (the net unrouted, or the pin not reached); a pin with a choice of ports reserves none."""
@@ -268,16 +325,21 @@ class AttachMixin:
         """Per layer, the net whose wire uses each attach cell of a routed pin."""
         return self.tables().routed
 
+    def claimed_attach_owners(self) -> dict[str, dict[XY, set[str]]]:
+        """Per layer, the nets with an unreached placed pin that may attach at each cell; a wire of any other net stays out of it."""
+        return self.tables().claims
+
     def routed_attach_ports(self) -> dict[str, dict[XY, XY]]:
         """Per layer, the port cell behind each attach cell a routed pin's wire uses."""
         return self.tables().ports
 
 
 class Tables:
-    """The attach cells of the placed pins: reserved while open, in use once routed, and every alternative."""
+    """The attach cells of the placed pins: reserved while open, claimed by every unreached pin's nets, in use once routed, and every alternative."""
 
     def __init__(self) -> None:
         self.open: dict[str, dict[XY, str]] = {}
+        self.claims: dict[str, dict[XY, set[str]]] = {}
         self.routed: dict[str, dict[XY, str]] = {}
         self.ports: dict[str, dict[XY, XY]] = {}
         self.alternatives: dict[str, dict[XY, list[tuple[str, str]]]] = {}

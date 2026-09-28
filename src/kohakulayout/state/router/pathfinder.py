@@ -49,6 +49,7 @@ class Search:
     height: int = 0
     grid: dict[XY, tuple[str, ...]] | None = None
     shut: frozenset[XY] = frozenset()
+    claimed: frozenset[XY] = frozenset()
     held: frozenset[XY] = frozenset()
     rules: str | None = None
     walls_key: str = ""
@@ -57,7 +58,9 @@ class Search:
     end_on_crossing: bool = True
     float_scale: int = 0
     unit_walls: frozenset[XY] = frozenset()
+    kept: frozenset[str] = frozenset()
     frontier: frozenset[XY] = frozenset()
+    frontier_why: dict[str, int] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.width = self.world.fabric.width
@@ -67,8 +70,12 @@ class Search:
             f"units:{self.carrier}@{id(self.world.fabric)}:{len(self.unit_walls)}"
         )
         owners = self.world.open_attach_owners().get(self.layer, {})
+        claims = self.world.claimed_attach_owners().get(self.layer, {})
         self.shut = frozenset(
             xy for xy, net_id in owners.items() if net_id != self.net_id
+        ) | frozenset(xy for xy, nets in claims.items() if self.net_id not in nets)
+        self.claimed = frozenset(
+            xy for xy, nets in claims.items() if nets - {self.net_id}
         )
         routed = self.world.routed_attach_owners().get(self.layer, {})
         self.held = frozenset(
@@ -136,7 +143,7 @@ def own_crossing(search: Search, xy: XY, direction: XY | None) -> Entry | None:
 def entry(
     search: Search, xy: XY, direction: XY | None, terminal: bool = False
 ) -> Entry | None:
-    """The cost of entering ``xy`` moving ``direction``, or None when the cell is closed; a ``terminal`` is the path's own start, where only what holds the cell matters and a bent crossing, when the pack allows one, may stand; a cell of the net's own standing lanes (``own``) is crossed, at either end or on the way. A field emitter on the cell is displaced, the cover redone when the plan commits."""
+    """The cost of entering ``xy`` moving ``direction``, or None when the cell is closed; a ``terminal`` is the path's own start, where only what holds the cell matters and a bent crossing, when the pack allows one, may stand; a cell of the net's own standing lanes (``own``) is crossed, at either end or on the way. A field emitter on the cell is displaced, the cover redone when the plan commits, unless the search keeps it (``kept``)."""
     world = search.world
     x, y = xy
     if x < 0 or y < 0 or x >= search.width or y >= search.height:
@@ -193,6 +200,8 @@ def entry(
                 continue
             return None
     if unit_ref is not None and world.units[unit_ref].owner.startswith("field:"):
+        if unit_ref in search.kept:
+            return None
         result.displaces = frozenset({unit_ref})
         result.cost += search.costs.displace
         holders = tuple(h for h in holders if h != f"unit:{unit_ref}")
@@ -231,7 +240,7 @@ def entry(
         )
         if rule.mode == "unit" and (
             rule.unit is None
-            or not only_wires(holders)
+            or not only_wires(world, holders)
             or not occluded_free(
                 world, rule.unit, xy, frozenset(f"unit:{u}" for u in result.displaces)
             )
@@ -253,7 +262,7 @@ def register_tables(grid: Any, world: Any) -> None:
     if known is not None and known[0] is stamp[0] and known[1] is stamp[1]:
         if known[2] != tags:
             for tag in tags:
-                grid.set_reservation(tag, world.reservations[tag].carrier)
+                grid.set_reservation(tag, world.reservations[tag].carrier or "")
             _REGISTERED[id(grid)] = stamp
         return
     grid.set_nets([(net_id, net.carrier) for net_id, net in world.netlist.nets.items()])
@@ -288,7 +297,7 @@ def register_tables(grid: Any, world: Any) -> None:
     grid.set_pairs(json.dumps(pairs))
     grid.set_shapes(json.dumps(shapes))
     for tag in tags:
-        grid.set_reservation(tag, world.reservations[tag].carrier)
+        grid.set_reservation(tag, world.reservations[tag].carrier or "")
     _REGISTERED[id(grid)] = stamp
 
 
@@ -358,6 +367,7 @@ def query_of(search: Search) -> dict[str, Any]:
         "walls_key": search.walls_key,
         "unit_walls_key": search.unit_walls_key,
         "shut": sorted(search.shut),
+        "claimed": sorted(search.claimed),
         "held": sorted(search.held),
         "history": [
             (xy[0], xy[1], n)
@@ -395,13 +405,15 @@ def find(
     avoid: frozenset[XY] = frozenset(),
     order: tuple[XY, ...] = (),
 ) -> Found | None:
-    """The cheapest path from any source to any target, never stepping into ``avoid``; None within the step budget. Among paths of one cost the first found wins, so ``order`` says which sources the search opens first (the rest after, sorted)."""
+    """The cheapest path from any source to any target, never stepping into ``avoid`` and into an attach cell another net claims only to end there; None within the step budget. Among paths of one cost the first found wins, so ``order`` says which sources the search opens first (the rest after, sorted)."""
     if not sources or not targets:
         return None
     starts_in = [c for c in order if c in sources]
     starts_in += sorted(sources - set(starts_in))
     report = bool(getattr(search.world, "report_frontier", False))
-    grid = None if report else getattr(search.world.kernel, "_grid", None)
+    grid = (
+        None if report or search.kept else getattr(search.world.kernel, "_grid", None)
+    )
     if grid is not None:
         register_walls(grid, search)
         native = rust_astar(
@@ -439,10 +451,14 @@ def find(
         counter += 1
     expansions = 0
     blocked: set[XY] = set()
+    why: dict[str, int] = {}
+    if report:
+        search.frontier_why = why
     while heap:
         estimate, _, cell, direction = heapq.heappop(heap)
         if limit is not None and (estimate > (f32(limit / scale) if floats else limit)):
             search.frontier = frozenset(blocked) if report else frozenset()
+            why["limit"] = 1
             return None
         state = (cell, direction)
         g = best[state]
@@ -467,16 +483,28 @@ def find(
                 continue
             nxt = (cell[0] + move[0], cell[1] + move[1])
             if nxt in sources or nxt in avoid:
+                if report:
+                    why["avoid" if nxt in avoid else "source"] = (
+                        why.get("avoid" if nxt in avoid else "source", 0) + 1
+                    )
+                continue
+            if nxt in search.claimed and nxt not in targets:
+                if report:
+                    blocked.add(nxt)
+                    why["claimed"] = why.get("claimed", 0) + 1
                 continue
             start = (
                 entry(search, cell, move, terminal=True) if direction is None else None
             )
             if direction is None and start is None:
+                if report:
+                    why["entry"] = why.get("entry", 0) + 1
                 continue
             step = entry(search, nxt, move)
             if step is None:
                 if report:
                     blocked.add(nxt)
+                    why["step"] = why.get("step", 0) + 1
                 continue
             if floats:
                 move_cost = as_f(step.cost)
@@ -506,6 +534,7 @@ def find(
                 )
                 counter += 1
     search.frontier = frozenset(blocked) if report else frozenset()
+    why["expansions"] = expansions
     return None
 
 

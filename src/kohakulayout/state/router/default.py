@@ -75,8 +75,9 @@ class DefaultRouter:
         present: int,
         protected: frozenset[str],
         allow_rip: bool = True,
+        kept: frozenset[str] = frozenset(),
     ) -> Search:
-        """The search for one net at this pass's present cost: a displaced cell costs ``present`` times one plus its history, while rips are allowed and left."""
+        """The search for one net at this pass's present cost: a displaced cell costs ``present`` times one plus its history, while rips are allowed and left; the emitters in ``kept`` are never displaced."""
         return Search(
             world=world,
             net_id=net.id,
@@ -88,24 +89,29 @@ class DefaultRouter:
             history=self.history,
             allow_rip=allow_rip and self._rips_left > 0,
             protected=protected,
+            kept=kept,
         )
 
     def route(self, world: Any, net_id: str) -> Refusal | None:
-        """Negotiated congestion: route the net at the present cost, ripping what stands in its way; the displaced re-route in the same pass without displacing anyone; every pass raises the present cost until nothing stays displaced; a pass that displaced nothing and still failed, or the last pass, rolls the whole route back. A net that already has a wire keeps its tree and grows to the pins off it."""
+        """Negotiated congestion: route the net at the present cost, ripping what stands in its way; the displaced re-route in the same pass without displacing anyone; every pass raises the present cost until nothing stays displaced; a pass that displaced nothing and still failed, or the last pass, rolls the whole route back; an emitter a path displaced that the cover could not lay again is kept from the next pass's paths. A net that already has a wire keeps its tree and grows to the pins off it."""
         self._rips_left = self.max_rips
         mark = world.mark()
         present = max(1, self.costs.ripup)
         pending = [net_id]
         last: Refusal | None = None
+        kept: set[str] = set()
+        uncovered: Refusal | None = None
         seeds: dict[str, Any] = {}
         if net_id in world.wires:
             seeds[net_id] = seed_of(world, world.netlist.nets[net_id])
             world.unroute(net_id)
-        for _ in range(self.passes):
+        passes_left = self.passes
+        while passes_left > 0:
             queue = list(pending)
             position = 0
             failed: list[str] = []
             contested = False
+            held_back = len(kept)
             while position < len(queue):
                 current = queue[position]
                 position += 1
@@ -113,12 +119,23 @@ class DefaultRouter:
                     continue
                 net = world.netlist.nets[current]
                 search = self.search(
-                    world, net, present, frozenset({current}), current == net_id
+                    world,
+                    net,
+                    present,
+                    frozenset({current}),
+                    current == net_id,
+                    frozenset(kept),
                 )
                 plan = self.plan(world, net, search, seeds.get(current))
                 if isinstance(plan, Refusal):
                     failed.append(current)
                     last = plan
+                    if uncovered is not None:
+                        last = refuse(
+                            current,
+                            f"{uncovered.detail}; {plan.detail} keeping it",
+                            uncovered.attrs,
+                        )
                     continue
                 self._rips_left -= len(plan.rips)
                 contested = contested or bool(plan.rips)
@@ -132,6 +149,10 @@ class DefaultRouter:
                 if refusal is not None:
                     failed.append(current)
                     last = refusal
+                    if plan.displaced and refusal.attrs.get("kl", {}).get("kept"):
+                        kept.update(plan.displaced)
+                        uncovered = refusal
+                        contested = True
                 contested = contested or bool(plan.rips)
                 for victim in sorted(plan.rips):
                     if victim not in world.wires and victim not in queue[position:]:
@@ -141,6 +162,9 @@ class DefaultRouter:
             if not contested:
                 break
             pending = failed
+            if len(kept) > held_back:
+                continue
+            passes_left -= 1
             present = max(present + 1, int(present * self.growth))
         world.rollback_to(mark)
         detail = last.detail if last is not None else ""
@@ -167,7 +191,7 @@ class DefaultRouter:
         allow_rip: bool = False,
         protected: frozenset[str] = frozenset(),
     ) -> Refusal | None:
-        """Place the plan's units and the wire, the field emitters the path displaces removed first and the cover redone after; a wire under a unit is ripped and joins the victims when ripping is allowed."""
+        """Place the plan's units and the wire, the field emitters the path displaces removed first and the cover redone after, the whole undone when the cover fails (the refusal names the emitters to keep); a wire under a unit is ripped and joins the victims when ripping is allowed."""
         makers = (
             lambda: crossings(world, net, plan.crossings),
             lambda: junctions(world, net, plan.junctions),
@@ -213,7 +237,12 @@ class DefaultRouter:
         if gone:
             short = recover(world, gone)
             if short is not None:
-                return refuse(net.id, f"displaced an emitter: {short.detail}")
+                world.rollback_to(mark)
+                return refuse(
+                    net.id,
+                    f"displaced an emitter: {short.detail}",
+                    {"kl": {"kept": sorted(plan.displaced)}},
+                )
         return None
 
     @staticmethod

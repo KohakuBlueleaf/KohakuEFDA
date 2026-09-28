@@ -440,6 +440,7 @@ def grow(
                     {
                         "route": {
                             "frontier": sorted(search.frontier),
+                            "why": dict(search.frontier_why),
                             "layer": search.layer,
                         }
                     }

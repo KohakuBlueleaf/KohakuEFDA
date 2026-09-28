@@ -22,7 +22,7 @@ from kohakulayout.state.router.pathfinder import (
 )
 from kohakulayout.state.router.protocol import refuse
 
-KINDS: tuple[str, ...] = ("open", "routed", "ports")
+KINDS: tuple[str, ...] = ("open", "claims", "routed", "ports")
 
 
 class Mirror:
@@ -223,6 +223,11 @@ _UNCHANGED: dict[str, Any] = {
 }
 
 
+def _table_value(kind: str, value: Any) -> Any:
+    """A table entry as the twin reads it: the claims as a sorted list of nets."""
+    return sorted(value) if kind == "claims" and value is not None else value
+
+
 def sync_doc(world: Any, mirror: Mirror, full: bool) -> dict[str, Any]:
     """The records changed since the last sync, or all; only the unit counter when none changed."""
     if (
@@ -273,14 +278,17 @@ def sync_doc(world: Any, mirror: Mirror, full: bool) -> dict[str, Any]:
     if everything:
         for kind in KINDS:
             for layer, table in getattr(tables, kind).items():
-                cells += [(kind, layer, cell, value) for cell, value in table.items()]
+                cells += [
+                    (kind, layer, cell, _table_value(kind, value))
+                    for cell, value in table.items()
+                ]
     else:
         for net in nets:
             for kind, layer, cell in set(mirror.entries.get(net, ())) | set(
                 tables.entries.get(net, ())
             ):
                 value = getattr(tables, kind).get(layer, {}).get(cell)
-                cells.append((kind, layer, cell, value))
+                cells.append((kind, layer, cell, _table_value(kind, value)))
     entries = [(net, list(tables.entries.get(net, ()))) for net in nets]
     pins = [(net, list(tables.pins.get(net, ()))) for net in nets]
     if everything:

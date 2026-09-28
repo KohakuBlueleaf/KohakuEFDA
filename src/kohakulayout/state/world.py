@@ -19,20 +19,21 @@ from kohakulayout.ir import (
     Wire,
 )
 from kohakulayout.ir.base import digest_of_text
-from kohakulayout.ir.geometry import ROTATIONS, XY, footprint_cells
+from kohakulayout.ir.geometry import XY, footprint_cells
 from kohakulayout.physics.fields import reach_cells
 from kohakulayout.physics.protocol import Anchor, Occupant, UnitPlacement
 from kohakulayout.state.attach import AttachMixin, Tables
-from kohakulayout.state.chain import cover, displaceable, inspect, port_shut, recover
+from kohakulayout.state.chain import displaceable, port_shut
 from kohakulayout.state.forms import freeze, load
 from kohakulayout.state.kernel import Kernel, ShareTable, holder_kind, make_kernel
-from kohakulayout.state.router.native_route import native_admits, native_attempt
+from kohakulayout.state.placing import PlacingMixin
+from kohakulayout.state.router.native_route import native_admits
 from kohakulayout.state.snapshot import Token
 from kohakulayout.state.transaction import Transaction
 from kohakulayout.state.wiring import WiringMixin
 
 
-class World(AttachMixin, WiringMixin):
+class World(AttachMixin, WiringMixin, PlacingMixin):
     def __init__(
         self,
         problem: Any,
@@ -128,14 +129,12 @@ class World(AttachMixin, WiringMixin):
         return Occupant(kind="cell", id=ref)
 
     def may_occupy(self, layer: str, xy: XY, occupant: Occupant) -> str | None:
-        """The holder that forbids ``occupant`` on the cell, or None when it may enter."""
+        """The holder that forbids ``occupant`` on the cell, or None when it may enter; a reservation of a carrier admits that carrier's wires and every unit (a crossing or junction of one carrier stands where another's wires run, a field's emitter stands until a wire displaces it); a reservation without a carrier admits nothing."""
         for holder in self.kernel.holders_at(layer, xy):
             other = self.occupant_of(holder)
             if other.kind == "reserve":
-                if (
-                    occupant.kind == "wire"
-                    and other.carrier is not None
-                    and other.carrier == occupant.carrier
+                if other.carrier is not None and (
+                    occupant.kind == "unit" or other.carrier == occupant.carrier
                 ):
                     continue
                 return holder
@@ -279,165 +278,11 @@ class World(AttachMixin, WiringMixin):
                 )
             )
 
-    # ---------------------------------------------------------- placement
-    def place(self, cell_id: str, x: int, y: int, rot: int = 0) -> Refusal | None:
-        """Place a leaf cell, route the nets it makes routable and grow the routed ones to its pins, then cover its needs around the wires; refuse and roll back otherwise."""
-        cell = self.netlist.cells.get(cell_id)
-        if cell is None:
-            raise StateError(f"{cell_id!r} is not a leaf cell of the problem")
-        if cell_id in self.placements:
-            raise StateError(f"{cell_id!r} is already placed")
-        fp = self.footprint_of(cell_id)
-        if fp is None:
-            raise StateError(f"{cell_id!r} has no footprint")
-        if rot not in ROTATIONS:
-            raise StateError(f"rotation {rot!r} is not one of {ROTATIONS}")
-        if self.checker is None and self.native_attempts and not self.report_frontier:
-            native = native_attempt(self, cell, fp, x, y, rot)
-            if native is not None:
-                return native
-        pre_digest = self.digest() if self.checker is not None else ""
-        mark = self.mark()
-        result = self._place(cell, fp, x, y, rot)
-        if result is not None:
-            self.rollback_to(mark)
-        if self.checker is not None:
-            self.checker.on_place(
-                self, cell_id, Anchor(x=x, y=y, rot=rot), result, pre_digest
-            )
-        return result
-
-    def _place(
-        self, cell: Any, fp: Footprint, x: int, y: int, rot: int
-    ) -> Refusal | None:
-        cells = footprint_cells(x, y, fp.width, fp.height, rot)
-        layers = self.layers_for(fp)
-        failures, ripped, displaced = inspect(self, cell, fp, x, y, rot, cells, layers)
-        if failures:
-            return self.physics.diagnose(self, tuple(failures))
-        trimmed = [net_id for net_id in ripped if self.trim(net_id, cells)]
-        for net_id in ripped:
-            if net_id not in trimmed:
-                self.unroute(net_id)
-        gone = [self.units[unit_id] for unit_id in displaced]
-        for unit_id in displaced:
-            self.remove_unit(unit_id)
-        self._occupy(layers, cells, f"cell:{cell.id}")
-        placement = Placement(cell=cell.id, x=x, y=y, rot=rot)
-        self.placements[cell.id] = placement
-        self.table_cell(cell.id)
-        self._record(
-            lambda: (self.untable_cell(cell.id), self.placements.pop(cell.id, None))
-        )
-        legal = self.physics.boundaries.legal(self, placement)
-        if legal is not None:
-            return legal
-        if self.router is not None:
-            grown = [*trimmed, *(n.id for n in self.grown_nets(cell.id))]
-            pending = [*ripped, *grown, *(n.id for n in self.ready_nets(cell.id))]
-            together = getattr(self.router, "route_all", None)
-            if together is not None:
-                refusal = together(self, cell.id, pending, set(grown))
-                if refusal is not None:
-                    return refusal
-            else:
-                order = getattr(self.router, "order", None)
-                ordered = (
-                    order(self, cell.id, pending, set(grown))
-                    if order is not None
-                    else sorted(dict.fromkeys(pending), key=self.span, reverse=True)
-                )
-                for net_id in ordered:
-                    refusal = self.route(net_id, grow=net_id in grown)
-                    if refusal is not None:
-                        return refusal
-        refusal = cover(self, cell, cells)
-        if refusal is not None:
-            return refusal
-        if displaced:
-            return recover(self, gone)
-        return None
-
-    def span(self, net_id: str) -> int:
-        """How far a net's terminals lie apart: the widest Manhattan distance between any two of its placed attach cells."""
-        cells = [
-            xy
-            for ref in self.netlist.nets[net_id].pins()
-            if (xy := self.attach_cell(ref.cell, ref.pin)) is not None
-        ]
-        return max(
-            (abs(a[0] - b[0]) + abs(a[1] - b[1]) for a in cells for b in cells),
-            default=0,
-        )
-
-    def place_instance(
-        self, instance_id: str, x: int, y: int, rot: int = 0
-    ) -> Refusal | None:
-        """Place every leaf of an instance where its macro's fragment puts it; refuse as one."""
-        source = self.problem.netlist
-        cell = source.cells.get(instance_id)
-        if cell is None or not cell.is_instance:
-            raise StateError(f"{instance_id!r} is not an instance of the problem")
-        anchor = Placement(cell=instance_id, x=x, y=y, rot=rot)
-        flat = Layout(instances={instance_id: anchor}).flatten(source)
-        mark = self.mark()
-        for leaf_id, leaf in sorted(flat.placements.items()):
-            refusal = self.place(leaf_id, leaf.x, leaf.y, leaf.rot)
-            if refusal is not None:
-                self.rollback_to(mark)
-                return refusal
-            self.membership[leaf_id] = instance_id
-            self._record(lambda leaf_id=leaf_id: self.membership.pop(leaf_id, None))
-        for wire in flat.wires.values():
-            if wire.net not in self.wires:
-                self.set_wire(wire)
-        previous = self.instance_anchors.get(instance_id)
-        self.instance_anchors[instance_id] = anchor
-        self._record(lambda: self._restore_anchor(instance_id, previous))
-        return None
-
-    def _restore_anchor(self, instance_id: str, previous: Placement | None) -> None:
-        self._tables = None
-        if previous is None:
-            self.instance_anchors.pop(instance_id, None)
-        else:
-            self.instance_anchors[instance_id] = previous
-
-    def withdraw(self, cell_id: str) -> None:
-        placement = self.placements.get(cell_id)
-        fp = self.footprint_of(cell_id)
-        if placement is None or fp is None:
-            raise StateError(f"{cell_id!r} is not placed")
-        for net in self.nets_of(cell_id):
-            if net.id in self.wires:
-                self.unroute(net.id)
-        cells = footprint_cells(
-            placement.x, placement.y, fp.width, fp.height, placement.rot
-        )
-        self._free(self.layers_for(fp), cells, f"cell:{cell_id}")
-        self.untable_cell(cell_id)
-        del self.placements[cell_id]
-        self._record(
-            lambda: (
-                self.placements.__setitem__(cell_id, placement),
-                self.table_cell(cell_id),
-            )
-        )
-        if cell_id in self.membership:
-            instance = self.membership.pop(cell_id)
-            self._record(lambda: self.membership.__setitem__(cell_id, instance))
-            if instance not in self.membership.values():
-                anchor = self.instance_anchors.pop(instance, None)
-                if anchor is not None:
-                    self._record(
-                        lambda: self.instance_anchors.__setitem__(instance, anchor)
-                    )
-
     # ---------------------------------------------------------------- units
     def place_unit(
         self, spot: UnitPlacement, unit_id: str | None = None
     ) -> Refusal | None:
-        """Hold a unit's cells; only a swept field's emitter may cover another pin's open attach cell."""
+        """Hold a unit's cells; only a swept field's emitter may cover another pin's open attach cell, and none covers an attach cell claimed by an unreached pin of another net."""
         fp = spot.footprint
         cells = footprint_cells(spot.x, spot.y, fp.width, fp.height, spot.rot)
         layers = self.layers_for(fp)
@@ -445,9 +290,13 @@ class World(AttachMixin, WiringMixin):
             return Refusal(
                 stage="region", subject=f"unit:{spot.kind}", detail="leaves the grid"
             )
-        occupant = Occupant(kind="unit", unit_kind=spot.kind)
-        owners = self.open_attach_owners()
         mine = spot.owner.removeprefix("net:")
+        net = self.netlist.nets.get(mine)
+        occupant = Occupant(
+            kind="unit", unit_kind=spot.kind, carrier=net.carrier if net else None
+        )
+        owners = self.open_attach_owners()
+        claims = self.claimed_attach_owners()
         emitter = spot.owner.startswith("field:") and self.physics.fields.sweep(
             spot.kind
         )
@@ -459,6 +308,13 @@ class World(AttachMixin, WiringMixin):
                         stage="port_shut",
                         subject=f"unit:{spot.kind}",
                         detail=f"covers the attach cell {xy} of a pin of {owner}",
+                    )
+                nets = claims.get(layer, {}).get(xy)
+                if nets and mine not in nets and not emitter:
+                    return Refusal(
+                        stage="port_shut",
+                        subject=f"unit:{spot.kind}",
+                        detail=f"covers the attach cell {xy} claimed by {min(nets)}",
                     )
                 blocker = self.may_occupy(layer, xy, occupant)
                 if blocker is not None:

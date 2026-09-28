@@ -11,6 +11,7 @@ from kohakulayout.solvers.structural.representation import register
 
 Structure = dict[str, Any]
 MARGIN = 2
+SHIFTS = (0, 1, -1, 2, -2, 3, -3)
 
 
 def items_of(world: Any) -> list[str]:
@@ -108,24 +109,65 @@ class Rows:
                 )
         return out
 
+    def holds(
+        self, structure: Structure, ctx: Any
+    ) -> dict[str, list[tuple[str, tuple[XY, ...]]]]:
+        """Per item the cells, with their layer, kept free of every wire and unit until the item is placed; none here."""
+        return {}
+
     def decode(self, structure: Structure, builder: Any) -> Refusal | None:
+        """Place the rows' items at their boxes in row order, an item refused shifted along its row by each of ``SHIFTS`` until one lands, each item's holds released as it is placed and the cells it attaches at given up by every later item's holds (two items may attach at one cell between them)."""
         world = builder.world
-        geometry = self.geometry(structure, world_ctx(builder))
-        for row in structure["rows"]:
-            for item in row:
-                if item in builder.placements or item in world.instance_anchors:
-                    continue
-                x, y, _, _ = geometry[item]
-                rot = structure["rot"].get(item, 0)
-                cell = world.problem.netlist.cells[item]
-                refusal = (
-                    builder.place_instance(item, x, y, rot)
+        ctx = world_ctx(builder)
+        geometry = self.geometry(structure, ctx)
+        holds = self.holds(structure, ctx)
+        pending = [
+            i
+            for row in structure["rows"]
+            for i in row
+            if i not in builder.placements and i not in world.instance_anchors
+        ]
+        for item in pending:
+            for index, (layer, cells) in enumerate(holds.get(item, ())):
+                builder.reserve(f"hold:{item}:{index}", layer, cells)
+        for position, item in enumerate(pending):
+            if item in builder.placements or item in world.instance_anchors:
+                continue
+            mine = {c for _, cells in holds.get(item, ()) for c in cells}
+            for index in range(len(holds.get(item, ()))):
+                builder.release(f"hold:{item}:{index}")
+            for later in pending[position + 1 :]:
+                for index, (layer, cells) in enumerate(holds.get(later, ())):
+                    if mine.isdisjoint(cells):
+                        continue
+                    builder.release(f"hold:{later}:{index}")
+                    kept = tuple(c for c in cells if c not in mine)
+                    holds[later][index] = (layer, kept)
+                    if kept:
+                        builder.reserve(f"hold:{later}:{index}", layer, kept)
+            x, y, _, _ = geometry[item]
+            rot = structure["rot"].get(item, 0)
+            cell = world.problem.netlist.cells[item]
+            refusal = None
+            for dx in SHIFTS:
+                mark = builder.mark()
+                found = (
+                    builder.place_instance(item, x + dx, y, rot)
                     if cell.macro is not None
-                    else builder.place(item, Anchor(x=x, y=y, rot=rot))
+                    else builder.place(item, Anchor(x=x + dx, y=y, rot=rot))
                 )
-                if refusal is not None:
-                    return refusal
+                if found is None:
+                    refusal = None
+                    break
+                builder.restore(mark)
+                refusal = refusal or found
+            if refusal is not None:
+                return refusal
         return None
+
+    def variants(self, structure: Structure) -> list[Structure]:
+        """The structures to legalise in order until one lands, the tightest first; the structure itself alone here."""
+        return [structure]
 
     def mutate(self, structure: Structure, rng: random.Random) -> Structure:
         rows = [list(r) for r in structure["rows"]]

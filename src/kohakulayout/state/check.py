@@ -138,13 +138,19 @@ class StateCheck:
                             )
 
     def reservations(self, world: Any) -> None:
+        """A reservation's cells hold only wires of its carrier and units owned by a net of it."""
         for reservation in world.reservations.values():
             for xy in reservation.cells:
                 for holder in world.kernel.holders_at(reservation.layer, xy):
                     kind, ref = holder_kind(holder)
-                    if kind != "wire":
+                    if kind == "wire":
+                        carrier = world.netlist.nets[ref].carrier
+                    elif kind == "unit":
+                        owner = world.units[ref].owner.removeprefix("net:")
+                        net = world.netlist.nets.get(owner)
+                        carrier = net.carrier if net else None
+                    else:
                         continue
-                    carrier = world.netlist.nets[ref].carrier
                     if reservation.carrier is None or carrier != reservation.carrier:
                         self._fail(
                             f"reservation {reservation.tag} is crossed by {holder} ({carrier}) at {xy}"

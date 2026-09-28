@@ -86,7 +86,12 @@ class Floorplan(BaseSolver):
         self.structure = self.rep.initial(ctx, ctx.rng)
         if self.opts["exact"] != "none":
             self.structure = self.packed(ctx, self.structure)
-        assessment = legalize(self.rep, self.structure, ctx)
+        assessment = None
+        for candidate in self.rep.variants(self.structure):
+            assessment = legalize(self.rep, candidate, ctx)
+            if assessment is not None:
+                self.structure = candidate
+                break
         tries = 0
         while assessment is None and tries < self.opts["construct_tries"]:
             candidate = self.rep.mutate(self.structure, ctx.rng)

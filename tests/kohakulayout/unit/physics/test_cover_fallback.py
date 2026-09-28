@@ -15,6 +15,9 @@ class _Board:
     def open_attach_owners(self) -> dict[str, dict[XY, str]]:
         return {"ground": {xy: "pin" for xy in self.attach}}
 
+    def claimed_attach_owners(self) -> dict[str, dict[XY, set[str]]]:
+        return {}
+
     def layers_for(self, fp) -> tuple[str, ...]:
         return ("ground",)
 

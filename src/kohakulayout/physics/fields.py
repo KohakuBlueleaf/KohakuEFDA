@@ -145,12 +145,14 @@ class GreedyCover:
             ),
             key=lambda xy: abs(xy[0] - target_x) + abs(xy[1] - target_y),
         )
-        open_cells = {
-            layer: frozenset(owners)
-            for layer, owners in world.open_attach_owners().items()
-        }
+        layers = world.layers_for(fp)
+        open_cells = world.open_attach_owners()
         shut = frozenset().union(
-            *(open_cells.get(layer, frozenset()) for layer in world.layers_for(fp))
+            *(frozenset(open_cells.get(layer, ())) for layer in layers)
+        )
+        claimed = world.claimed_attach_owners()
+        kept = frozenset().union(
+            *(frozenset(claimed.get(layer, ())) for layer in layers)
         )
         partial = emitter.reach.partial
         forbidden = emitter.overlap == "forbidden"
@@ -165,6 +167,8 @@ class GreedyCover:
             if forbidden and world.field_coverage(emitter.kind) & reached:
                 continue
             if not all(world.in_build(c) for c in own):
+                continue
+            if any(c in kept for c in own):
                 continue
             if any(c in shut for c in own):
                 fallback = fallback or (x, y)
@@ -201,12 +205,45 @@ def placed_rect(world: Any, cell_id: str, placement: Any) -> Rect:
     )
 
 
-def held_cells(world: Any) -> np.ndarray:
-    """Every held cell on any layer as a boolean grid, rows by columns."""
+def held_cells(world: Any, corridors: bool = False) -> np.ndarray:
+    """Every held cell on any layer as a boolean grid, rows by columns: a cell held by nothing but reservations of a carrier is free unless ``corridors`` holds it too, every open or claimed attach cell of a placed pin is held."""
     layers = world.fabric.layers
     used = world.kernel.occupancy(layers[0]) > 0
     for layer in layers[1:]:
         used |= world.kernel.occupancy(layer) > 0
+    height, width = used.shape
+
+    def mark(grid: np.ndarray, cells: Any) -> None:
+        xs = [x for x, y in cells if 0 <= x < width and 0 <= y < height]
+        ys = [y for x, y in cells if 0 <= x < width and 0 <= y < height]
+        grid[ys, xs] = True
+
+    corridor = np.zeros_like(used)
+    other = np.zeros_like(used)
+    for reservation in world.reservations.values():
+        mark(corridor if reservation.carrier else other, reservation.cells)
+    if corridor.any():
+        for cell_id, placement in world.placements.items():
+            fp = world.footprint_of(cell_id)
+            if fp is not None:
+                mark(
+                    other,
+                    footprint_cells(
+                        placement.x, placement.y, fp.width, fp.height, placement.rot
+                    ),
+                )
+        for wire in world.wires.values():
+            for segment in wire.segments:
+                mark(other, segment.cells)
+        for unit in world.units.values():
+            fp = world.library[unit.footprint]
+            mark(other, footprint_cells(unit.x, unit.y, fp.width, fp.height, 0))
+        used = (used & ~corridor) | other
+    if corridors:
+        used |= corridor
+    for tables in (world.open_attach_owners(), world.claimed_attach_owners()):
+        for cells in tables.values():
+            mark(used, list(cells))
     return used
 
 
@@ -234,7 +271,7 @@ class SquareSweep:
 
     The cells needing the kind, in row order, join the first group whose windows still share
     a free square, else open one; each group gets one emitter on its window's first free
-    square inside ``region``.
+    square inside ``region``, off the corridors while any square off them is free.
     """
 
     def __init__(
@@ -266,7 +303,8 @@ class SquareSweep:
         if self.kind not in needs:
             return ()
         area = region_rect(world, self.region)
-        used = held_cells(world)
+        used = held_cells(world, corridors=True)
+        loose = held_cells(world)
         fields = world.physics.fields
         rects = sorted(
             (
@@ -289,19 +327,24 @@ class SquareSweep:
                 if (
                     merged[0] < merged[2]
                     and merged[1] < merged[3]
-                    and free_anchor(merged, used, self.size) is not None
+                    and free_anchor(merged, loose, self.size) is not None
                 ):
                     groups[index] = merged
                     break
             else:
-                if free_anchor(window, used, self.size) is not None:
+                if free_anchor(window, loose, self.size) is not None:
                     groups.append(window)
         out: list[UnitPlacement] = []
         for window in groups:
             spot = free_anchor(window, used, self.size)
             if spot is None:
+                spot = free_anchor(window, loose, self.size)
+            if spot is None:
                 continue
-            used[spot[1] : spot[1] + self.size, spot[0] : spot[0] + self.size] = True
+            for grid in (used, loose):
+                grid[spot[1] : spot[1] + self.size, spot[0] : spot[0] + self.size] = (
+                    True
+                )
             out.append(
                 UnitPlacement(
                     kind=self.kind,

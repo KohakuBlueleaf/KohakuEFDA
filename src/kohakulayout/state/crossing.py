@@ -72,22 +72,34 @@ def unit_allowed(world: Any, unit: Footprint, xy: XY) -> bool:
 def occluded_free(
     world: Any, unit: Footprint, xy: XY, ignore: frozenset[str] = frozenset()
 ) -> bool:
-    """Whether the layers a unit at ``xy`` occludes are free there, the holders in ``ignore`` (units a path displaces) not counted; its own layer holds the wires it crosses."""
+    """Whether the layers a unit at ``xy`` occludes are free there, the holders in ``ignore`` (units a path displaces) and the reservations that admit a net's unit not counted; its own layer holds the wires it crosses."""
     cells = footprint_cells(xy[0], xy[1], unit.width, unit.height, 0)
     if not all(world.in_grid(c) for c in cells):
         return False
-    if not ignore:
-        return all(world.kernel.free_for(layer, cells) for layer in unit.occludes)
+    if not ignore and all(
+        world.kernel.free_for(layer, cells) for layer in unit.occludes
+    ):
+        return True
     return all(
-        h in ignore
+        h in ignore or admits_units(world, h)
         for layer in unit.occludes
         for c in cells
         for h in world.kernel.holders_at(layer, c)
     )
 
 
-def only_wires(holders: tuple[str, ...]) -> bool:
-    return all(holder_kind(h)[0] == "wire" for h in holders)
+def admits_units(world: Any, holder: str) -> bool:
+    """Whether a holder is a reservation of a carrier, which admits any net's unit."""
+    kind, ref = holder_kind(holder)
+    if kind != "reserve":
+        return False
+    reservation = world.reservations.get(ref)
+    return reservation is not None and reservation.carrier is not None
+
+
+def only_wires(world: Any, holders: tuple[str, ...]) -> bool:
+    """Whether a cell holds nothing but wires and reservations that admit a net's unit."""
+    return all(holder_kind(h)[0] == "wire" or admits_units(world, h) for h in holders)
 
 
 def crossable(world: Any, layer: str, carrier: str, other_net: str, xy: XY) -> bool:
@@ -106,7 +118,7 @@ def crossable(world: Any, layer: str, carrier: str, other_net: str, xy: XY) -> b
         return True
     return (
         rule.unit is not None
-        and only_wires(world.kernel.holders_at(layer, xy))
+        and only_wires(world, world.kernel.holders_at(layer, xy))
         and unit_allowed(world, rule.unit, xy)
         and occluded_free(world, rule.unit, xy)
     )
@@ -115,6 +127,7 @@ def crossable(world: Any, layer: str, carrier: str, other_net: str, xy: XY) -> b
 __all__ = [
     "AXES",
     "SIDES",
+    "admits_units",
     "crossable",
     "occluded_free",
     "only_wires",
