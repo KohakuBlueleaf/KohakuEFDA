@@ -6,17 +6,19 @@ from pathlib import Path
 
 from kohakuefda.model.base import EfdaModel
 from kohakuefda.model.plan import Finding
+from kohakuefda.verify.complexity import Complexity
 
 log = logging.getLogger(__name__)
 
 
 class Report(EfdaModel):
-    """Findings with a verdict; ``ok`` means no error-severity finding."""
+    """Findings with a verdict (``ok`` means no error-severity finding) and, over a layout, its build complexity."""
 
     schema_version: int = 1
     subject: str
     dataset_version: str
     findings: list[Finding] = []
+    complexity: Complexity | None = None
 
     @property
     def ok(self) -> bool:

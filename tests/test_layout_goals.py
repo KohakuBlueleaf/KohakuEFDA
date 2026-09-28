@@ -119,12 +119,14 @@ def test_fluids_come_from_outside_and_everything_stays_inside(
     placement, layout = placed
     x0, y0, x1, y1 = layout.area_rect
     assert (x1 - x0, y1 - y0) == placement.square
-    assert {e.item_id for e in layout.entries} == {
+    assert layout.entries == []
+    outlets = [m for m in layout.machines if m.machine_id.startswith("udpipe_unloader")]
+    assert {m.config["item"] for m in outlets if m.config.get("item")} == {
         "item_liquid_water",
         "item_liquid_acid",
     }
-    for entry in layout.entries:
-        assert entry.x == x0 or entry.y == y0
+    linked = {k.outlet for k in layout.links}
+    assert all(m.config.get("item") or m.id in linked for m in outlets)
     for machine in layout.machines:
         assert _covers(layout.area_rect, _rect(dataset, machine)), machine.id
     for segment in layout.belts():

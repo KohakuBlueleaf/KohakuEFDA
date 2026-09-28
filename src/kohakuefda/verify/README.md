@@ -10,7 +10,8 @@ the CLI renders it.
 
 | File                | Description                                                                 |
 | ------------------- | --------------------------------------------------------------------------- |
-| `report.py`         | `Report`: findings, verdict, save/load                                      |
+| `report.py`         | `Report`: findings, verdict, the layout's `complexity`, save/load           |
+| `complexity.py`     | `complexity(layout)` → `Complexity`: belt and pipe cells, bends, splitters, convergers, bridges, pipe junctions, kinds, the straight-run share, unit types and copies; `complexity_text` for one line |
 | `layout.py`         | `check_layout(dataset, layout)`: the reverse translation loaded into a world, the framework runner's findings with the project's ids put back |
 | `evaluate.py`       | `evaluate(dataset, layout)`: the reverse translation under the framework's routed evaluator and the pack's flow hooks, read back as the project's `Evaluation` (rates per segment and direct link, utilisation and stall per machine) |
 | `rules/rates.py`    | `rate_findings` over an evaluation: convergence, crafters below utilisation 1, idle sources |

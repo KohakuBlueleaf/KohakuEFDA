@@ -8,6 +8,7 @@ Automation-Core (PLC-05, DEP-03), conduit links (DEP-16), and wiring that branch
 merges only through junction units and ends only at pins (LOG-07).
 """
 
+import re
 from collections.abc import Iterable
 from typing import Any
 
@@ -252,13 +253,31 @@ def conduit(world: Any, layout: Layout, metrics: dict[str, Any]) -> Iterable[Fin
             )
 
 
+def _families(net_id: str) -> set[str]:
+    """The project nets a framework net's pieces came from: each joined name without its piece index."""
+    return {re.sub(r"_p\d+$", "", part) for part in net_id.split("__")}
+
+
 def wiring(world: Any, layout: Layout, metrics: dict[str, Any]) -> Iterable[Finding]:
-    """Along its segments a wire branches or merges only on a junction unit, ends only on a pin's attach cell or a unit, and visits a cell once (LOG-07)."""
+    """Along its segments a wire branches or merges only on a junction unit, ends only on a pin's attach cell or a unit (a unit beside a cell continues it, a sibling wire's of the same item too: the lanes of one item merge on one converger), and visits a cell once (LOG-07)."""
     netlist = world.netlist
+    family: dict[str, set[tuple[int, int]]] = {}
+    for net_id, wire in layout.wires.items():
+        if net_id not in netlist.nets:
+            continue
+        for name in _families(net_id):
+            family.setdefault(name, set()).update(
+                (layout.units[u].x, layout.units[u].y)
+                for u in wire.units
+                if u in layout.units
+            )
     for net_id, wire in layout.wires.items():
         net = netlist.nets.get(net_id)
         if net is None:
             continue
+        siblings: set[tuple[int, int]] = set()
+        for name in _families(net_id):
+            siblings |= family.get(name, set())
         links: dict[tuple[int, int], set[tuple[int, int]]] = {}
         visits: dict[tuple[int, int], int] = {}
         for segment in wire.segments:
@@ -300,11 +319,17 @@ def wiring(world: Any, layout: Layout, metrics: dict[str, Any]) -> Iterable[Find
                     f"{net_id} merges or splits at the port cell {xy}",
                 )
             elif xy not in attach and len(near) < 2:
-                yield _finding(
-                    "endfield.wiring",
-                    f"net:{net_id}",
-                    f"{net_id} ends at {xy} on no port",
-                )
+                beside = [
+                    u
+                    for u in units | siblings
+                    if abs(u[0] - xy[0]) + abs(u[1] - xy[1]) == 1
+                ]
+                if len(near) + len(beside) < 2:
+                    yield _finding(
+                        "endfield.wiring",
+                        f"net:{net_id}",
+                        f"{net_id} ends at {xy} on no port",
+                    )
 
 
 RULES = (

@@ -37,6 +37,7 @@ BRICK_SEAT_MIDDLE: bool = True
 BUS_ROOM = 2
 SEAT = "seat"
 CLUSTER = "cluster"
+RIM = "rim"
 OPPOSITE = {"N": "S", "S": "N", "E": "W", "W": "E"}
 
 
@@ -156,6 +157,43 @@ def edge_anchors(world: Any, cell: Cell) -> Iterable[tuple[int, int, int]]:
         else:
             y = y0 if border == "N" else y1 - rh
             for x in range(x0, x1 - rw + 1):
+                yield (x, y, rot)
+
+
+def rim_anchors(world: Any, cell: Cell) -> Iterable[tuple[int, int, int]]:
+    """Anchors of a unit's cell against the build area's border: each rim (``side:pin`` in the
+    constraint's facts) has that pin's first port facing out through that side, the footprint
+    touching it, so a macro port lands on the unit's edge."""
+    fp = world.footprint_of(cell.id)
+    rims = [str(r).split(":") for r in facts(cell).get("rims", ())]
+    if fp is None or not rims:
+        return
+    x0, y0, x1, y1 = area_rect(world.fabric)
+    pins = {p.id: p for p in world.netlist.pins_of(cell.id)}
+    sides: list[tuple[str, str]] = []
+    for border, pin_id in rims:
+        pin = pins.get(pin_id)
+        port = fp.port(pin.ports[0]) if pin is not None and pin.ports else None
+        if port is None:
+            return
+        sides.append((border, port.side))
+    for rot in fp.rotations:
+        if any(rotate_side(side, rot) != border for border, side in sides):
+            continue
+        rw, rh = rotate_size(fp.width, fp.height, rot)
+        xs = range(x0, x1 - rw + 1)
+        ys = range(y0, y1 - rh + 1)
+        borders = {border for border, _ in sides}
+        if "W" in borders:
+            xs = range(x0, x0 + 1)
+        if "E" in borders:
+            xs = range(x1 - rw, x1 - rw + 1)
+        if "N" in borders:
+            ys = range(y0, y0 + 1)
+        if "S" in borders:
+            ys = range(y1 - rh, y1 - rh + 1)
+        for y in ys:
+            for x in xs:
                 yield (x, y, rot)
 
 
@@ -408,6 +446,8 @@ class EndfieldBoundaries(DefaultBoundaries):
             return edge_anchors(world, cell)
         if kind == "slot":
             return slot_anchors(world, cell)
+        if kind == RIM:
+            return rim_anchors(world, cell)
         if kind in (SEAT, CLUSTER) or cell.group == BUS_GROUP:
             return bus_anchors(world, cell, area)
         if kind == ZONE_KIND or (cell.group or "").startswith(ZONE_KIND):
@@ -444,6 +484,10 @@ class EndfieldBoundaries(DefaultBoundaries):
             return "an outside input stands on the border with its pipe leaving inward"
         if kind == "slot" and anchor not in set(slot_anchors(world, cell)):
             return "a Valley IV brick stands on a slot of the fixed bus"
+        if kind == RIM and anchor not in set(rim_anchors(world, cell)):
+            return (
+                "a unit's port cell stands on the unit's edge with its port facing out"
+            )
         if cell.group == BUS_GROUP:
             return self.bus_fault(world, cell, placement, rect)
         if cell.group is not None and cell.group.startswith(ZONE_KIND):
@@ -523,6 +567,7 @@ __all__ = [
     "BUS_PORT",
     "CLUSTER",
     "PART_KIND",
+    "RIM",
     "SEAT",
     "ZONE_KIND",
     "ZONE_REACH",
@@ -532,6 +577,7 @@ __all__ = [
     "inside",
     "overlaps",
     "rect_of",
+    "rim_anchors",
     "seated",
     "slot_anchors",
     "touching",
