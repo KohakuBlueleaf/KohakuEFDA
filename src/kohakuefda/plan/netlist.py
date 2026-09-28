@@ -11,6 +11,7 @@ from kohakuefda.model.rates import lanes_needed
 from kohakuefda.model.scenario import Scenario
 from kohakuefda.plan.depot import io_budget, via_depot_ok
 from kohakuefda.plan.machines import instantiate
+from kohakuefda.plan.units import assign_units, extract
 
 log = logging.getLogger(__name__)
 BRICK_KINDS = ("unloader", "loader")
@@ -26,22 +27,39 @@ def _refs(pins: list[tuple[CellInstance, Pin]], planned: Fraction) -> list[PinRe
 def build_nets(
     dataset: Dataset, plan: Plan, cells: list[CellInstance]
 ) -> list[NetSpec]:
-    by_item: dict[str, dict[str, list[tuple[CellInstance, Pin]]]] = {}
+    """One net per item, and one per ``Pin.net`` key of an item, named by the item and the
+    key alone so the names hold across runs; keyed nets share the item's planned flow in
+    proportion to their own pins' rates."""
+    by_key: dict[tuple[str, str | None], dict[str, list[tuple[CellInstance, Pin]]]] = {}
     for cell in cells:
         for pin in cell.pins:
-            by_item.setdefault(pin.item_id, {"in": [], "out": []})[
+            by_key.setdefault((pin.item_id, pin.net), {"in": [], "out": []})[
                 pin.direction
             ].append((cell, pin))
+    own = {
+        key: min(
+            sum((p.rate for _, p in ends["in"]), Fraction(0)),
+            sum((p.rate for _, p in ends["out"]), Fraction(0)),
+        )
+        for key, ends in by_key.items()
+    }
+    keyed: dict[str, Fraction] = {}
+    for (item_id, key), flow in own.items():
+        if key is not None:
+            keyed[item_id] = keyed.get(item_id, Fraction(0)) + flow
     nets: list[NetSpec] = []
-    for index, (item_id, ends) in enumerate(by_item.items()):
+    for (item_id, key), ends in by_key.items():
         balance = plan.items.get(item_id)
         planned = balance.produced + balance.supplied if balance else Fraction(0)
         nominal = sum((p.rate for _, p in ends["in"]), Fraction(0))
-        if ends["out"] and all(c.kind == "entry" for c, _ in ends["out"]):
-            planned = min(nominal, sum((p.rate for _, p in ends["out"]), Fraction(0)))
+        if item_id in keyed:
+            share = min(1, planned / keyed[item_id]) if keyed[item_id] > 0 else 0
+            planned = own[item_id, key] * share if key is not None else Fraction(0)
+        elif ends["out"] and all(c.kind == "entry" for c, _ in ends["out"]):
+            planned = own[item_id, key]
         capacity = lane_capacity(dataset, item_id)
         net = NetSpec(
-            id=f"n{index}_{item_id}",
+            id=f"n_{item_id}" + (f"_{key}" if key else ""),
             item_id=item_id,
             kind="pipe" if dataset.items[item_id].phase.is_fluid else "belt",
             rate=planned,
@@ -158,7 +176,9 @@ def netlist_findings(
 
 
 def build_netlist(dataset: Dataset, scenario: Scenario, plan: Plan) -> Netlist:
-    cells = instantiate(dataset, scenario, plan)
+    hierarchy = extract(dataset, plan)
+    cells, links = instantiate(dataset, scenario, plan, hierarchy)
+    assign_units(hierarchy, cells)
     nets = build_nets(dataset, plan, cells)
     bricks = brick_count(cells)
     log.info(
@@ -173,5 +193,6 @@ def build_netlist(dataset: Dataset, scenario: Scenario, plan: Plan) -> Netlist:
         plan_status=plan.status,
         cells=cells,
         nets=nets,
+        links=links,
         findings=netlist_findings(dataset, scenario, plan, cells, nets),
     )

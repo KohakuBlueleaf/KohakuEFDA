@@ -7,9 +7,15 @@ and the Depot Loaders and Unloaders, all separate cells of the ``bus`` group; in
 bricks bound to the fixed bus's slots. A pin is one lane of one item; its default port is the
 first bound port and its alternatives are every port bound to that item, so placement chooses
 the port. Solid lanes go on bricks with the core parked unused, or on the core's depot ports
-first when the scenario says ``depot = "core"`` (game-knowledge DEP-02, DEP-06). Fluids arrive
+first when the scenario says ``depot = "core"`` (game-knowledge DEP-02, DEP-06); output lanes
+end in Protocol Stashes, which forward to the depot remotely (DEP-14, DEP-21). Fluids arrive
 by pipe from outside (RES-09): an ``entry`` cell is one border cell with a pipe lane leaving it
-inward at the pipe's rate.
+inward at the pipe's rate. Liquids ride conduits (DEP-16, DEP-20): a branching source pin
+feeds a Conduit Inlet of its own, every consumer pin is fed by a Conduit Outlet beside it, and
+the netlist links each outlet to the inlet that serves it; a liquid drawn from the world comes
+out of outlets whose inlet stands at the pump outside the area, so it has no entry at all.
+Under ``DIRECT_PIPES`` (off until the lines lay it) liquids are piped machine to machine as
+the community's lines do (LOG-02), the world still feeding through outlets.
 """
 
 import logging
@@ -29,20 +35,23 @@ from kohakuefda.model.cells import (
 from kohakuefda.model.dataset import Dataset
 from kohakuefda.model.geometry import Edge
 from kohakuefda.model.items import Phase
-from kohakuefda.model.layout import Placed
+from kohakuefda.model.layout import Link, Placed
 from kohakuefda.model.machines import Machine, Port, PortDir, PortType
 from kohakuefda.model.plan import Plan
 from kohakuefda.model.rates import lanes_needed
 from kohakuefda.model.recipes import Recipe
 from kohakuefda.model.scenario import Scenario
 from kohakuefda.model.sinks import ZONE_GAS_PER_MIN, ZONE_MACHINE
+from kohakuefda.model.units import Hierarchy
 from kohakuefda.plan.depot import (
     BUS_PORT,
     BUS_SECTION,
     io_budget,
     laid_limits,
+    line_sections,
     sections_needed,
 )
+from kohakuefda.plan.units import unit_name
 from kohakuefda.plan.zones import assign_zones
 
 log = logging.getLogger(__name__)
@@ -50,7 +59,12 @@ CORE = "sp_hub_1"
 ENTRY = "entry"
 UNLOADER = "unloader_1"
 LOADER = "loader_1"
+STASH = "storager_1"
+INLET = "udpipe_loader_1"
+OUTLET = "udpipe_unloader_1"
+DIRECT_PIPES = False
 DUMP_PREFIX = "dump:"
+BUS_SHAPE = "line"
 Lane = tuple[str, Fraction]
 
 
@@ -217,6 +231,7 @@ def single_pin(
     item_id: str,
     rate: Fraction,
     pin_id: str,
+    net: str | None = None,
 ) -> Pin:
     """A pin on the machine's first port of the kind, every such port as an alternative."""
     ports = machine.ports_of(direction, port_type)
@@ -230,6 +245,7 @@ def single_pin(
         cell=(first.x, first.y),
         edge=first.edge,
         alternatives=[_ref(p) for p in ports],
+        net=net,
     )
 
 
@@ -356,6 +372,70 @@ def brick_cell(
     )
 
 
+def stash_cell(
+    dataset: Dataset, cell_id: str, item_id: str, rate: Fraction
+) -> CellInstance:
+    """A Protocol Stash taking one belt lane of an output on any of its input ports (DEP-21)."""
+    machine = dataset.machines[STASH]
+    pin = single_pin(
+        machine, PortDir.IN, PortType.BELT, item_id, rate, f"in:{item_id}:0"
+    )
+    return single_cell(dataset, cell_id, "stash", STASH, [pin])
+
+
+def conduit_cell(
+    dataset: Dataset,
+    cell_id: str,
+    kind: CellKind,
+    item_id: str,
+    rate: Fraction,
+    net: str,
+    config: dict[str, str] | None = None,
+) -> CellInstance:
+    """A Conduit Inlet (pipe in) or Outlet (pipe out) whose lane is on the net ``net``; an
+    outlet fed from outside the area names its item in ``config`` (DEP-20)."""
+    inlet = kind == "inlet"
+    machine_id = INLET if inlet else OUTLET
+    direction = PortDir.IN if inlet else PortDir.OUT
+    pin = single_pin(
+        dataset.machines[machine_id],
+        direction,
+        PortType.PIPE,
+        item_id,
+        rate,
+        f"{direction.value}:{item_id}:0",
+        net,
+    )
+    return single_cell(dataset, cell_id, kind, machine_id, [pin], config=config)
+
+
+def feeders(
+    room: list[Fraction], demands: list[Fraction]
+) -> list[list[tuple[int, Fraction]]]:
+    """Best fit of each demand (largest first) into the room of the feeder with the least that
+    holds it whole, else split over feeders in order; per demand its (feeder, rate) shares.
+    """
+    left = list(room)
+    out: list[list[tuple[int, Fraction]]] = [[] for _ in demands]
+    for index in sorted(range(len(demands)), key=lambda i: -demands[i]):
+        demand = demands[index]
+        holders = [i for i, r in enumerate(left) if r >= demand]
+        if holders:
+            best = min(holders, key=lambda i: left[i])
+            out[index].append((best, demand))
+            left[best] -= demand
+            continue
+        for i, r in enumerate(left):
+            take = min(r, demand)
+            if take > 0:
+                out[index].append((i, take))
+                left[i] -= take
+                demand -= take
+            if demand <= 0:
+                break
+    return out
+
+
 def bus_part(dataset: Dataset, cell_id: str, machine_id: str) -> CellInstance:
     """A Depot Bus Port or Section: no lanes, a member of the bus group."""
     return single_cell(dataset, cell_id, "depot", machine_id, [], group=BUS_GROUP)
@@ -401,20 +481,33 @@ def supply_lanes(
 class CellFactory:
     """Hands out cell ids and builds cells for one plan."""
 
-    def __init__(self, dataset: Dataset, scenario: Scenario) -> None:
+    def __init__(
+        self, dataset: Dataset, scenario: Scenario, hierarchy: Hierarchy | None = None
+    ) -> None:
         self.dataset = dataset
         self.scenario = scenario
         self.cells: list[CellInstance] = []
+        self.links: list[Link] = []
+        self.units: dict[str, tuple[str, int]] = {}
+        for tile in hierarchy.tiles if hierarchy is not None else ():
+            top = hierarchy.root(tile.id)
+            for recipe_id in tile.recipes:
+                self.units[recipe_id] = (top, hierarchy.tile(top).copies)
 
     def _next_id(self, stem: str) -> str:
         return f"c{len(self.cells)}_{stem}"
 
     def recipe_machines(self, recipe_id: str, machines: int) -> None:
+        """The recipe's cells in order, each named for its repeat unit and copy: the run of
+        cells cut into as many equal parts as the unit has copies."""
         recipe = self.dataset.recipes[recipe_id]
-        for _ in range(machines):
-            self.cells.append(
-                recipe_cell(self.dataset, self._next_id(recipe.machine_id), recipe)
-            )
+        top, copies = self.units.get(recipe_id, ("", 1))
+        run = max(1, machines // copies)
+        for index in range(machines):
+            cell = recipe_cell(self.dataset, self._next_id(recipe.machine_id), recipe)
+            if top:
+                cell.unit = unit_name(top, index // run)
+            self.cells.append(cell)
 
     def zones(self, env: str, count: int) -> int:
         """Zone units for ``env``: the planned ``count`` or more, each heading the group of
@@ -447,6 +540,130 @@ class CellFactory:
         for lane in supply_lanes(self.cells, item_id, rate, capacity):
             self.cells.append(entry_cell(self._next_id("entry"), item_id, lane))
 
+    def stashes(self, item_id: str, rate: Fraction) -> None:
+        """One Protocol Stash per belt lane of an output at ``rate``."""
+        for lane in _lanes(rate, self.dataset.constants.belt_per_min):
+            self.cells.append(
+                stash_cell(self.dataset, self._next_id("stash"), item_id, lane)
+            )
+
+    def conduits(self, item_id: str, outside: Fraction = Fraction(0)) -> None:
+        """Conduits for a liquid already pinned, ``outside`` of it drawn from the world: with
+        the fuller side's pin rates scaled down to the other's, each consumer pin is fed by
+        the source with the least room that holds its demand whole, else by the world alone
+        when it supplies the item and by several sources otherwise; a source that feeds
+        more than one consumer gets a Conduit Inlet, and each consumer it feeds a Conduit
+        Outlet linked to it; the world feeds through outlets naming the item and linked to
+        nothing; any other source pipes to its one consumer when both stand in the same unit
+        copy, else it too gets an inlet. Every consumer's feeders share a net keyed to that
+        consumer, so every copy of a unit is fed the same way."""
+        sources = [
+            (c, p)
+            for c in self.cells
+            for p in c.pins
+            if p.item_id == item_id and p.direction == "out" and p.rate > 0
+        ]
+        sinks = [
+            (c, p)
+            for c in self.cells
+            for p in c.pins
+            if p.item_id == item_id and p.direction == "in" and p.rate > 0
+        ]
+        rooms = [p.rate for _, p in sources] + ([outside] if outside > 0 else [])
+        if not rooms or not sinks:
+            return
+        supply = sum(rooms, Fraction(0))
+        demand = sum((p.rate for _, p in sinks), Fraction(0))
+        shares = feeders(
+            [r * min(1, demand / supply) for r in rooms],
+            [p.rate * min(1, supply / demand) for _, p in sinks],
+        )
+        if outside > 0:
+            world = len(sources)
+            shares = [
+                [(world, sum(rate for _, rate in share))] if len(share) > 1 else share
+                for share in shares
+            ]
+        if DIRECT_PIPES:
+            self.pipes(item_id, sources, sinks, shares)
+            return
+        fed: dict[int, set[int]] = {}
+        for sink, share in enumerate(shares):
+            for source, _ in share:
+                fed.setdefault(source, set()).add(sink)
+        inlets: dict[int, CellInstance] = {}
+        for index, (cell, pin) in enumerate(sources):
+            takers = fed.get(index, set())
+            apart = any(sinks[k][0].unit != cell.unit for k in takers)
+            if len(takers) > 1 or apart:
+                inlet = conduit_cell(
+                    self.dataset, self._next_id("inlet"), "inlet", item_id, pin.rate, ""
+                )
+                pin.net = inlet.pins[0].net = inlet.id
+                inlets[index] = inlet
+                self.cells.append(inlet)
+        for (cell, pin), share in zip(sinks, shares):
+            pin.net = f"{cell.id}_{cell.pins.index(pin)}"
+            for source, rate in share:
+                if source < len(sources) and source not in inlets:
+                    sources[source][1].net = pin.net
+                    continue
+                from_world = source == len(sources)
+                outlet = conduit_cell(
+                    self.dataset,
+                    self._next_id("outlet"),
+                    "outlet",
+                    item_id,
+                    rate,
+                    pin.net,
+                    config={"item": item_id} if from_world else None,
+                )
+                self.cells.append(outlet)
+                if not from_world:
+                    self.links.append(Link(inlet=inlets[source].id, outlet=outlet.id))
+
+    def pipes(
+        self,
+        item_id: str,
+        sources: list[tuple[CellInstance, Pin]],
+        sinks: list[tuple[CellInstance, Pin]],
+        shares: list[list[tuple[int, Fraction]]],
+    ) -> None:
+        """Every connected set of sources and consumers of a liquid on one net, piped
+        machine to machine (the synth's pipe trees split and join it); the world feeds a
+        consumer through a Conduit Outlet beside it naming the item (DEP-20)."""
+        parent: dict[tuple[str, int], tuple[str, int]] = {}
+
+        def find(key: tuple[str, int]) -> tuple[str, int]:
+            while parent.setdefault(key, key) != key:
+                key = parent[key]
+            return key
+
+        for sink, share in enumerate(shares):
+            for source, _ in share:
+                if source < len(sources):
+                    parent[find(("s", source))] = find(("k", sink))
+        nets: dict[tuple[str, int], str] = {}
+        for sink, ((cell, pin), share) in enumerate(zip(sinks, shares)):
+            net = nets.setdefault(
+                find(("k", sink)), f"{cell.id}_{cell.pins.index(pin)}"
+            )
+            pin.net = net
+            for source, rate in share:
+                if source < len(sources):
+                    sources[source][1].net = net
+                    continue
+                outlet = conduit_cell(
+                    self.dataset,
+                    self._next_id("outlet"),
+                    "outlet",
+                    item_id,
+                    rate,
+                    net,
+                    config={"item": item_id},
+                )
+                self.cells.append(outlet)
+
     def depot(self, outputs: list[Lane], inputs: list[Lane]) -> None:
         """Solid lanes on the core's ports when the scenario says so; the rest go on bricks,
         with a laid bus's parts in Wuling. The core itself is placed only when the scenario
@@ -475,7 +692,8 @@ class CellFactory:
                 basement.depot, self.scenario.basement.depot_level
             )
             ports = max(1, ports)
-            sections = min(allowed, sections_needed(len(outputs) + len(inputs), ports))
+            wanted = line_sections if BUS_SHAPE == "line" else sections_needed
+            sections = min(allowed, wanted(len(outputs) + len(inputs), ports))
             for _ in range(ports):
                 self.cells.append(
                     bus_part(self.dataset, self._next_id("port"), BUS_PORT)
@@ -521,13 +739,19 @@ def _dump_machines(dataset: Dataset, plan: Plan, machine_id: str) -> dict[str, i
     return out
 
 
-def instantiate(dataset: Dataset, scenario: Scenario, plan: Plan) -> list[CellInstance]:
-    """Every cell the plan needs: machines, zones, dumps, outside inputs, and the depot side.
+def instantiate(
+    dataset: Dataset,
+    scenario: Scenario,
+    plan: Plan,
+    hierarchy: Hierarchy | None = None,
+) -> tuple[list[CellInstance], list[Link]]:
+    """Every cell the plan needs (machines, zones, dumps, outside inputs, conduits, stashes
+    and the depot side) and the conduit links between inlet and outlet cells.
 
     Solid supply lanes are packed by their sinks (one lane feeds each machine whole) when the
     depot's slot budget allows, else they are as few as the rate needs.
     """
-    factory = CellFactory(dataset, scenario)
+    factory = CellFactory(dataset, scenario, hierarchy)
     belt = dataset.constants.belt_per_min
     for use in plan.recipes:
         if use.machines <= 0:
@@ -544,7 +768,7 @@ def instantiate(dataset: Dataset, scenario: Scenario, plan: Plan) -> list[CellIn
         gas_needed[gas] = gas_needed.get(gas, Fraction(0)) + ZONE_GAS_PER_MIN * zones
     packed: list[Lane] = []
     fewest: list[Lane] = []
-    inputs: list[Lane] = []
+    outside: dict[str, Fraction] = {}
     for balance in plan.items.values():
         item = dataset.items[balance.item_id]
         supplied = max(balance.supplied, gas_needed.get(item.id, Fraction(0)))
@@ -553,17 +777,20 @@ def instantiate(dataset: Dataset, scenario: Scenario, plan: Plan) -> list[CellIn
                 lanes = supply_lanes(factory.cells, item.id, supplied, belt)
                 packed += [(item.id, lane) for lane in lanes]
                 fewest += [(item.id, lane) for lane in _lanes(supplied, belt)]
+            elif item.phase is Phase.LIQUID:
+                outside[item.id] = supplied
             else:
                 factory.entries(item.id, supplied)
         to_depot = balance.delivered + (
             balance.sunk if balance.sink_kind == "depot" else Fraction(0)
         )
         if to_depot > 0 and item.phase is Phase.SOLID:
-            inputs += [(item.id, lane) for lane in _lanes(to_depot, belt)]
+            factory.stashes(item.id, to_depot)
+    for item in dataset.items.values():
+        if item.phase is Phase.LIQUID:
+            factory.conduits(item.id, outside.get(item.id, Fraction(0)))
     budget = io_budget(dataset, scenario.basement)
-    outputs = (
-        packed if budget is None or len(packed) + len(inputs) <= budget else fewest
-    )
-    factory.depot(outputs, inputs)
+    outputs = packed if budget is None or len(packed) <= budget else fewest
+    factory.depot(outputs, [])
     log.debug("instantiated %d cell(s) for the plan", len(factory.cells))
-    return factory.cells
+    return factory.cells, factory.links

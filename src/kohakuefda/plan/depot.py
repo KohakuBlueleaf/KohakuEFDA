@@ -16,6 +16,7 @@ from kohakuefda.model.items import Phase
 from kohakuefda.model.scenario import BasementRef
 
 BRICK = 3
+LINE_GAP = 1
 PORT_LENGTH = 4
 SECTION_LENGTH = 8
 BUS_PORT = "log_hongs_bus_source"
@@ -49,6 +50,22 @@ def sections_needed(bricks: int, ports: int = 1) -> int:
     """The fewest sections whose chain with ``ports`` seats ``bricks``."""
     sections = 0
     while chain_capacity(ports, sections) < bricks:
+        sections += 1
+    return sections
+
+
+def line_capacity(ports: int, sections: int) -> int:
+    """Bricks one long side of a straight chain seats with ``LINE_GAP`` cells between
+    neighbours for the gaps and pylon pockets of the row they feed, the end bricks
+    overhanging one cell (DEP-18)."""
+    length = PORT_LENGTH * ports + SECTION_LENGTH * sections
+    return (length + 2 + LINE_GAP) // (BRICK + LINE_GAP) if length else 0
+
+
+def line_sections(bricks: int, ports: int = 1) -> int:
+    """The fewest sections whose line with ``ports`` seats ``bricks`` on one side."""
+    sections = 0
+    while line_capacity(ports, sections) < bricks:
         sections += 1
     return sections
 

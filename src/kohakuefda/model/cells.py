@@ -7,7 +7,7 @@ from typing import Literal
 
 from kohakuefda.model.base import EfdaModel
 from kohakuefda.model.geometry import Edge
-from kohakuefda.model.layout import Cell, Placed
+from kohakuefda.model.layout import Cell, Link, Placed
 from kohakuefda.model.plan import Finding
 from kohakuefda.model.rates import Rate
 from kohakuefda.model.scenario import Scenario
@@ -19,7 +19,10 @@ CellKind = Literal[
     "dump",
     "unloader",
     "loader",
+    "stash",
     "entry",
+    "inlet",
+    "outlet",
     "zone",
     "depot",
     "core",
@@ -41,7 +44,8 @@ class Pin(EfdaModel):
     """One lane of one item crossing the cell boundary.
 
     ``cell`` and ``edge`` are the default port; ``alternatives`` lists every port the lane may
-    use instead, and placement picks one that no other lane of the cell has taken.
+    use instead, and placement picks one that no other lane of the cell has taken. Pins of one
+    item that share a ``net`` key form a net of their own, apart from the item's net.
     """
 
     id: str
@@ -52,6 +56,7 @@ class Pin(EfdaModel):
     cell: Cell
     edge: Edge
     alternatives: list[PortRef] = []
+    net: str | None = None
 
 
 class Fragment(EfdaModel):
@@ -75,6 +80,8 @@ class CellInstance(Fragment):
     it: anywhere inside the Core AIC Area (``free``), on a border cell of the area (``edge``,
     an outside input), on one of the fixed Depot Bus slots (``slot``, Valley IV bricks), or
     anywhere out of the way (``park``, the unused Automation-Core).
+     ``unit`` names the repeat
+    unit and copy the cell belongs to (``<tile>#<copy>``), None for what is built once.
     """
 
     id: str
@@ -85,6 +92,7 @@ class CellInstance(Fragment):
     env: str | None = None
     group: str | None = None
     constraint: Constraint = "free"
+    unit: str | None = None
 
     def pins_of(self, direction: PinDirection) -> list[Pin]:
         return [p for p in self.pins if p.direction == direction]
@@ -124,6 +132,7 @@ class Netlist(EfdaModel):
     plan_status: str
     cells: list[CellInstance] = []
     nets: list[NetSpec] = []
+    links: list[Link] = []
     findings: list[Finding] = []
 
     def save(self, path: Path) -> None:

@@ -10,14 +10,18 @@ import pytest
 
 from kohakuefda.model.cells import Netlist
 from kohakuefda.model.dataset import Dataset
+from kohakuefda.model.items import Phase
 from kohakuefda.model.scenario import Scenario
+from kohakuefda.plan import machines
 from kohakuefda.plan.depot import (
     BUS_PORT,
     BUS_SECTION,
     chain_capacity,
+    line_capacity,
+    line_sections,
     sections_needed,
 )
-from kohakuefda.plan.machines import CORE, lane_groups
+from kohakuefda.plan.machines import CORE, STASH, feeders, lane_groups
 from kohakuefda.plan.netlist import build_netlist
 from kohakuefda.plan.planner import plan
 
@@ -44,12 +48,15 @@ def test_benchmark_netlist_matches_plan(
     assert result.status == "ok", result.findings
     netlist = build_netlist(dataset, scenario, result)
     assert netlist.errors == [], netlist.errors
+    flows: dict[str, Fraction] = {}
     for net in netlist.nets:
-        balance = result.items[net.item_id]
-        assert net.rate == balance.produced + balance.supplied
+        flows[net.item_id] = flows.get(net.item_id, Fraction(0)) + net.rate
         assert sum((r.rate for r in net.sinks), Fraction(0)) == net.rate
         assert sum((r.rate for r in net.sources), Fraction(0)) == net.rate
         assert net.nominal >= net.rate
+    for item_id, flow in flows.items():
+        balance = result.items[item_id]
+        assert flow == balance.produced + balance.supplied, item_id
     for use in result.recipes:
         if use.recipe_id.startswith("dump:"):
             continue
@@ -87,8 +94,8 @@ def test_solids_enter_through_bus_parts_and_bricks_in_wuling(
     assert all(len(c.pins) == 1 and c.pins[0].kind == "belt" for c in bricks)
     assert all(len(c.machines) == 1 for c in parts + bricks)
     sections = sum(1 for c in parts if c.machine_id == BUS_SECTION)
-    assert sections == sections_needed(len(bricks))
-    assert chain_capacity(1, sections) >= len(bricks)
+    assert sections == line_sections(len(bricks))
+    assert line_capacity(1, sections) >= len(bricks)
     assert any(f.rule == "netlist.bus" for f in netlist.findings)
 
 
@@ -98,6 +105,9 @@ def test_chain_capacity_and_lane_packing() -> None:
     assert chain_capacity(0, 0) == 0
     assert sections_needed(4) == 0 and sections_needed(5) == 1
     assert sections_needed(11) == 2 and sections_needed(14) == 2
+    assert line_capacity(1, 0) == 1 and line_capacity(2, 6) == 14
+    assert line_sections(1) == 0 and line_sections(3) == 1 and line_sections(4) == 2
+    assert line_sections(10, 2) == 4
     lanes = lane_groups(
         [Fraction(10), Fraction(10), Fraction(10), Fraction(5)], Fraction(30)
     )
@@ -113,13 +123,13 @@ def test_fluids_enter_at_the_border_and_zones_group_their_machines(
     netlist = build_netlist(dataset, scenario, result)
     entries = [c for c in netlist.cells if c.kind == "entry"]
     assert entries and all(c.constraint == "edge" for c in entries)
-    assert {c.pins[0].item_id for c in entries} == {
-        "item_gas_inert",
-        "item_liquid_water",
-    }
+    assert {c.pins[0].item_id for c in entries} == {"item_gas_inert"}
     assert all(
         c.pins[0].direction == "out" and c.pins[0].kind == "pipe" for c in entries
     )
+    water = [c for c in netlist.cells if c.kind == "outlet"]
+    assert [c.machines[0].config for c in water] == [{"item": "item_liquid_water"}]
+    assert water[0].pins[0].net and netlist.links == []
     assert not any(c.kind == "pump" for c in netlist.cells)
     zones = [c for c in netlist.cells if c.kind == "zone"]
     assert zones and all(z.env == "stable" for z in zones)
@@ -139,6 +149,102 @@ def test_fluids_enter_at_the_border_and_zones_group_their_machines(
     assert gas.rate == 6 * len(zones) and gas.kind == "pipe"
     assert any(f.rule == "netlist.zones" for f in netlist.findings)
     assert any(f.rule == "netlist.entries" for f in netlist.findings)
+
+
+def test_outputs_end_in_stashes_and_liquids_are_piped(
+    dataset: Dataset, fixtures_dir: Path, monkeypatch
+) -> None:
+    monkeypatch.setattr(machines, "DIRECT_PIPES", True)
+    scenario = Scenario.from_toml(fixtures_dir / "scenario_basic.toml")
+    netlist = build_netlist(dataset, scenario, plan(dataset, scenario))
+    cells = {c.id: c for c in netlist.cells}
+    stashes = [c for c in netlist.cells if c.kind == "stash"]
+    assert stashes and not [c for c in netlist.cells if c.kind == "loader"]
+    assert all(
+        c.machine_id == STASH and c.constraint == "free" and len(c.pins) == 1
+        for c in stashes
+    )
+    assert all(
+        p.direction == "in" and p.kind == "belt" for c in stashes for p in c.pins
+    )
+    outlets = [c for c in netlist.cells if c.kind == "outlet"]
+    outside = [c for c in outlets if c.machines[0].config.get("item")]
+    assert outlets and outlets == outside and netlist.links == []
+    assert not [c for c in netlist.cells if c.kind == "entry"]
+    supplied = {i for i, b in plan(dataset, scenario).items.items() if b.supplied > 0}
+    assert {c.pins[0].item_id for c in outside} == {
+        i for i in supplied if dataset.items[i].phase is Phase.LIQUID
+    }
+    assert all(c.machines[0].config == {"item": c.pins[0].item_id} for c in outside)
+    for outlet in outlets:
+        pin = outlet.pins[0]
+        consumers = [
+            (c, p)
+            for c in netlist.cells
+            for p in c.pins
+            if p.direction == "in" and p.net == pin.net
+        ]
+        assert len(consumers) == 1 and consumers[0][0].kind in ("recipe", "dump")
+        assert consumers[0][1].item_id == pin.item_id
+    keyed = [n for n in netlist.nets if n.kind == "pipe"]
+    assert keyed and all(
+        n.sources and n.sinks and n.rate > 0 and n.nominal >= n.rate for n in keyed
+    )
+    purifier_in = next(
+        n
+        for n in keyed
+        if n.item_id == "item_liquid_copper"
+        and any(cells[s.cell_id].kind == "recipe" for s in n.sinks)
+    )
+    assert len(purifier_in.sources) > 1 and len(purifier_in.sinks) == 1
+    assert all(
+        cells[s.cell_id].kind in ("recipe", "outlet") for s in purifier_in.sources
+    )
+    assert not [c for c in netlist.cells if c.kind == "inlet"]
+    assert not [f for f in netlist.findings if f.severity == "error"]
+    assert not any(n.rate > 0 and n.kind == "pipe" and n.trunk_lanes > 1 for n in keyed)
+
+
+def test_liquids_ride_conduits(dataset: Dataset, fixtures_dir: Path) -> None:
+    scenario = Scenario.from_toml(fixtures_dir / "scenario_basic.toml")
+    netlist = build_netlist(dataset, scenario, plan(dataset, scenario))
+    cells = {c.id: c for c in netlist.cells}
+    inlets = [c for c in netlist.cells if c.kind == "inlet"]
+    outlets = [c for c in netlist.cells if c.kind == "outlet"]
+    outside = [c for c in outlets if c.machines[0].config.get("item")]
+    assert outlets and len(netlist.links) == len(outlets) - len(outside)
+    assert {k.inlet for k in netlist.links} == {c.id for c in inlets}
+    assert all(
+        cells[k.inlet].kind == "inlet" and cells[k.outlet].kind == "outlet"
+        for k in netlist.links
+    )
+    keyed = [n for n in netlist.nets if n.kind == "pipe"]
+    purifier_in = next(
+        n
+        for n in keyed
+        if n.item_id == "item_liquid_copper"
+        and any(cells[s.cell_id].kind == "recipe" for s in n.sinks)
+    )
+    assert all(cells[s.cell_id].kind == "outlet" for s in purifier_in.sources)
+
+
+def test_a_fuller_side_is_scaled_so_every_liquid_pin_is_fed(
+    dataset: Dataset, fixtures_dir: Path
+) -> None:
+    scenario = Scenario.from_toml(fixtures_dir / "scenario_wuling_hetonite.toml")
+    netlist = build_netlist(dataset, scenario, plan(dataset, scenario))
+    sewage = [
+        p for c in netlist.cells for p in c.pins if p.item_id == "item_liquid_sewage"
+    ]
+    assert all(p.net for p in sewage if p.rate > 0)
+    assert not [
+        f for f in netlist.findings if f.rule in ("netlist.open", "netlist.short")
+    ]
+    assert feeders([Fraction(30)] * 2, [Fraction(20)] * 3) == [
+        [(0, Fraction(20))],
+        [(1, Fraction(20))],
+        [(0, Fraction(10)), (1, Fraction(10))],
+    ]
 
 
 def test_the_core_is_left_out_unless_the_scenario_asks_for_it(
@@ -181,8 +287,10 @@ def test_valley_bricks_bind_to_bus_slots(dataset: Dataset) -> None:
     assert result.status == "ok", result.findings
     netlist = build_netlist(dataset, scenario, result)
     bricks = [c for c in netlist.cells if c.kind in ("unloader", "loader")]
-    assert len(bricks) == 18 and all(c.constraint == "slot" for c in bricks)
-    assert sum(1 for c in bricks if c.kind == "unloader") == 9
+    assert len(bricks) == 9 and all(c.constraint == "slot" for c in bricks)
+    assert all(c.kind == "unloader" for c in bricks)
+    stashes = [c for c in netlist.cells if c.kind == "stash"]
+    assert len(stashes) == 9 and all(c.constraint == "free" for c in stashes)
     assert not any(c.kind == "depot" for c in netlist.cells)
     assert netlist.errors == []
     wired = build_netlist(

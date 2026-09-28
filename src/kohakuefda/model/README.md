@@ -26,7 +26,8 @@ and saving its own files.
 | `plan.py`      | `Plan` (with `zones`), `RecipeUse`, `ItemBalance`, `Net`, `Cell`, `Finding`, `TargetResult` (with `goal`) |
 | `layout.py`    | `Layout` (grid plus `area`, the Core AIC Area inside it; `area_rect`, `origin`, `entries`), `Placed`, `Unit`, `Segment` (with `heading`, `entry`, `item_id`), `Entry` (an outside input on the border), `Link`, `Rect` |
 | `footprints.py` | `footprint`, `machine_footprint`, `unit_footprint` (the cells a placed machine or unit covers), `inside` |
-| `cells.py`     | `Pin` (with `alternatives`), `Fragment` (one machine), `CellInstance` (with `env`, `group`, `constraint`), `BUS_GROUP`, `PinRef`, `NetSpec`, `Netlist` |
+| `units.py`     | `Tile` (a recipe use with its attached feeders per copy, its copies, its parent, the rim recipes of a top-level tile), `Flow` (an item between top-level tiles or the world), `Hierarchy` (`top`, `root`, `machines`) |
+| `cells.py`     | `Pin` (with `alternatives` and a `net` key), `Fragment` (one machine), `CellInstance` (with `env`, `group`, `constraint`, `unit`), `BUS_GROUP`, `PinRef`, `NetSpec`, `Netlist` (cells, nets, conduit `links`) |
 | `placement.py` | `Placement` (grid, area, gap, pylons, entries, cost terms), `PlacedBlock` (with chosen `ports`): the layout stage's checkpoint |
 | `control.py`   | `Observe` and `Cancelled` callables for long loops, `CancelledError`        |
 
