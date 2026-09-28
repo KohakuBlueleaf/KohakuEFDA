@@ -392,7 +392,17 @@
     "ok": "no errors",
     "errors": "{n} error(s)",
     "warnings": "{n} warning(s)",
-    "notes": "{n} note(s)"
+    "notes": "{n} note(s)",
+    "complexityTitle": "What the layout asks you to build",
+    "complexity": {
+      "belts": "belt cells",
+      "pipes": "pipe cells",
+      "bends": "bends",
+      "junctions": "junctions",
+      "bridges": "bridges",
+      "kinds": "kinds",
+      "straight": "straight"
+    }
   },
   "layout": {
     "heading": "Layout",
@@ -419,6 +429,8 @@
     "toDepot": "sends to the depot",
     "fromOutside": "comes from outside",
     "toOutside": "returns outside",
+    "toConduit": "goes into a conduit",
+    "fromConduit": "comes out of a conduit",
     "entry": "outside input"
   },
   "runs": {

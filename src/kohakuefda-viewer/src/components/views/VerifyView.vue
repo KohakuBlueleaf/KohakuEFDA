@@ -25,6 +25,22 @@ const counts = computed(() => {
   return { errors: count("error"), warnings: count("warning"), infos: count("info") }
 })
 
+const complexity = computed(() => {
+  const c = store.report?.complexity
+  if (!c) return []
+  const [num, den] = String(c.straight).split("/")
+  const straight = den ? Number(num) / Number(den) : Number(num) || 0
+  return [
+    ["belts", c.belt_cells],
+    ["pipes", c.pipe_cells],
+    ["bends", c.bends],
+    ["junctions", c.splitters + c.convergers + c.pipe_junctions],
+    ["bridges", c.belt_bridges + c.pipe_bridges],
+    ["kinds", c.kinds],
+    ["straight", `${Math.round(straight * 100)}%`],
+  ]
+})
+
 const detail = computed(() => {
   const hit = hover.value?.hit
   if (!hit) {
@@ -92,6 +108,13 @@ const detail = computed(() => {
       <span v-if="counts.infos" class="chip-sapphire">{{
         t("verify.notes", { n: counts.infos })
       }}</span>
+      <span
+        v-for="[key, value] in complexity"
+        :key="key"
+        class="chip-warm"
+        :title="t('verify.complexityTitle')"
+        >{{ t(`verify.complexity.${key}`) }} {{ value }}</span
+      >
       <span class="flex-1" />
       <label class="flex items-center gap-1"
         ><input v-model="showGround" type="checkbox" class="accent-iolite" />

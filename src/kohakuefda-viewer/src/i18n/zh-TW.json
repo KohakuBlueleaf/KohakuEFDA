@@ -392,7 +392,17 @@
     "ok": "沒有錯誤",
     "errors": "{n} 個錯誤",
     "warnings": "{n} 個警告",
-    "notes": "{n} 個提示"
+    "notes": "{n} 個提示",
+    "complexityTitle": "這個佈局要你建造的東西",
+    "complexity": {
+      "belts": "傳送帶格",
+      "pipes": "管道格",
+      "bends": "轉彎",
+      "junctions": "分流/合流",
+      "bridges": "橋",
+      "kinds": "種類",
+      "straight": "直線佔比"
+    }
   },
   "layout": {
     "heading": "佈局",
@@ -419,6 +429,8 @@
     "toDepot": "送進倉庫",
     "fromOutside": "從外部抽取",
     "toOutside": "排回外部",
+    "toConduit": "送入暗管",
+    "fromConduit": "來自暗管",
     "entry": "外部輸入"
   },
   "runs": {

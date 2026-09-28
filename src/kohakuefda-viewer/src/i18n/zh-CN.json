@@ -392,7 +392,17 @@
     "ok": "没有错误",
     "errors": "{n} 个错误",
     "warnings": "{n} 个警告",
-    "notes": "{n} 个提示"
+    "notes": "{n} 个提示",
+    "complexityTitle": "这个布局要你建造的东西",
+    "complexity": {
+      "belts": "传送带格",
+      "pipes": "管道格",
+      "bends": "转弯",
+      "junctions": "分流/合流",
+      "bridges": "桥",
+      "kinds": "种类",
+      "straight": "直线占比"
+    }
   },
   "layout": {
     "heading": "布局",
@@ -419,6 +429,8 @@
     "toDepot": "送进仓库",
     "fromOutside": "从外部抽取",
     "toOutside": "排回外部",
+    "toConduit": "送入暗管",
+    "fromConduit": "来自暗管",
     "entry": "外部输入"
   },
   "runs": {

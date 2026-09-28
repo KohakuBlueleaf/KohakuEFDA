@@ -114,6 +114,15 @@ export function machineRole(dataset, machineId) {
   if (dataset.pylons && dataset.pylons[machineId]) {
     return "pylon"
   }
+  if (machineId.startsWith("udpipe_unloader")) {
+    return "outlet"
+  }
+  if (machineId.startsWith("udpipe_loader")) {
+    return "inlet"
+  }
+  if (machineId.startsWith("storager")) {
+    return "stash"
+  }
   if (machineId.includes("unloader")) {
     return "unloader"
   }
@@ -140,6 +149,9 @@ export function roleColour(role, p) {
       pylon: p.pylon,
       unloader: p.depot,
       loader: p.depot,
+      stash: p.depot,
+      inlet: p.pump,
+      outlet: p.pump,
       pump: p.pump,
       treatment: p.treatment,
       zone: p.zone,
@@ -152,6 +164,9 @@ export function roleColour(role, p) {
 export const ROLE_BADGE = {
   unloader: { glyph: "⇩", key: "fromDepot" },
   loader: { glyph: "⇧", key: "toDepot" },
+  stash: { glyph: "⇧", key: "toDepot" },
+  inlet: { glyph: "⤓", key: "toConduit" },
+  outlet: { glyph: "⤒", key: "fromConduit" },
   pump: { glyph: "≈", key: "fromOutside" },
   treatment: { glyph: "⇣", key: "toOutside" },
 }
@@ -505,7 +520,10 @@ const KIND_ROLE = {
   depot: "loader",
   unloader: "unloader",
   loader: "loader",
+  stash: "stash",
   entry: "pump",
+  inlet: "inlet",
+  outlet: "outlet",
   dump: "treatment",
   zone: "zone",
   recipe: "producer",
