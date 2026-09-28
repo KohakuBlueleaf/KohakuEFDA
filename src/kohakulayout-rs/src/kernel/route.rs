@@ -173,6 +173,25 @@ impl<'p> Router<'p> {
             out.sort();
             out
         };
+        let mut shut = cells(&sim.attach.open);
+        shut.extend(
+            sim.attach
+                .claims
+                .iter()
+                .filter(|((l, _), nets)| l == layer && !nets.iter().any(|n| n == net))
+                .map(|((_, xy), _)| *xy),
+        );
+        shut.sort();
+        shut.dedup();
+        let mut claimed: Vec<XY> = sim
+            .attach
+            .claims
+            .iter()
+            .filter(|((l, _), nets)| l == layer && nets.iter().any(|n| n != net))
+            .map(|((_, xy), _)| *xy)
+            .collect();
+        claimed.sort();
+        claimed.dedup();
         let c = &self.pass.costs;
         Ok(Query {
             net: net.to_string(),
@@ -194,7 +213,8 @@ impl<'p> Router<'p> {
             walls: Vec::new(),
             walls_key: walls_key.clone(),
             unit_walls_key: unit_walls_key.clone(),
-            shut: cells(&sim.attach.open),
+            shut,
+            claimed,
             held: cells(&sim.attach.routed),
             history: self
                 .pass
@@ -386,7 +406,7 @@ impl<'p> Router<'p> {
         Ok(None)
     }
 
-    /// Route one lane of a net as `LaneRouter.route` does: the refusal's text, or None.
+    /// Route one lane of a net as `LaneRouter.route` does: the refusal's text, or None; a path that displaces an emitter the cover cannot lay again declines, since the reference retries it keeping the emitter.
     fn route(
         &self,
         sim: &mut Sim,
@@ -418,7 +438,14 @@ impl<'p> Router<'p> {
                 if !rips.is_empty() {
                     return Err("a path that rips".into());
                 }
-                self.commit(sim, net, segments, &crossings, &junctions, ports, &displaced)
+                let laid =
+                    self.commit(sim, net, segments, &crossings, &junctions, ports, &displaced)?;
+                match laid {
+                    Some(detail) if detail.starts_with("displaced an emitter") => {
+                        Err("a path that displaces an emitter the cover cannot lay again".into())
+                    }
+                    other => Ok(other),
+                }
             }
         }
     }

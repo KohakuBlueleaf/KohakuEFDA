@@ -8,6 +8,7 @@ use std::sync::Arc;
 use serde::Deserialize;
 
 use super::grid::{Grid, XY};
+use super::judge::admits_units;
 use super::tables::{CarrierView, Tables};
 
 /// One search's rules: its net, carrier and costs, and the cells shut, held or charged for it.
@@ -44,6 +45,8 @@ pub struct Query {
     #[serde(default)]
     pub shut: Vec<XY>,
     #[serde(default)]
+    pub claimed: Vec<XY>,
+    #[serde(default)]
     pub held: Vec<XY>,
     #[serde(default)]
     pub history: Vec<(i64, i64, i64)>,
@@ -61,6 +64,7 @@ pub struct View {
     pub(super) walls: Arc<Vec<bool>>,
     pub(super) unit_walls: Arc<Vec<bool>>,
     pub(super) shut: Vec<bool>,
+    pub(super) claimed: Vec<bool>,
     pub(super) held: Vec<bool>,
     pub(super) history: Vec<i64>,
     pub(super) protected: Vec<bool>,
@@ -92,6 +96,7 @@ impl View {
             walls,
             unit_walls,
             shut: vec![false; cells],
+            claimed: vec![false; cells],
             held: vec![false; cells],
             history: vec![0; cells],
         };
@@ -107,6 +112,11 @@ impl View {
         for xy in out.query.shut.clone() {
             if let Some(i) = out.at(xy) {
                 out.shut[i] = true;
+            }
+        }
+        for xy in out.query.claimed.clone() {
+            if let Some(i) = out.at(xy) {
+                out.claimed[i] = true;
             }
         }
         for xy in out.query.held.clone() {
@@ -190,13 +200,18 @@ pub fn classify_cell(grid: &Grid, layer: &str, tables: &Tables, xy: XY, held: &[
                 cell.blocked = true;
                 cell.only_wires = false;
             }
-            "reserve" => {
-                cell.only_wires = false;
-                match tables.reservation_index.get(reference) {
-                    Some(index) => cell.reserves.push(*index),
-                    None => cell.blocked = true,
+            "reserve" => match tables.reservation_index.get(reference) {
+                Some(index) => {
+                    cell.reserves.push(*index);
+                    if tables.reservations[*index as usize].is_empty() {
+                        cell.only_wires = false;
+                    }
                 }
-            }
+                None => {
+                    cell.blocked = true;
+                    cell.only_wires = false;
+                }
+            },
             "unit" => match tables.unit_index.get(reference) {
                 Some(u) => {
                     cell.unit = Some(*u);
@@ -259,7 +274,7 @@ impl<'a> Search<'a> {
         across && !along
     }
 
-    /// Whether a unit's occluded layers are free at `xy`, the holder `ignore` not counted.
+    /// Whether a unit's occluded layers are free at `xy`: nothing there but the holder `ignore` and reservations that admit a unit.
     pub(super) fn free_shape(&self, footprint: &str, xy: XY, ignore: Option<&str>) -> bool {
         let Some(shape) = self.tables.shapes.get(footprint) else {
             return false;
@@ -273,17 +288,14 @@ impl<'a> Search<'a> {
         {
             return false;
         }
-        match ignore {
-            None => shape
-                .layers
-                .iter()
-                .all(|layer| self.grid.free_for(layer, &cells)),
-            Some(holder) => shape.layers.iter().all(|layer| {
-                cells
+        shape.layers.iter().all(|layer| {
+            cells.iter().all(|c| {
+                self.grid
+                    .holders_at(layer, *c)
                     .iter()
-                    .all(|c| self.grid.holders_at(layer, *c).iter().all(|h| h == holder))
-            }),
-        }
+                    .all(|h| ignore == Some(h.as_str()) || admits_units(self.tables, h))
+            })
+        })
     }
 
     /// The cost of crossing one of the net's own lanes, across its run only.

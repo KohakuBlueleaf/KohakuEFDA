@@ -86,6 +86,7 @@ impl<'a, K: Eq + Hash + Clone, V: Clone> Overlay<'a, K, V> {
 /// The attach tables over the mirror's.
 pub struct AttachOver<'a> {
     pub open: Overlay<'a, (String, XY), String>,
+    pub claims: Overlay<'a, (String, XY), Vec<String>>,
     pub routed: Overlay<'a, (String, XY), String>,
     pub ports: Overlay<'a, (String, XY), XY>,
     pub entries: Overlay<'a, String, Vec<(String, String, XY)>>,
@@ -96,6 +97,7 @@ impl<'a> AttachOver<'a> {
     pub fn new(base: &'a Attach) -> Self {
         AttachOver {
             open: Overlay::new(&base.open),
+            claims: Overlay::new(&base.claims),
             routed: Overlay::new(&base.routed),
             ports: Overlay::new(&base.ports),
             entries: Overlay::new(&base.entries),

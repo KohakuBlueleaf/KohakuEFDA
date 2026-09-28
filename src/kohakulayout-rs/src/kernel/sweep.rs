@@ -4,6 +4,7 @@
 
 use super::grid::XY;
 use super::hash::{Map, Set};
+use super::judge::kind_of;
 use super::records::Sweep;
 use super::sim::{footprint_cells, Decline, Sim};
 
@@ -34,17 +35,38 @@ impl<'a> Sim<'a> {
             .is_none_or(|e| e.partial)
     }
 
-    /// Every cell any holder holds on any layer, rows by columns.
-    fn used(&self) -> Vec<bool> {
+    /// Every cell a holder other than a carrier's reservation holds on any layer, rows by
+    /// columns, and every open or claimed attach cell of a placed pin; a carrier's
+    /// reservation too when `corridors`.
+    fn used(&self, corridors: bool) -> Vec<bool> {
         let (w, h) = (self.grid.width.max(0) as usize, self.grid.height.max(0) as usize);
         let mut out = vec![false; w * h];
+        let corridor = |holder: &String| -> bool {
+            let (kind, reference) = kind_of(holder);
+            kind == "reserve"
+                && self
+                    .tables
+                    .reservation_index
+                    .get(reference)
+                    .is_some_and(|i| !self.tables.reservations[*i as usize].is_empty())
+        };
         for layer in self.grid.layers.clone() {
             if let Some(map) = self.grid.layer_map(&layer) {
                 for (xy, held) in map {
-                    if !held.is_empty() && self.in_grid(*xy) {
+                    if !held.is_empty()
+                        && self.in_grid(*xy)
+                        && (corridors || !held.iter().all(corridor))
+                    {
                         out[xy.1 as usize * w + xy.0 as usize] = true;
                     }
                 }
+            }
+        }
+        let open = self.attach.open.iter().map(|((_, xy), _)| *xy);
+        let claimed = self.attach.claims.iter().map(|((_, xy), _)| *xy);
+        for xy in open.chain(claimed) {
+            if self.in_grid(xy) {
+                out[xy.1 as usize * w + xy.0 as usize] = true;
             }
         }
         out
@@ -82,7 +104,8 @@ impl<'a> Sim<'a> {
     /// A square sweep's emitters for the cells needing its kind, as `SquareSweep.cover` lays them.
     fn square_sweep(&self, sweep: &Sweep) -> Result<Vec<XY>, Decline> {
         let area = sweep.area;
-        let mut used = self.used();
+        let mut used = self.used(true);
+        let mut loose = self.used(false);
         let mut rects = Vec::new();
         for cell in &self.order() {
             if self
@@ -120,26 +143,30 @@ impl<'a> Sim<'a> {
                 );
                 if merged.0 < merged.2
                     && merged.1 < merged.3
-                    && self.free_anchor(merged, &used, size).is_some()
+                    && self.free_anchor(merged, &loose, size).is_some()
                 {
                     *shared = merged;
                     joined = true;
                     break;
                 }
             }
-            if !joined && self.free_anchor(win, &used, size).is_some() {
+            if !joined && self.free_anchor(win, &loose, size).is_some() {
                 groups.push(win);
             }
         }
         let w = self.grid.width;
         let mut out = Vec::new();
         for win in groups {
-            let Some(spot) = self.free_anchor(win, &used, size) else {
+            let found = self
+                .free_anchor(win, &used, size)
+                .or_else(|| self.free_anchor(win, &loose, size));
+            let Some(spot) = found else {
                 continue;
             };
             for dy in 0..size {
                 for dx in 0..size {
                     used[((spot.1 + dy) * w + spot.0 + dx) as usize] = true;
+                    loose[((spot.1 + dy) * w + spot.0 + dx) as usize] = true;
                 }
             }
             out.push(spot);

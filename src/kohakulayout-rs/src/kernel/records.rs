@@ -171,18 +171,21 @@ pub struct Placed {
     pub choices: Choices,
 }
 
-/// A table cell's value: the net owning it, or the port cell behind it.
+/// A table cell's value: the net owning it, the port cell behind it, or the nets claiming it.
 #[derive(Deserialize, Clone)]
 #[serde(untagged)]
 pub enum Value {
     Net(String),
     Cell(XY),
+    Nets(Vec<String>),
 }
 
-/// The attach tables as Python keeps them: open, routed and port cells, per-net entries and pins.
+/// The attach tables as Python keeps them: open, claimed, routed and port cells, per-net
+/// entries and pins.
 #[derive(Clone, Default)]
 pub struct Attach {
     pub open: Map<(String, XY), String>,
+    pub claims: Map<(String, XY), Vec<String>>,
     pub routed: Map<(String, XY), String>,
     pub ports: Map<(String, XY), XY>,
     pub entries: Map<String, Vec<(String, String, XY)>>,
@@ -318,6 +321,12 @@ impl Records {
             match (kind.as_str(), value) {
                 ("open", Some(Value::Net(n))) => {
                     self.attach.open.insert(key, n);
+                }
+                ("claims", Some(Value::Nets(ns))) => {
+                    self.attach.claims.insert(key, ns);
+                }
+                ("claims", _) => {
+                    self.attach.claims.remove(&key);
                 }
                 ("routed", Some(Value::Net(n))) => {
                     self.attach.routed.insert(key, n);

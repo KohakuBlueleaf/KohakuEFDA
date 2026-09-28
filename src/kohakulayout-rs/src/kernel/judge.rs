@@ -82,7 +82,8 @@ fn in_grid(grid: &Grid, xy: XY) -> bool {
     xy.0 >= 0 && xy.1 >= 0 && xy.0 < grid.width && xy.1 < grid.height
 }
 
-/// Whether the layers a unit occludes are free at the cell; None for an unknown shape.
+/// Whether the layers a unit occludes are free at the cell, a reservation of a carrier
+/// (which admits any net's unit) not counted; None for an unknown shape.
 pub fn occluded_free(grid: &Grid, tables: &Tables, footprint: &str, xy: XY) -> Option<bool> {
     let shape = tables.shapes.get(footprint)?;
     let cells: Vec<XY> = (0..shape.height)
@@ -91,12 +92,26 @@ pub fn occluded_free(grid: &Grid, tables: &Tables, footprint: &str, xy: XY) -> O
     if !cells.iter().all(|c| in_grid(grid, *c)) {
         return Some(false);
     }
-    Some(
-        shape
-            .layers
-            .iter()
-            .all(|layer| grid.free_for(layer, &cells)),
-    )
+    Some(shape.layers.iter().all(|layer| {
+        cells.iter().all(|c| {
+            holders(grid, layer, *c)
+                .iter()
+                .all(|h| admits_units(tables, h))
+        })
+    }))
+}
+
+/// Whether a holder is a reservation of a carrier, which admits any net's unit.
+pub fn admits_units(tables: &Tables, holder: &str) -> bool {
+    let (kind, reference) = kind_of(holder);
+    if kind != "reserve" {
+        return false;
+    }
+    tables
+        .reservation_index
+        .get(reference)
+        .map(|i| !tables.reservations[*i as usize].is_empty())
+        .unwrap_or(false)
 }
 
 /// Whether a junction unit could stand on this lane cell.

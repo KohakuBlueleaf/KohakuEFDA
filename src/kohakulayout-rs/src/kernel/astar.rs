@@ -366,6 +366,9 @@ fn expand<F: Frontier>(
             if scratch.flag(ni, SOURCE) || scratch.flag(ni, AVOID) {
                 continue;
             }
+            if prepared.claimed[ni] && !scratch.flag(ni, TARGET) {
+                continue;
+            }
             let start = if d == 0 {
                 match search.entry(cell, ci, Some(*mv), true) {
                     Some(e) => Some(e),

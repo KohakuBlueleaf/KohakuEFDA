@@ -253,6 +253,19 @@ impl<'a> Sim<'a> {
                         self.attach.open.remove(&key);
                     }
                 }
+                "claims" => {
+                    let left: Vec<String> = self
+                        .attach
+                        .claims
+                        .get(&key)
+                        .map(|v| v.iter().filter(|n| *n != net).cloned().collect())
+                        .unwrap_or_default();
+                    if left.is_empty() {
+                        self.attach.claims.remove(&key);
+                    } else {
+                        self.attach.claims.insert(key, left);
+                    }
+                }
                 "routed" => {
                     if self.attach.routed.get(&key).is_some_and(|v| v == net) {
                         self.attach.routed.remove(&key);
@@ -275,7 +288,8 @@ impl<'a> Sim<'a> {
         let routed = wire.is_some();
         let mut writes: Vec<(&str, String, XY, XY)> = Vec::new();
         for (cell, pin, layer) in self.attach.pins.get(net).cloned().unwrap_or_default() {
-            let count = self.choices(&cell, &pin).len();
+            let choices = self.choices(&cell, &pin);
+            let count = choices.len();
             let Some((_, attach, port_cell)) = self.choice(&cell, &pin) else {
                 continue;
             };
@@ -284,40 +298,81 @@ impl<'a> Sim<'a> {
             }
             if routed && held.contains(&attach) {
                 writes.push(("routed", layer, attach, port_cell));
-            } else if count == 1 {
-                writes.push(("open", layer, attach, port_cell));
+                continue;
             }
+            if count == 1 {
+                writes.push(("open", layer.clone(), attach, port_cell));
+            }
+            let free: Vec<XY> = choices
+                .iter()
+                .map(|(_, alternative, _)| *alternative)
+                .filter(|alternative| self.grid.free_for(&layer, &[*alternative]))
+                .collect();
+            let unclaimed = free.iter().copied().find(|alternative| {
+                self.attach
+                    .claims
+                    .get(&(layer.clone(), *alternative))
+                    .is_none_or(|nets| nets.iter().all(|n| n == net))
+            });
+            let kept = unclaimed
+                .or_else(|| free.first().copied())
+                .unwrap_or(choices[0].1);
+            writes.push(("claims", layer.clone(), kept, port_cell));
         }
         let mut written = Vec::new();
         for (kind, layer, attach, port_cell) in writes {
-            if kind == "routed" {
-                self.attach
-                    .routed
-                    .insert((layer.clone(), attach), net.to_string());
-                self.attach.ports.insert((layer.clone(), attach), port_cell);
-                written.push(("routed".to_string(), layer.clone(), attach));
-                written.push(("ports".to_string(), layer, attach));
-            } else {
-                self.attach
-                    .open
-                    .insert((layer.clone(), attach), net.to_string());
-                written.push(("open".to_string(), layer, attach));
+            match kind {
+                "routed" => {
+                    self.attach
+                        .routed
+                        .insert((layer.clone(), attach), net.to_string());
+                    self.attach.ports.insert((layer.clone(), attach), port_cell);
+                    written.push(("routed".to_string(), layer.clone(), attach));
+                    written.push(("ports".to_string(), layer, attach));
+                }
+                "claims" => {
+                    let key = (layer.clone(), attach);
+                    let mut nets = self.attach.claims.get(&key).cloned().unwrap_or_default();
+                    if !nets.iter().any(|n| n == net) {
+                        nets.push(net.to_string());
+                    }
+                    self.attach.claims.insert(key, nets);
+                    written.push(("claims".to_string(), layer, attach));
+                }
+                _ => {
+                    self.attach
+                        .open
+                        .insert((layer.clone(), attach), net.to_string());
+                    written.push(("open".to_string(), layer, attach));
+                }
             }
         }
         self.attach.entries.insert(net.to_string(), written);
     }
 
-    /// The holder that forbids `occupant` (an occupant key such as `cell:`) on the cell, or None.
+    /// The holder that forbids `occupant` (an occupant key such as `cell:`) on the cell, or None;
+    /// a reservation of a carrier admits that carrier's wires and every unit, one without a
+    /// carrier admits nothing.
     pub fn may_occupy(
         &self,
         layer: &str,
         xy: XY,
         occupant: &str,
+        carrier: Option<&str>,
     ) -> Result<Option<String>, Decline> {
         for holder in holders(self.grid, layer, xy) {
             let (k, reference) = kind_of(holder);
             let key = match k {
-                "reserve" => return Ok(Some(holder.clone())),
+                "reserve" => {
+                    let index = self.tables.reservation_index.get(reference);
+                    let reserved = index.map(|i| self.tables.reservations[*i as usize].as_str());
+                    if reserved.is_some_and(|r| !r.is_empty())
+                        && (reserved == carrier || occupant.starts_with("unit:"))
+                    {
+                        continue;
+                    }
+                    return Ok(Some(holder.clone()));
+                }
                 "wire" => {
                     let carrier = self.rec.nets.get(reference).map(|n| n.carrier.as_str());
                     format!("wire:{}", carrier.unwrap_or(""))
@@ -378,6 +433,7 @@ impl<'a> Sim<'a> {
         let mine = owner.strip_prefix("net:").unwrap_or(owner);
         let emitter = owner.starts_with("field:") && self.swept(kind);
         let occupant = format!("unit:{kind}");
+        let carrier = self.rec.nets.get(mine).map(|n| n.carrier.clone());
         for layer in &layers {
             for c in &cells {
                 if let Some(o) = self.attach.open.get(&(layer.clone(), *c)) {
@@ -387,7 +443,15 @@ impl<'a> Sim<'a> {
                         return Ok(Err((detail, None)));
                     }
                 }
-                if let Some(blocker) = self.may_occupy(layer, *c, &occupant)? {
+                if let Some(nets) = self.attach.claims.get(&(layer.clone(), *c)) {
+                    if !emitter && !nets.iter().any(|n| n == mine) {
+                        let first = nets.iter().min().cloned().unwrap_or_default();
+                        let detail =
+                            format!("covers the attach cell {} claimed by {first}", xy_text(*c));
+                        return Ok(Err((detail, None)));
+                    }
+                }
+                if let Some(blocker) = self.may_occupy(layer, *c, &occupant, carrier.as_deref())? {
                     let detail = format!("{blocker} holds {} on {layer}", xy_text(*c));
                     return Ok(Err((detail, Some(blocker))));
                 }

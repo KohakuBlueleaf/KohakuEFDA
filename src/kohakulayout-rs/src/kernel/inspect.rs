@@ -360,7 +360,7 @@ pub(super) fn inspect(
     let (mut ripped, mut displaced): (Vec<String>, Vec<String>) = (Vec::new(), Vec::new());
     for layer in layers {
         for xy in cells {
-            let Some(blocker) = sim.may_occupy(layer, *xy, "cell:")? else {
+            let Some(blocker) = sim.may_occupy(layer, *xy, "cell:", None)? else {
                 continue;
             };
             let (kind, reference) = kind_of(&blocker);
