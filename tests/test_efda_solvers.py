@@ -1,11 +1,24 @@
 """The project's own solvers: registered under the framework, carrying the engine's construction rules, legal clients of the pack."""
 
+import random
+from itertools import pairwise
+from pathlib import Path
+
 import pytest
 
-from kohakuefda.layout.settings import SOLVERS, framework_id
+from kohakuefda.layout.router import EndfieldRouter
+from kohakuefda.layout.settings import SOLVERS, framework_id, router_of
+from kohakuefda.model.dataset import Dataset
+from kohakuefda.model.scenario import Scenario
+from kohakuefda.physics.fabric import area_rect
 from kohakuefda.physics.facts import lane_facts
+from kohakuefda.plan.netlist import build_netlist
+from kohakuefda.plan.planner import plan
 from kohakuefda.solvers import SOLVER_IDS, EndfieldProposals, EndfieldSearch
 from kohakuefda.solvers.regional import embed
+from kohakuefda.solvers.rows import EndfieldRows, partners
+from kohakuefda.synth import problem_of
+from kohakulayout.engine import Budget, Context
 from kohakulayout.solvers import get, known, level3
 from kohakulayout.solvers.regional.search import DEFAULTS as FRAMEWORK_DEFAULTS
 from tests.test_endfield_pack import wuling_toy
@@ -114,3 +127,95 @@ def test_the_embedding_places_every_laned_cell_in_the_box_with_partners_near() -
     laned = [span(a, b) for a, b in pairs]
     assert sum(laned) / len(laned) < sum(every) / len(every)
     assert embed(pairs, proposals.box) == places
+
+
+def test_the_rows_follow_the_stages_and_keep_partners_beside_their_machines() -> None:
+    root = Path(__file__).resolve().parent.parent
+    dataset = Dataset.load(root / "data" / "1.5.3@9764758-3" / "dataset.json")
+    scenario = Scenario.from_toml(root / "tests" / "fixtures" / "scenario_basic.toml")
+    netlist = build_netlist(dataset, scenario, plan(dataset, scenario))
+    problem = problem_of(dataset, netlist)
+    ctx = Context(problem, router=router_of(), budget=Budget(units=10))
+    rep = EndfieldRows(channel=4, gap=2)
+    structure = rep.initial(ctx, random.Random(0))
+    cells = problem.netlist.cells
+    placed = [c for row in structure["rows"] for c in row]
+    assert sorted(placed) == sorted(
+        c for c, cell in cells.items() if cell.constraint.kind == "free"
+    )
+    side = {"outlet", "stash", "inlet"}
+    for row in structure["rows"]:
+        main = [c for c in row if cells[c].kind not in side]
+        for c in main:
+            assert not any(s in main for s in partners(problem.netlist, c, "out"))
+        for index, c in enumerate(row):
+            if cells[c].kind == "outlet":
+                mates = partners(problem.netlist, c, "out")
+                assert any(later in mates for later in row[index + 1 :])
+            elif cells[c].kind == "stash":
+                assert row[index - 1] in partners(problem.netlist, c, "in")
+    row_of = {c: k for k, row in enumerate(structure["rows"]) for c in row}
+    for net in problem.netlist.nets.values():
+        if net.carrier == "pipe":
+            continue
+        for source in net.sources:
+            for sink in net.sinks:
+                if source.cell in row_of and sink.cell in row_of:
+                    assert row_of[source.cell] <= row_of[sink.cell], net.id
+    x0, y0, x1, _ = area_rect(problem.fabric)
+    geometry = rep.geometry(structure, ctx)
+    assert all(x0 <= x and x + w <= x1 and y > y0 for x, y, w, h in geometry.values())
+    channels = rep.channels(structure, ctx)
+    assert {tag.split(":")[0] for tag, _, _, _ in channels} == {"channel"}
+    assert {carrier for _, _, _, carrier in channels} == {"belt", "pipe"}
+    boxes = {
+        (cx, cy)
+        for x, y, w, h in geometry.values()
+        for cx in range(x, x + w)
+        for cy in range(y, y + h)
+    }
+    reserved = {c for _, _, cells_, _ in channels for c in cells_}
+    assert reserved and not (reserved & boxes)
+    holds = rep.holds(structure, ctx)
+    held = {c for entries in holds.values() for _, cells_ in entries for c in cells_}
+    assert set(holds) == set(geometry) and held and not (held & boxes)
+
+
+def test_the_rows_floorplan_is_the_studios_rows() -> None:
+    assert framework_id("rows") == "endfield.floorplan"
+    assert "endfield.floorplan" in known()
+
+
+def test_rows_stand_over_the_ports_they_feed_and_the_mixed_router_picks_trees() -> None:
+    root = Path(__file__).resolve().parent.parent
+    dataset = Dataset.load(root / "data" / "1.5.3@9764758-3" / "dataset.json")
+    scenario = Scenario.from_toml(root / "tests" / "fixtures" / "scenario_basic.toml")
+    netlist = build_netlist(dataset, scenario, plan(dataset, scenario))
+    problem = problem_of(dataset, netlist)
+    ctx = Context(problem, router=router_of(), budget=Budget(units=10))
+    rep = EndfieldRows(channel=2, gap=2)
+    structure = rep.initial(ctx, random.Random(0))
+    rows = structure["rows"]
+    geometry = rep.geometry(structure, ctx)
+    aligned = 0
+    for index in range(len(rows) - 1):
+        below = {item: geometry[item][0] for item in rows[index + 1]}
+        for item, column in rep.targets(
+            ctx, rows[index], rows[index + 1], below
+        ).items():
+            aligned += geometry[item][0] == column
+    assert aligned > 0
+    for row in rows:
+        boxes = sorted(geometry[i] for i in row)
+        for (xa, _, wa, _), (xb, _, _, _) in pairwise(boxes):
+            assert xa + wa <= xb
+    mixed = EndfieldRouter(wire_model="mixed")
+    nets = list(problem.netlist.nets.values())
+    fanning = [n for n in nets if len(n.sinks) > 1 or len(n.sources) > 1]
+    single = [n for n in nets if len(n.sinks) == 1 and len(n.sources) == 1]
+    assert fanning and single
+    world = ctx.world
+    assert all(mixed.as_tree(world, n) for n in fanning)
+    assert not any(mixed.as_tree(world, n) for n in single)
+    assert all(EndfieldRouter(wire_model="tree").as_tree(world, n) for n in nets)
+    assert not any(EndfieldRouter(wire_model="lanes").as_tree(world, n) for n in nets)

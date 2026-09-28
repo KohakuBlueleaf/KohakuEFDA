@@ -22,8 +22,10 @@ from kohakuefda.model.layout import Layout
 from kohakuefda.model.scenario import Scenario
 from kohakuefda.plan.netlist import build_netlist
 from kohakuefda.plan.planner import plan
+from kohakuefda.plan.units import extract
 from kohakuefda.synth import problem_of
 from kohakuefda.util.logging import setup
+from kohakuefda.verify.complexity import complexity, complexity_text, with_units
 from kohakuefda.verify.evaluate import evaluate
 from kohakuefda.verify.rules.rates import rate_findings
 
@@ -131,6 +133,18 @@ def run_case(
         "search_seconds": elapsed,
         "work": dict(outcome.get("work", {})),
         "placed": outcome.get("placed"),
+        "complexity": (
+            with_units(complexity(layout), extract(dataset, result)).model_dump(
+                mode="json"
+            )
+            if layout is not None
+            else None
+        ),
+        "complexity_text": (
+            complexity_text(with_units(complexity(layout), extract(dataset, result)))
+            if layout is not None
+            else ""
+        ),
         "settings": dict(outcome.get("settings", {})),
         "routed": routed,
         "first_observed_routed_seconds": first["elapsed"] if first else None,
@@ -302,7 +316,7 @@ def main(
                     {"runs": rows, "reliability": reliability(rows)},
                 )
                 console.print(
-                    f"{case} {name} seed={seed}: {row['status']}, placed={row['placed']}/{row['cells']}, routed={row['routed']}, rates={row['rates']}, {row['search_seconds']:.2f}s"
+                    f"{case} {name} seed={seed}: {row['status']}, placed={row['placed']}/{row['cells']}, routed={row['routed']}, rates={row['rates']}, {row['search_seconds']:.2f}s {row.get('complexity_text', '')}"
                 )
 
 
