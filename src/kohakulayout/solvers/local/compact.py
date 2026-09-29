@@ -11,11 +11,18 @@ from kohakulayout.solvers.regional.candidates import is_free
 Anchors = dict[str, tuple[int, int, int]]
 
 
-def relocate(builder: Any, moves: Anchors) -> Any:
+def relocate(builder: Any, moves: Anchors, batch: bool = False) -> Any:
     """Withdraw every listed cell, then place each at its new anchor; the first refusal ends the attempt."""
     for cell_id in moves:
         if cell_id in builder.placements:
             builder.withdraw(cell_id)
+    if batch:
+        return builder.place_batch(
+            {
+                cell_id: Anchor(x=x, y=y, rot=rot)
+                for cell_id, (x, y, rot) in moves.items()
+            }
+        )
     for cell_id, (x, y, rot) in moves.items():
         refusal = builder.place(cell_id, Anchor(x=x, y=y, rot=rot))
         if refusal is not None:

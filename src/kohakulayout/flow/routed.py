@@ -22,6 +22,7 @@ from typing import Any
 from kohakulayout.flow.findings import capacity as capacity_finding
 from kohakulayout.flow.findings import starved, unstable
 from kohakulayout.flow.fixedpoint import Evaluation
+from kohakulayout.flow.initial import MODES, initial_flows
 from kohakulayout.ir import Layout, Netlist
 from kohakulayout.ir.geometry import rotate_side
 
@@ -373,12 +374,16 @@ class Routed:
         snap: int = SNAP,
         snap_every: int = SNAP_EVERY,
         oriented: bool = False,
+        initial: str = "empty",
     ) -> None:
         self.max_rounds = max_rounds
         self.epsilon = Fraction(epsilon)
         self.snap = snap
         self.snap_every = snap_every
         self.oriented = oriented
+        if initial not in MODES:
+            raise ValueError(f"initial flow must be one of {MODES}")
+        self.initial = initial
 
     def evaluate(
         self, netlist: Netlist, flow: Any, fabric: Any = None, layout: Any = None
@@ -388,6 +393,9 @@ class Routed:
         flat = netlist.flatten()
         graph = LayoutGraph(flat, layout.flatten(flat), flow, fabric, self.oriented)
         state = _State(graph, flat, flow)
+        for run_id, mixture in initial_flows(graph, flat, flow, self.initial).items():
+            state.flows[run_id] = mixture
+            state.seen[run_id].update(mixture)
         converged = False
         rounds = 0
         for rounds in range(1, self.max_rounds + 1):

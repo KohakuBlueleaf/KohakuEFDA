@@ -54,11 +54,13 @@ class Search:
 
     A project's own construction subclasses this: ``defaults`` carries its settings,
     ``proposer`` its anchor ranking, ``neighbourhood`` which cells count as neighbours,
-    and ``priority`` its insertion order.
+    ``priority`` its insertion order and ``reseated`` the constraint kinds whose cells
+    the local search may move among their own anchors.
     """
 
     defaults: dict[str, Any] = DEFAULTS
     proposer: type = Proposals
+    reseated: frozenset[str] = frozenset()
 
     def __init__(self, ctx: Any, settings: dict[str, Any] | None = None) -> None:
         self.ctx = ctx

@@ -10,11 +10,16 @@ from kohakulayout.solvers.regional.candidates import Proposals, is_free
 
 class RepackMoves:
     def __init__(
-        self, world: Any, settings: dict[str, Any], rng: random.Random
+        self,
+        world: Any,
+        settings: dict[str, Any],
+        rng: random.Random,
+        proposer: type = Proposals,
     ) -> None:
         self.world = world
         self.settings = settings
         self.rng = rng
+        self.proposer = proposer
 
     def edge_cells(self, free: list[str]) -> list[str]:
         """The free cells whose footprint reaches the placed extent's last row or last column."""
@@ -25,6 +30,7 @@ class RepackMoves:
             fp = self.world.footprint_of(cell_id)
             w, h = rotate_size(fp.width, fp.height, p.rot)
             far[cell_id] = (p.x + w - 1, p.y + h - 1)
+
         max_x = max(x for x, _ in far.values())
         max_y = max(y for _, y in far.values())
         return [c for c, (x, y) in far.items() if x == max_x or y == max_y]
@@ -36,6 +42,7 @@ class RepackMoves:
         free = sorted(c for c in placed if is_free(world.netlist.cells[c]))
         if len(free) < 2:
             return []
+
         roots = self.edge_cells(free) if self.rng.random() < 0.5 else free
         root = self.rng.choice(roots)
         rx, ry = placed[root].x, placed[root].y
@@ -48,11 +55,13 @@ class RepackMoves:
         return selected
 
     def execute(self, builder: Any, selected: list[str]) -> Refusal | None:
-        """The action: every selected cell withdrawn, then re-inserted through ranked proposals."""
+        """Withdraw every selected cell, then re-insert each through ranked proposals."""
         for cell_id in selected:
             builder.withdraw(cell_id)
-        proposals = Proposals(
-            self.world, {"candidates": self.settings["repack_candidates"]}
+
+        proposals = self.proposer(
+            self.world,
+            {**self.settings, "candidates": self.settings["repack_candidates"]},
         )
         proposals.reset(self.settings["repack_gap"])
         for cell_id in selected:

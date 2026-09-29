@@ -105,19 +105,23 @@ class Trajectory:
         ctx.consider(token)
         for _ in self.steps("improvement"):
             heat = self.heat("layout")
+            before_work = ctx.budget.used
             name, body = moves.propose()
             if body is None:
                 ctx.budget.charge(1)
+                moves.feedback(name, None, False, ctx.budget.used - before_work)
                 continue
             result = ctx.attempt(body, label=name)
             if result.refusal is not None or ctx.world.digest() == token.digest:
                 if result.refusal is not None:
                     ctx.restore(token)
+                moves.feedback(name, None, False, ctx.budget.used - before_work)
                 self.transitions += 1
                 continue
             candidate = metrics(ctx.world)
             if gaps(candidate) > 0:
                 ctx.restore(token)
+                moves.feedback(name, None, False, ctx.budget.used - before_work)
                 continue
             delta = layout_delta(
                 parent, candidate, self.board_area, self.settings["wire_tiebreak"]
@@ -128,6 +132,9 @@ class Trajectory:
                 ctx.consider(token)
             else:
                 ctx.restore(token)
+            moves.feedback(
+                name, delta, decision.accepted, ctx.budget.used - before_work
+            )
             self.transitions += 1
             ctx.frame("improve")
 

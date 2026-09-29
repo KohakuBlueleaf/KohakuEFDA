@@ -33,6 +33,19 @@ class Builder:
         self.ctx.charge(1)
         return self._note(refusal)
 
+    def place_batch(self, anchors: dict[str, Anchor]) -> Refusal | None:
+        """Place a leaf group atomically, charging one action per proposed leaf."""
+        mark = self.world.mark()
+        accepted = False
+        try:
+            refusal = self.world.place_batch(anchors)
+            self.ctx.charge(len(anchors))
+            accepted = refusal is None
+            return self._note(refusal)
+        finally:
+            if not accepted:
+                self.world.rollback_to(mark)
+
     def place_instance(
         self, instance: str, x: int, y: int, rot: int = 0
     ) -> Refusal | None:

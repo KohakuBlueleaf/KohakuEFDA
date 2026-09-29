@@ -5,6 +5,7 @@ from typing import Any
 from kohakulayout.errors import SolverError
 from kohakulayout.solvers.base import BaseSolver
 from kohakulayout.solvers.local.search import Trajectory
+from kohakulayout.solvers.local.selection import DECAY, EXPLORATION
 from kohakulayout.solvers.protocol import Param
 from kohakulayout.solvers.regional.search import Search
 from kohakulayout.solvers.registry import register
@@ -106,6 +107,42 @@ PARAMS: tuple[Param, ...] = (
     ),
     Param(name="repack_gap", type="int", default=1, doc="clearance while repacking"),
     Param(
+        name="reseat_every",
+        type="int",
+        default=0,
+        doc="0, or every N proposals a constrained cell moved to another of its anchors",
+    ),
+    Param(
+        name="reseat_candidates",
+        type="int",
+        default=4,
+        doc="cheapest reseat anchors sampled from",
+    ),
+    Param(
+        name="batch_moves",
+        type="bool",
+        default=False,
+        doc="settle every footprint of a relocation before routing any",
+    ),
+    Param(
+        name="adaptive_moves",
+        type="bool",
+        default=False,
+        doc="draw operators by recent reward per charged work",
+    ),
+    Param(
+        name="operator_decay",
+        type="float",
+        default=DECAY,
+        doc="reward update fraction in (0, 1]",
+    ),
+    Param(
+        name="operator_exploration",
+        type="float",
+        default=EXPLORATION,
+        doc="uniform exploration probability in [0, 1]",
+    ),
+    Param(
         name="wire_tiebreak",
         type="float",
         default=0.5,
@@ -142,7 +179,7 @@ POSITIVE = (
 
 
 class LocalSolver(BaseSolver):
-    """Construct from the current state, then improve; the best is archived independently; a project's solver subclasses it with its own construction ``search``."""
+    """Construct from the current state, then improve; a project's solver subclasses it with its own ``search``."""
 
     id = "local"
     method = "climb"
@@ -162,6 +199,10 @@ class LocalSolver(BaseSolver):
             raise SolverError("repack_size must be at least two")
         if self.opts["wire_tiebreak"] >= 1:
             raise SolverError("wire_tiebreak must be less than one cell of area")
+        if not 0 < self.opts["operator_decay"] <= 1:
+            raise SolverError("operator_decay must lie in (0, 1]")
+        if not 0 <= self.opts["operator_exploration"] <= 1:
+            raise SolverError("operator_exploration must lie in [0, 1]")
         for phase in ("construction", "layout"):
             initial, final = (
                 self.opts[f"{phase}_temperature"],
@@ -178,11 +219,13 @@ class LocalSolver(BaseSolver):
         self.trajectory.construct()
 
     def improve(self, ctx: Any) -> None:
-        if ctx.world.unrouted() or len(ctx.world.placements) != len(
-            ctx.world.netlist.cells
-        ):
-            return
-        self.trajectory.improve()
+        if complete(ctx.world):
+            self.trajectory.improve()
+
+
+def complete(world: Any) -> bool:
+    """Every cell placed and every net routed."""
+    return not world.unrouted() and len(world.placements) == len(world.netlist.cells)
 
 
 @register
@@ -197,4 +240,4 @@ class Anneal(LocalSolver):
     method = "anneal"
 
 
-__all__ = ["PARAMS", "Anneal", "HillClimb", "LocalSolver"]
+__all__ = ["PARAMS", "Anneal", "HillClimb", "LocalSolver", "complete"]

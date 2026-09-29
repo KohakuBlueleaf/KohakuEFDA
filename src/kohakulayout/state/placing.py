@@ -40,6 +40,44 @@ class PlacingMixin:
             )
         return result
 
+    def place_batch(self, anchors: dict[str, Anchor]) -> Refusal | None:
+        """Settle every leaf before routing any, atomically; checked worlds use checked singles."""
+        for cell_id, anchor in anchors.items():
+            if cell_id not in self.netlist.cells or self.footprint_of(cell_id) is None:
+                raise StateError(f"{cell_id!r} is not a placeable leaf")
+            if cell_id in self.placements:
+                raise StateError(f"{cell_id!r} is already placed")
+            if anchor.rot not in ROTATIONS:
+                raise StateError(f"invalid rotation {anchor.rot!r}")
+        mark = self.mark()
+        accepted = False
+        try:
+            settled: list[tuple[Any, ...]] = []
+            for cell_id, anchor in anchors.items():
+                if self.checker is not None:
+                    found = self.place(cell_id, anchor.x, anchor.y, anchor.rot)
+                else:
+                    found = self._settle(
+                        self.netlist.cells[cell_id],
+                        self.footprint_of(cell_id),
+                        anchor.x,
+                        anchor.y,
+                        anchor.rot,
+                    )
+                if isinstance(found, Refusal):
+                    return found
+                if found is not None:
+                    settled.append(found)
+            for found in settled:
+                refusal = self._wire(*found)
+                if refusal is not None:
+                    return refusal
+            accepted = True
+            return None
+        finally:
+            if not accepted:
+                self.rollback_to(mark)
+
     def _place(
         self, cell: Any, fp: Footprint, x: int, y: int, rot: int
     ) -> Refusal | None:
