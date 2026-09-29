@@ -1,6 +1,7 @@
 """The evaluation schema: rates per segment and utilisation per machine, as the verify stage fills it."""
 
 from fractions import Fraction
+from typing import Literal
 
 from kohakuefda.model.base import EfdaModel
 from kohakuefda.model.rates import Rate
@@ -30,6 +31,7 @@ class Evaluation(EfdaModel):
     machines: dict[str, MachineState]
     iterations: int
     converged: bool
+    initial: Literal["empty", "declared"] = "empty"
 
 
 __all__ = ["EPSILON", "Evaluation", "MachineState", "SegmentFlow"]

@@ -1,41 +1,32 @@
-"""The lines representation: one group per chain with its bricks, rows by depth from the bus, loops in one row turned about, bricks over the machines they feed, side cells beside their machine, every box held until placed, the groups packed against the bus."""
+"""The lines seed: one group per chain with its bricks, rows by depth from the bus, loops in one row turned about, bricks over the machines they feed, side cells beside their machine, the groups packed against the bus, the seed placed and routed in one batch."""
 
-import random
 from itertools import combinations, pairwise
 from pathlib import Path
 
-from kohakuefda.layout.settings import framework_id, router_of
+from kohakuefda.layout.settings import router_of
 from kohakuefda.model.dataset import Dataset
 from kohakuefda.model.scenario import Scenario
 from kohakuefda.physics.boundaries import BRICK_KINDS, PART_KIND, area_rect
 from kohakuefda.plan.netlist import build_netlist
 from kohakuefda.plan.planner import plan
-from kohakuefda.solvers.lines import EndfieldLines, EndfieldLinesPlan
-from kohakuefda.solvers.lines_graph import LineGraph
+from kohakuefda.solvers.lines import EndfieldLines, LineGraph, lines_seed
 from kohakuefda.synth import problem_of
 from kohakulayout.engine import Budget, Context
-from kohakulayout.solvers import known
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def wuling6():
+def context(case: str, units: int = 10) -> Context:
     dataset = Dataset.load(ROOT / "data" / "1.5.3@9764758-3" / "dataset.json")
-    scenario = Scenario.from_toml(
-        ROOT / "tests" / "fixtures" / "scenario_dense_wuling6.toml"
-    )
+    scenario = Scenario.from_toml(ROOT / "tests" / "fixtures" / f"scenario_{case}.toml")
     netlist = build_netlist(dataset, scenario, plan(dataset, scenario))
-    problem = problem_of(dataset, netlist)
-    return Context(problem, router=router_of(), budget=Budget(units=10))
-
-
-def test_the_lines_solver_is_the_studios_lines() -> None:
-    assert framework_id("lines") == EndfieldLinesPlan.id == "endfield.lines"
-    assert "endfield.lines" in known()
+    return Context(
+        problem_of(dataset, netlist), router=router_of(), budget=Budget(units=units)
+    )
 
 
 def test_rows_run_by_depth_from_the_bus_with_loops_in_one_row() -> None:
-    ctx = wuling6()
+    ctx = context("dense_wuling6")
     graph = LineGraph(ctx.world)
     depth, groups, rot = graph.depths()
     cells = ctx.world.problem.netlist.cells
@@ -65,11 +56,12 @@ def test_rows_run_by_depth_from_the_bus_with_loops_in_one_row() -> None:
 
 
 def test_the_structure_lays_bricks_in_one_run_over_the_machines_they_feed() -> None:
-    ctx = wuling6()
+    ctx = context("dense_wuling6")
     rep = EndfieldLines()
-    structure = rep.initial(ctx, random.Random(0))
+    structure = rep.initial(ctx)
     graph = rep.graph(ctx.world)
-    boxes, frames, parts = rep.frames(structure, ctx)
+    laid = rep.laid(structure, ctx)
+    boxes, parts = laid["boxes"], laid["parts"]
     x0, y0, x1, y1 = area_rect(ctx.world.fabric)
     placed = [c for row in structure["rows"] for c in row]
     assert sorted(placed) == sorted(c for c in boxes if c not in graph.parts)
@@ -81,21 +73,24 @@ def test_the_structure_lays_bricks_in_one_run_over_the_machines_they_feed() -> N
     assert all(b <= c for (_, b), (c, _) in pairwise(run))
     bus = sorted((x, x + boxes[p][2]) for p, x, _, _ in parts)
     assert bus[0][0] <= run[0][0] + 1 and run[-1][1] - 1 <= bus[-1][1]
-    for a, b in combinations(range(len(frames)), 2):
+    assert all(b == c for (_, b), (c, _) in pairwise(bus))
+
+    groups = [{i for row in rows for i in row} for rows in structure["groups"]]
+    for a, b in combinations(groups, 2):
         cells_a = {
             (x, y)
-            for i in (i for row in frames[a][4] for i in row)
+            for i in a
             for x in range(boxes[i][0], boxes[i][0] + boxes[i][2])
             for y in range(boxes[i][1], boxes[i][1] + boxes[i][3])
         }
         cells_b = {
             (x, y)
-            for i in (i for row in frames[b][4] for i in row)
+            for i in b
             for x in range(boxes[i][0], boxes[i][0] + boxes[i][2])
             for y in range(boxes[i][1], boxes[i][1] + boxes[i][3])
         }
         assert cells_a.isdisjoint(cells_b)
-    assert all(b == c for (_, b), (c, _) in pairwise(bus))
+
     kinds = ctx.world.problem.netlist.cells
     assert all(kinds[p].kind == PART_KIND for p, *_ in parts)
     for brick in graph.bricks:
@@ -116,12 +111,7 @@ def test_the_structure_lays_bricks_in_one_run_over_the_machines_they_feed() -> N
         mx, my, mw, _ = boxes[mate]
         assert sx + sw < mx or sx > mx + mw
         assert sy >= my
-    holds = rep.holds(structure, ctx)
-    for item, (x, y, w, h) in boxes.items():
-        if item in graph.parts:
-            continue
-        held = {c for _, cells in holds[item] for c in cells}
-        assert {(x + dx, y + dy) for dx in range(w) for dy in range(h)} <= held
+
     lanes = rep.channels(structure, ctx)
     assert lanes and {carrier for _, _, _, carrier in lanes} == {"belt", "pipe"}
     machine_cells = {
@@ -131,3 +121,11 @@ def test_the_structure_lays_bricks_in_one_run_over_the_machines_they_feed() -> N
         for dy in range(h)
     }
     assert not any(c in machine_cells for _, _, cells, _ in lanes for c in cells)
+
+
+def test_the_seed_lands_complete_and_routed_in_its_budget() -> None:
+    ctx = context("valley_battery", units=20_000)
+    assert lines_seed(ctx, 1024)
+    best = ctx.best_assessment
+    assert best is not None and best.complete and best.valid
+    assert len(ctx.world.placements) == len(ctx.world.netlist.cells)

@@ -40,12 +40,34 @@ def test_stage_order_and_parameter_defaults() -> None:
     assert STAGES == ("plan", "netlist", "layout", "verify")
     params = params_of("layout", {"workers": "2", "seed": 3})
     assert params["workers"] == 2 and params["seed"] == 3
-    assert params["solver"] == "hc" and params["seconds"] == 600.0
+    assert params["solver"] == "guided" and params["seconds"] == 600.0
     assert params["max_actions"] == 0 and params["solver_options"] == "{}"
-    with pytest.raises(StageError):
-        params_of("layout", {"bogus": 1})
+    assert params_of("netlist") == {"transport": "legacy"}
+    assert params_of("verify", {"initial": "declared"}) == {"initial": "declared"}
+    for stage, given in (
+        ("layout", {"bogus": 1}),
+        ("netlist", {"transport": "teleport"}),
+        ("verify", {"initial": "warm"}),
+    ):
+        with pytest.raises(StageError):
+            params_of(stage, given)
     with pytest.raises(StageError):
         params_of("place")
+
+
+def test_the_netlist_and_verify_stages_take_their_parameters(
+    dataset: Dataset, netlist
+) -> None:
+    plan, legacy = netlist
+    rated = netlist_stage(dataset, legacy.scenario, plan, {"transport": "rated"})
+    direct = netlist_stage(dataset, legacy.scenario, plan, {"transport": "direct"})
+    assert {c.recipe_id for c in rated.cells} == {c.recipe_id for c in legacy.cells}
+    assert any(f.rule == "transport.direct" for f in direct.findings)
+    assert not any(f.rule == "transport.direct" for f in rated.findings)
+    report, evaluation = verify_stage(
+        dataset, plan, legacy, None, None, params={"initial": "declared"}
+    )
+    assert evaluation is None and report.subject
 
 
 def test_layout_stage_records_frames_and_a_checkpoint(
@@ -90,6 +112,11 @@ def test_layout_stage_records_frames_and_a_checkpoint(
     report, evaluation = verify_stage(dataset, plan, built, placement, layout)
     assert report.ok, [f for f in report.findings if f.severity == "error"]
     assert evaluation is not None and evaluation.converged
+    assert evaluation.initial == "empty"
+    _, primed = verify_stage(
+        dataset, plan, built, placement, layout, params={"initial": "declared"}
+    )
+    assert primed is not None and primed.initial == "declared" and primed.converged
 
 
 def test_layout_is_reproducible_for_a_seed(dataset: Dataset, netlist) -> None:

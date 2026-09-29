@@ -1,51 +1,70 @@
-"""The regional construction on the framework: cells no net touches first, the first cells pulled to a third of the Core AIC Area, every cell pulled toward its place in a wirelength embedding of the lane graph, no bounding-box term, every fitting window, one routed lookahead, an insertion given up after ``INSERT_FAILURES`` refused anchors or ``NET_FAILURES`` route refusals on one net."""
+"""The project's construction and repair search on the framework's regional search.
+
+``EndfieldSearch`` builds the regional seed: unwired cells first, then cells with a
+placed lane neighbour, each pulled toward its place in a force-directed embedding of
+the lane graph. ``GuidedSearch`` repairs a layout: anchors scored by a distinct-port
+assignment against the lane router's targets, the repaired region grown around the
+endpoints recent refusals name.
+"""
 
 import random
+from collections import Counter
 from typing import Any
 
 import numpy as np
 
 from kohakuefda.layout.router import LanePolicy, lane_ends
-from kohakuefda.physics.boundaries import CLUSTER, PART_KIND
+from kohakuefda.physics.boundaries import CLUSTER, PART_KIND, SEAT
 from kohakuefda.physics.facts import lane_facts
 from kohakulayout.ir import PinRef
 from kohakulayout.ir.geometry import ROTATIONS, XY, footprint_cells
-from kohakulayout.solvers import Regional, register
-from kohakulayout.solvers.protocol import Param
-from kohakulayout.solvers.regional.candidates import Proposals
+from kohakulayout.solvers.regional.candidates import Proposals, is_free
+from kohakulayout.solvers.regional.contact import ContactProposals
 from kohakulayout.solvers.regional.search import DEFAULTS as FRAMEWORK_DEFAULTS
 from kohakulayout.solvers.regional.search import Search
 
-INSERT_FAILURES = 16
-NET_FAILURES = 0
-EMBED_WEIGHT = 0.3
 EMBED_STEPS = 300
-
+RESEATED = frozenset({SEAT, "slot"})
 DEFAULTS: dict[str, Any] = {
     **{k: v for k, v in FRAMEWORK_DEFAULTS.items() if k != "origin_weight"},
     "center_weight": 0.2,
     "depot_step": 2,
     "depot_window": 20,
     "extent_weight": 0.0,
-    "insert_failures": INSERT_FAILURES,
-    "net_failures": NET_FAILURES,
-    "embed_weight": EMBED_WEIGHT,
+    "insert_failures": 16,
+    "net_failures": 0,
+    "embed_weight": 0.3,
     "lookahead": 1,
 }
-
-
-def _param(name: str, value: Any) -> Param:
-    kind = "int" if isinstance(value, int) else "float"
-    return Param(name=name, type=kind, default=value)
+GUIDED: dict[str, Any] = {
+    **DEFAULTS,
+    "gap": 0,
+    "gap_cycle": 2,
+    "candidates": 80,
+    "insert_failures": 24,
+    "extent_weight": 0.05,
+    "embed_weight": 0.0,
+    "alignment_weight": 0.25,
+    "blocked_cost": 1000.0,
+    "candidate_bucket": 3,
+    "bucket_quota": 2,
+    "jitter": 2.0,
+    "conflict_window": 64,
+    "conflict_size": 8,
+    "corner_weight": 0.03,
+}
 
 
 def embed(
     pairs: list[tuple[str, str]], box: tuple[int, int, int, int]
 ) -> dict[str, XY]:
-    """A place in the box for every cell of ``pairs``: a force-directed layout of the lane graph (springs along lanes, repulsion between all), scaled into the box with a margin; the same pairs give the same places."""
+    """A place in the box for every cell of ``pairs``: a force-directed layout of the
+    lane graph (springs along lanes, repulsion between all) scaled into the box with a
+    tenth for margin; deterministic in the pairs."""
     names = sorted({c for pair in pairs for c in pair})
     if not names:
         return {}
+
     index = {c: i for i, c in enumerate(names)}
     n = len(names)
     edges = np.array([[index[a], index[b]] for a, b in pairs if a != b], dtype=int)
@@ -62,11 +81,11 @@ def embed(
             np.add.at(force, edges[:, 0], -span * 0.1)
             np.add.at(force, edges[:, 1], span * 0.1)
         pos += force * (0.5 * (1 - step / EMBED_STEPS) + 0.02)
+
     x0, y0, x1, y1 = box
     mx, my = (x1 - x0) * 0.1, (y1 - y0) * 0.1
     low, high = pos.min(axis=0), pos.max(axis=0)
-    scale = np.where(high - low > 0, high - low, 1.0)
-    unit = (pos - low) / scale
+    unit = (pos - low) / np.where(high - low > 0, high - low, 1.0)
     return {
         c: (
             float(x0 + mx + unit[i, 0] * (x1 - x0 - 2 * mx)),
@@ -77,7 +96,9 @@ def embed(
 
 
 class EndfieldProposals(Proposals):
-    """Anchor ranking: the first cells pulled to a third of the area, the rest to its corner, every cell with lanes toward its place in the lane graph's embedding, every fitting window kept."""
+    """Anchors ranked toward the lane router's targets: the first cells pulled to a third
+    of the area, the rest to its corner, laned cells toward their embedded place; a free
+    depot part with no placed mate on a lattice in the origin corner."""
 
     def ranked(self, cell_id: str, trial: int, rng: Any) -> list[Any]:
         self.ranking = cell_id
@@ -85,7 +106,6 @@ class EndfieldProposals(Proposals):
 
     @property
     def places(self) -> dict[str, XY]:
-        """Every laned cell's place in the embedding, computed once."""
         found = getattr(self, "_places", None)
         if found is None:
             netlist = self.world.netlist
@@ -99,23 +119,30 @@ class EndfieldProposals(Proposals):
             found = self._places = embed(pairs, self.box)
         return found
 
+    @property
+    def policy(self) -> Any:
+        found = getattr(self.world.router, "policy", None)
+        return found if found is not None else LanePolicy()
+
     def pull(self, array: np.ndarray, first: bool) -> np.ndarray:
-        """The pull: the centre third for the first cell and for a cell with no target that is not a depot part, the corner for the rest; plus the distance to the cell's place in the embedding, when it has one."""
         x0, y0, x1, y1 = self.box
         ranking = getattr(self, "ranking", None)
         if first and self.world.placements and ranking is not None:
             first = self.world.netlist.cells[ranking].kind != PART_KIND
-        if not first:
-            out = self.settings["corner_weight"] * (array[:, 0] - x0 + array[:, 1] - y0)
-        else:
+
+        if first:
             cx, cy = x0 + (x1 - x0) // 3, y0 + (y1 - y0) // 3
             out = self.settings["center_weight"] * (
                 np.abs(array[:, 0] - cx) + np.abs(array[:, 1] - cy)
             )
+        else:
+            out = self.settings["corner_weight"] * (array[:, 0] - x0 + array[:, 1] - y0)
+
         place = self.places.get(ranking) if ranking is not None else None
         weight = self.settings["embed_weight"]
         if place is None or not weight:
             return out
+
         fp = self.world.footprint_of(ranking)
         tx = place[0] - (fp.width - 1) / 2 if fp is not None else place[0]
         ty = place[1] - (fp.height - 1) / 2 if fp is not None else place[1]
@@ -125,21 +152,18 @@ class EndfieldProposals(Proposals):
         return clear
 
     def fitting(self, cell_id: str) -> np.ndarray:
-        """The anchors: a depot part with no placed mate, free or clustering, goes on a lattice in the area's origin corner (``depot_window`` wide, every ``depot_step``); everything else as the framework fits it."""
         world = self.world
         cell = world.netlist.cells[cell_id]
-        mates = (
-            [
-                m
-                for m in world.netlist.groups[cell.group].members
-                if m in world.placements and m != cell_id
-            ]
-            if cell.group is not None
-            else []
-        )
+        group = world.netlist.groups[cell.group] if cell.group is not None else None
+        mates = [
+            m
+            for m in (group.members if group is not None else ())
+            if m in world.placements and m != cell_id
+        ]
         loose = cell.constraint.kind in ("free", CLUSTER)
         if cell.kind != PART_KIND or not loose or mates:
             return super().fitting(cell_id)
+
         fp = world.footprint_of(cell_id)
         x0, y0, _, _ = self.box
         step, window = self.settings["depot_step"], self.settings["depot_window"]
@@ -153,7 +177,8 @@ class EndfieldProposals(Proposals):
         return np.array(rows, dtype=int) if rows else np.zeros((0, 3), dtype=int)
 
     def reset(self, gap: int) -> None:
-        """The clearance map: the placed footprints with their gap and nothing else, so a window may cross a lane the footprint will displace."""
+        """The clearance map of placed footprints and their gap only, so a window may
+        cross a lane its footprint would displace."""
         self.gap = gap
         self.occupied[:] = self.outside
         for cell_id, placement in self.world.placements.items():
@@ -171,7 +196,9 @@ class EndfieldProposals(Proposals):
                 ] = 1
 
     def targets(self, cell_id: str) -> list[tuple[str, list[XY]]]:
-        """Where each own pin's lanes may end, one entry per lane with a placed partner: the straight cells of the partner pin's own lanes (a lane attaches on no bend), else every attach cell the partner pin may still use."""
+        """One entry per lane with a placed partner: the cells the lane router would open
+        on the partner pin's own lanes, else every attach cell the partner pin may use.
+        """
         world = self.world
         out: list[tuple[str, list[XY]]] = []
         for net in world.netlist.nets.values():
@@ -185,29 +212,25 @@ class EndfieldProposals(Proposals):
                     continue
                 if other not in world.placements:
                     continue
+
                 cells = None
                 if wire is not None:
                     partner = PinRef(cell=other, pin=other_pin)
-                    cells = lane_ends(
-                        world, net, partner, 0 if cell_id == sink else 1, self.policy
-                    )
+                    towards = 0 if cell_id == sink else 1
+                    cells = lane_ends(world, net, partner, towards, self.policy)
                 if cells is None:
                     cells = {xy for _, xy in world.open_ports(other, other_pin)}
                 out.append((mine, sorted(cells)))
         return out
 
-    @property
-    def policy(self) -> Any:
-        """The lane policy the world's router lays lanes with, or the project's own."""
-        found = getattr(self.world.router, "policy", None)
-        return found if found is not None else LanePolicy()
-
 
 class EndfieldSearch(Search):
-    """The regional construction, its jitter drawn from the raw seed over the cells in their declared order: bricks and entries (cells no net touches) first, then cells with a placed neighbour, neighbours being the two ends of a lane."""
+    """The regional seed: its jitter from the raw seed over the declared cell order,
+    unwired cells first, then cells with a placed lane neighbour."""
 
     defaults = DEFAULTS
     proposer = EndfieldProposals
+    reseated = RESEATED
 
     def __init__(self, ctx: Any, settings: dict[str, Any] | None = None) -> None:
         super().__init__(ctx, settings)
@@ -218,7 +241,7 @@ class EndfieldSearch(Search):
 
     @staticmethod
     def neighbourhood(netlist: Any) -> dict[str, list[str]]:
-        """The links: a lane's source and sink cells are neighbours, once per lane, so a pair two lanes join counts twice; nothing else on the net is."""
+        """A lane's two ends are neighbours, once per lane."""
         out: dict[str, list[str]] = {c: [] for c in netlist.cells}
         for net in netlist.nets.values():
             for (source, _), (sink, _), _ in lane_facts(net):
@@ -229,9 +252,8 @@ class EndfieldSearch(Search):
     def priority(self, cell_id: str, placed: Any, jitter: dict[str, float]) -> tuple:
         n = sum(j in placed for j in self.neighbours[cell_id])
         fp = self.world.footprint_of(cell_id)
-        unwired = not self.world.netlist.pins_of(cell_id)
         return (
-            unwired,
+            not self.world.netlist.pins_of(cell_id),
             n > 0,
             self.pressure[cell_id] + n / (len(self.neighbours[cell_id]) or 1),
             n,
@@ -240,14 +262,62 @@ class EndfieldSearch(Search):
         )
 
 
-@register
-class EndfieldRegional(Regional):
-    id = "endfield.regional"
-    search = EndfieldSearch
-    params = (
-        *(_param(k, v) for k, v in DEFAULTS.items()),
-        Param(name="shrink_rounds", type="int", default=200),
-    )
+class GuidedProposals(ContactProposals, EndfieldProposals):
+    """Contact scoring against the project's lane targets, pulled to the area's corner."""
+
+    def pull(self, anchors: np.ndarray, first: bool) -> np.ndarray:
+        x0, y0, _, _ = self.box
+        return self.settings["corner_weight"] * (
+            anchors[:, 0] - x0 + anchors[:, 1] - y0
+        )
 
 
-__all__ = ["DEFAULTS", "EndfieldProposals", "EndfieldRegional", "EndfieldSearch"]
+class GuidedSearch(EndfieldSearch):
+    """Repair around the endpoints the last ``conflict_window`` refusals name, every
+    fourth trial the framework's region instead."""
+
+    defaults = GUIDED
+    proposer = GuidedProposals
+
+    def region(self, trial: int) -> set[str]:
+        placed = self.world.placements
+        free = {c for c in placed if is_free(self.cells[c])}
+        pressure: Counter[str] = Counter()
+        window = int(self.settings["conflict_window"])
+        for refusal in self.ctx.refusals[-window:] if window else ():
+            prefix, _, name = refusal.subject.partition(":")
+            if prefix == "net" and name in self.world.netlist.nets:
+                pressure.update(r.cell for r in self.world.netlist.nets[name].pins())
+            elif prefix == "cell":
+                pressure[name] += 1
+
+        candidates = sorted(free.intersection(pressure))
+        if not candidates or trial % 4 == 0:
+            return super().region(trial)
+
+        pivot = max(candidates, key=lambda c: (pressure[c], c))
+        anchor = placed[pivot]
+        related = set(self.neighbours[pivot])
+        ranked = sorted(
+            free,
+            key=lambda c: (
+                abs(placed[c].x - anchor.x)
+                + abs(placed[c].y - anchor.y)
+                - 4 * (c in related)
+                - 2 * min(pressure[c], 4),
+                c,
+            ),
+        )
+        return set(ranked[: int(self.settings["conflict_size"])])
+
+
+__all__ = [
+    "DEFAULTS",
+    "GUIDED",
+    "RESEATED",
+    "EndfieldProposals",
+    "EndfieldSearch",
+    "GuidedProposals",
+    "GuidedSearch",
+    "embed",
+]

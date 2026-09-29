@@ -402,7 +402,7 @@ class RunManager:
             artifacts["plan"] = plan_stage(dataset, run.scenario)
         elif stage == "netlist":
             artifacts["netlist"] = netlist_stage(
-                dataset, run.scenario, artifacts["plan"]
+                dataset, run.scenario, artifacts["plan"], params
             )
             errors = artifacts["netlist"].errors
             if errors or artifacts["plan"].status == "infeasible":
@@ -425,6 +425,7 @@ class RunManager:
                 artifacts["netlist"],
                 artifacts.get("placement"),
                 artifacts.get("layout"),
+                params=params,
             )
             artifacts["report"] = report
             if evaluation is not None:

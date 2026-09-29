@@ -1,5 +1,6 @@
 """Placement and routing on hand-built netlists and the benchmark scenarios."""
 
+import json
 import subprocess
 import sys
 from fractions import Fraction
@@ -20,6 +21,13 @@ from kohakuefda.verify.layout import check_layout
 
 ROOT = Path(__file__).resolve().parents[1]
 DATASET = ROOT / "data" / "1.5.3@9764758-3" / "dataset.json"
+QUICK = {
+    "solver": "guided",
+    "seconds": 0,
+    "backend": "auto",
+    "workers": 1,
+    "solver_options": json.dumps({"seed_kind": "regional", "improvement_steps": 0}),
+}
 BENCHMARKS = [
     "scenario_valley_battery.toml",
     "scenario_wuling_hetonite.toml",
@@ -79,17 +87,7 @@ def _pair_netlist(dataset: Dataset) -> Netlist:
 
 def test_stage_seats_the_pair_on_the_bus_and_delivers(dataset: Dataset) -> None:
     netlist = _pair_netlist(dataset)
-    _, layout = layout_stage(
-        dataset,
-        netlist,
-        {
-            "solver": "regional",
-            "seconds": 0,
-            "max_actions": 6000,
-            "backend": "auto",
-            "workers": 1,
-        },
-    )
+    _, layout = layout_stage(dataset, netlist, {**QUICK, "max_actions": 6000})
     assert len(layout.machines) == len(netlist.cells)
     errors = [f for f in check_layout(dataset, layout) if f.severity == "error"]
     assert errors == [], errors
@@ -108,11 +106,7 @@ def test_benchmark_lays_out_clean_and_at_rate(
     dataset: Dataset, fixtures_dir: Path, name: str
 ) -> None:
     scenario = Scenario.from_toml(fixtures_dir / name)
-    result = layout_scenario(
-        dataset,
-        scenario,
-        {"solver": "regional", "seconds": 0, "backend": "auto", "workers": 1},
-    )
+    result = layout_scenario(dataset, scenario, QUICK)
     assert result.layout is not None, result.report.findings
     laid = [
         f
@@ -164,6 +158,12 @@ def test_layout_cli_writes_artifacts(fixtures_dir: Path, tmp_path: Path) -> None
             str(tmp_path),
             "--workers",
             "1",
+            "--max-actions",
+            "6000",
+            "--transport",
+            "rated",
+            "--initial",
+            "declared",
         ],
         capture_output=True,
         text=True,

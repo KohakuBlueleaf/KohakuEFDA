@@ -1,32 +1,22 @@
-"""The shape of the lines: which bus face each group takes, how wide it may be and
-where a row too wide for that folds.
-
-The finished bases (game-knowledge PLC-09) put the groups the depot feeds on the bus
-line; a fixed bus has slots on two faces, so a line that finds no room on the north face
-takes the west face, turned to read from it. A bus-fed row keeps its width (its bricks
-stand edge to edge on the slots) and the deeper rows fold to it.
-"""
+"""The shape of the lines: the bus face each group takes, how wide it may grow and where a
+row too wide folds (game-knowledge PLC-09)."""
 
 from typing import Any
 
 from kohakuefda.physics.boundaries import BUS_ROOM, area_rect
 from kohakuefda.physics.fabric import slots_of
-from kohakuefda.solvers.lines_graph import LineGraph
-from kohakuefda.solvers.rows_geometry import MARGIN
 from kohakulayout.solvers.structural.floorplan import Structure, item_size
+
+MARGIN = 1
+BUDGET_SLACK = 2
 
 
 def room_of(world: Any) -> tuple[int, int, int, int]:
-    """Where the groups may stand: the whole Core AIC Area on a fixed bus (its slots
-    are the area's border), else the area past the bus room and a margin on the bus
-    side."""
+    """Where the groups may stand: the whole Core AIC Area on a fixed bus, else the area past the bus room and a margin."""
     x0, y0, x1, y1 = area_rect(world.fabric)
     if slots_of(world.fabric):
         return (x0, y0, x1, y1)
     return (x0 + BUS_ROOM + MARGIN, y0 + BUS_ROOM + MARGIN, x1, y1)
-
-
-BUDGET_SLACK = 2
 
 
 class LinesShape:
@@ -34,31 +24,22 @@ class LinesShape:
 
     channel: int
 
-    def graph(self, world: Any) -> LineGraph: ...
-
-    def group_layout(self, *args: Any, **kwargs: Any) -> Any: ...
-
-    def pack(self, *args: Any, **kwargs: Any) -> Any: ...
-
     def line_faces(self, structure: Structure, ctx: Any) -> list[str | None]:
-        """The bus face per group: the bus groups take the north face in order while
-        its slots hold their bricks (every group on a laid bus) and its length holds
-        their widest rows side by side, then the west face on the same terms; a group
-        the bus does not feed takes none."""
+        """The bus face per group: the north face while its slots hold the group's
+        bricks and its length the groups' widest rows side by side, then the west
+        face; none for a group the bus does not feed."""
         world = ctx.world
         graph = self.graph(world)
         slots = slots_of(world.fabric)
-        room = {
-            "N": sum(1 for s in slots if s[2] == "N"),
-            "W": sum(1 for s in slots if s[2] == "W"),
-        }
+        room = {side: sum(1 for s in slots if s[2] == side) for side in ("N", "W")}
         if not slots:
             room["N"] = 10**6
-        used = {"N": 0, "W": 0}
         left, top, right, bottom = room_of(world)
         length = {"N": right - left, "W": bottom - top}
+        used = {"N": 0, "W": 0}
         taken = {"N": 0, "W": 0}
         rot = structure["rot"]
+
         out: list[str | None] = []
         for rows in structure["groups"]:
             bricks = sum(1 for i in rows[0] if i in graph.bricks) if rows else 0
@@ -71,9 +52,8 @@ class LinesShape:
             face = "N"
             for candidate in ("N", "W"):
                 fits = used[candidate] + bricks <= room[candidate]
-                along = (
-                    taken[candidate] + width + (self.channel if taken[candidate] else 0)
-                )
+                along = taken[candidate] + width
+                along += self.channel if taken[candidate] else 0
                 if fits and (along <= length[candidate] or not taken[candidate]):
                     face = candidate
                     break
@@ -82,8 +62,8 @@ class LinesShape:
             out.append(face)
         return out
 
-    def row_width(self, graph: LineGraph, row: list[str], rot: dict[str, int]) -> int:
-        """The width of a row packed on its own, edge to edge when the bus feeds it or a loop is all of it."""
+    def row_width(self, graph: Any, row: list[str], rot: dict[str, int]) -> int:
+        """The width of a row packed on its own."""
         xs: dict[str, int] = {}
         self.pack(graph, row, xs, {}, rot)
         return max(
@@ -91,22 +71,19 @@ class LinesShape:
         ) - min((xs[i] - graph.span(i, rot.get(i, 0))[0] for i in row), default=0)
 
     def budgets(self, structure: Structure, ctx: Any) -> list[int]:
-        """The width each group may take. A north group takes the share of the room's
-        width its machines' cells are of every group's, so the groups off the bus
-        find room beside it, no more than the room the other north groups' least
-        widths leave nor its widest row packed alone plus ``BUDGET_SLACK`` (so rows
-        aligned to a partner do not drift the group wide), and at least its own least
-        width (its bus-fed row and widest loop); a west group takes the west face's
-        length left under the north groups, at least its least width; every other
-        group the widest north group's width, at least its least width."""
+        """The width each group may take: a north group its share of the width by its
+        machines' area, within what the other north groups leave, no wider than its
+        widest row plus ``BUDGET_SLACK`` and no narrower than its bus-fed row or widest
+        loop; a west group the west face's length left under the north groups; any
+        other group the widest north budget."""
         world = ctx.world
         graph = self.graph(world)
         left, top, right, bottom = room_of(world)
         limit = right - left
-        length = bottom - top
         groups = structure["groups"]
         faces = structure.get("faces") or [None] * len(groups)
         rot = structure["rot"]
+
         floors = [
             self.row_width(graph, rows[1], rot) if len(rows) > 1 and faces[g] else 0
             for g, rows in enumerate(groups)
@@ -117,6 +94,7 @@ class LinesShape:
                     loop = [i for i in graph.loop_of(item) if i in row]
                     if len(loop) > 1:
                         floors[g] = max(floors[g], self.row_width(graph, loop, rot))
+
         north = [g for g in range(len(groups)) if faces[g] == "N"]
         room = limit - self.channel * (len(north) - 1)
         areas = [
@@ -137,6 +115,7 @@ class LinesShape:
                 default=0,
             )
             out[g] = max(floors[g], min(room - others, share, natural + BUDGET_SLACK))
+
         depth = max(
             (self.group_layout(graph, groups[g], rot, out[g])[2] for g in north),
             default=0,
@@ -144,18 +123,17 @@ class LinesShape:
         widest = max((out[g] for g in north), default=limit)
         for g in range(len(groups)):
             if faces[g] == "W":
-                out[g] = max(floors[g], length - depth - self.channel)
+                out[g] = max(floors[g], bottom - top - depth - self.channel)
             elif faces[g] is None:
                 out[g] = max(floors[g], widest)
         return out
 
     def fold(self, structure: Structure, ctx: Any) -> bool:
-        """Every group wider than its budget has its widest row past the bus-fed one
-        cut when that row alone is wider than the budget: the items past the width
-        move to a new row under it, a loop whole, or, when they are the row's guests
-        and the row under holds no loop and has the room, into that row; a group
-        within its budget moves the outermost guest of its widest row the same way
-        when that makes the group's area smaller. Whether any row changed."""
+        """Every group wider than its budget has its widest row past the bus-fed one cut
+        at the budget (a loop whole), the rest to a new row under it or, when they are
+        guests, into the row under; a group within budget moves its widest row's
+        outermost guest the same way when that shrinks its area. Whether a row changed.
+        """
         world = ctx.world
         graph = self.graph(world)
         rot = structure["rot"]
@@ -180,6 +158,7 @@ class LinesShape:
             }
             if not spans:
                 continue
+
             k = max(spans, key=spans.get)
             guests = graph.guests(rows[k], rot)
             if over and spans[k] > budget:
@@ -206,6 +185,7 @@ class LinesShape:
                     rest = [i for i in rows[k] if i not in keep]
             if not keep or not rest:
                 continue
+
             below = rows[k + 1] if k + 1 < len(rows) else None
             joins = (
                 below is not None
@@ -226,5 +206,11 @@ class LinesShape:
             cut = True
         return cut
 
+    def graph(self, world: Any) -> Any: ...
 
-__all__ = ["LinesShape", "room_of"]
+    def group_layout(self, *args: Any, **kwargs: Any) -> Any: ...
+
+    def pack(self, *args: Any, **kwargs: Any) -> Any: ...
+
+
+__all__ = ["BUDGET_SLACK", "MARGIN", "LinesShape", "room_of"]

@@ -14,6 +14,7 @@ from kohakuefda.data.importers.industrial_planner import import_industrial_plann
 from kohakuefda.flow.evaluate import Evaluation
 from kohakuefda.layout.pipeline import layout_scenario
 from kohakuefda.layout.settings import LAYOUT_DEFAULTS
+from kohakuefda.layout.stages import CHOICES, DEFAULTS
 from kohakuefda.model.dataset import Dataset
 from kohakuefda.model.layout import Layout
 from kohakuefda.model.plan import Finding
@@ -124,7 +125,9 @@ def layout_cmd(
         help="Directory for plan, netlist, layout and report.",
     ),
     seed: int = typer.Option(0, "--seed", help="Search seed."),
-    solver: str = typer.Option("baseline", "--solver", help="Registered solver name."),
+    solver: str = typer.Option(
+        str(LAYOUT_DEFAULTS["solver"]), "--solver", help="Catalogue solver name."
+    ),
     solver_options: str = typer.Option(
         "{}", "--solver-options", help="Solver settings as a JSON object."
     ),
@@ -147,6 +150,16 @@ def layout_cmd(
         "--workers",
         "-j",
         help="Searches to run at once, each from its own seed; 0 asks the machine.",
+    ),
+    transport: str = typer.Option(
+        DEFAULTS["netlist"]["transport"],
+        "--transport",
+        help=f"Netlist transport: {', '.join(CHOICES['netlist']['transport'])}.",
+    ),
+    initial: str = typer.Option(
+        DEFAULTS["verify"]["initial"],
+        "--initial",
+        help=f"Flow check start: {', '.join(CHOICES['verify']['initial'])}.",
     ),
     png: bool = typer.Option(
         False, "--png", help="Also write layout.png (needs matplotlib)."
@@ -179,7 +192,14 @@ def layout_cmd(
         dataset=dataset.version.id,
     )
     started = time.monotonic()
-    result = layout_scenario(dataset, scenario, params, record_frames=frames)
+    result = layout_scenario(
+        dataset,
+        scenario,
+        params,
+        record_frames=frames,
+        netlist_params={"transport": transport},
+        verify_params={"initial": initial},
+    )
     log.info("layout pipeline finished in %.1fs", time.monotonic() - started)
     output.mkdir(parents=True, exist_ok=True)
     result.plan.save(output / "plan.json")

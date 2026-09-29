@@ -15,6 +15,7 @@ from kohakuefda.serve.server import serve
 ROOT = Path(__file__).resolve().parents[1]
 DATA_ROOT = ROOT / "data"
 FIXTURES = ROOT / "tests" / "fixtures"
+WHOLE_STRUCTURE = frozenset({"floorplan"})
 TIMEOUT = 180.0
 
 
@@ -75,14 +76,19 @@ def test_meta_examples_and_params(base_url: str) -> None:
     status, solvers = _request(f"{base_url}/api/solvers")
     assert status == 200
     by_name = {entry["name"]: entry for entry in solvers}
-    assert {"baseline", "regional", "hc", "sa"} <= by_name.keys()
-    assert set(by_name["hc"]["defaults"]) <= set(by_name["sa"]["defaults"])
+    assert solvers[0]["name"] == "guided"
+    assert {"guided", "baseline", "regional", "climb", "anneal"} <= by_name.keys()
+    assert set(by_name["climb"]["defaults"]) <= set(by_name["guided"]["defaults"])
     assert by_name["regional"]["defaults"]["attempts"] == 128
-    assert by_name["hc"]["parameter_types"]["until_budget"] == "bool"
-    assert by_name["hc"]["parameter_types"]["construction_temperature"] == "float"
+    assert by_name["guided"]["parameter_types"]["until_budget"] == "bool"
+    assert by_name["guided"]["parameter_types"]["construction_temperature"] == "float"
+    assert by_name["guided"]["choices"]["seed_kind"] == ["lines", "regional"]
     assert by_name["baseline"]["parallel"]
-    assert not by_name["hc"]["parallel"]
-    assert not by_name["sa"]["parallel"]
+    assert not by_name["guided"]["parallel"]
+    assert meta["choices"]["netlist"]["transport"] == ["legacy", "rated", "direct"]
+    assert meta["choices"]["verify"]["initial"] == ["empty", "declared"]
+    assert params["netlist"] == {"transport": "legacy"}
+    assert params["verify"] == {"initial": "empty"}
 
 
 def test_scenario_toml_round_trip(base_url: str) -> None:
@@ -310,8 +316,10 @@ def test_all_catalog_solvers_deliver_sse_progress_and_matching_replay(
                     assert event["data"]["status"] != "failed", event
                     break
         _, replay = _request(f"{prefix}/frames/layout")
-        assert streamed == replay
-        assert any(f.get("placed", 0) for f in replay if f["kind"] != "final")
+        assert streamed == replay, entry["name"]
+        assert entry["name"] in WHOLE_STRUCTURE or any(
+            f.get("placed", 0) for f in replay if f["kind"] != "final"
+        ), entry["name"]
         assert all(
             f.get("layout")
             for f in replay

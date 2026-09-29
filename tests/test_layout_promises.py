@@ -6,6 +6,7 @@ the parked core stays inside the area; a cancelled stage raises; the rules judge
 hand-built layouts.
 """
 
+import json
 from fractions import Fraction
 from pathlib import Path
 
@@ -47,12 +48,13 @@ NUGGET = "item_copper_nugget"
 WATER = "item_liquid_water"
 GAS = "item_gas_inert"
 FAST = {
-    "solver": "regional",
+    "solver": "guided",
     "seconds": 0,
     "max_actions": 6000,
     "backend": "auto",
     "workers": 1,
     "frame_every": 1000,
+    "solver_options": json.dumps({"seed_kind": "regional", "improvement_steps": 0}),
 }
 PinKey = tuple[str, str]
 
@@ -292,7 +294,7 @@ def test_cancellation_and_settings_that_cannot_run(dataset: Dataset) -> None:
         params_of("layout", {"spread_gap": -1})
     with pytest.raises(StageError):
         params_of(
-            "layout", {"solver": "regional", "solver_options": '{"attempts": -4}'}
+            "layout", {"solver": "guided", "solver_options": '{"candidates": -4}'}
         )
 
 

@@ -1,33 +1,14 @@
-"""KohakuEFDA-kl's own solvers on the framework: the regional construction, the local searches over it and the rows floorplan, registered as ``endfield.*``."""
+"""The project's solver on the framework, registered on import as ``endfield.guided``."""
 
-from kohakuefda.solvers.lines import EndfieldLines, EndfieldLinesPlan
-from kohakuefda.solvers.local import EndfieldAnneal, EndfieldClimb
-from kohakuefda.solvers.regional import (
-    DEFAULTS,
-    EndfieldProposals,
-    EndfieldRegional,
-    EndfieldSearch,
-)
-from kohakuefda.solvers.rows import EndfieldFloorplan, EndfieldRows
+from kohakuefda.solvers.guided import GuidedLayout
+from kohakuefda.solvers.search import EndfieldProposals, EndfieldSearch, GuidedSearch
 
-SOLVER_IDS: tuple[str, ...] = (
-    EndfieldRegional.id,
-    EndfieldClimb.id,
-    EndfieldAnneal.id,
-    EndfieldFloorplan.id,
-    EndfieldLinesPlan.id,
-)
+SOLVER_IDS: tuple[str, ...] = (GuidedLayout.id,)
 
 __all__ = [
-    "DEFAULTS",
     "SOLVER_IDS",
-    "EndfieldAnneal",
-    "EndfieldClimb",
-    "EndfieldFloorplan",
-    "EndfieldLines",
-    "EndfieldLinesPlan",
     "EndfieldProposals",
-    "EndfieldRegional",
-    "EndfieldRows",
     "EndfieldSearch",
+    "GuidedLayout",
+    "GuidedSearch",
 ]

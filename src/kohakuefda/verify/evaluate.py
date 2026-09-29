@@ -21,7 +21,7 @@ def _merge(mixes: list[Mix]) -> Mix:
     return out
 
 
-def evaluate(dataset: Dataset, layout: Layout) -> Evaluation:
+def evaluate(dataset: Dataset, layout: Layout, initial: str = "empty") -> Evaluation:
     """Rates per segment and utilisation per machine, from the routed evaluator over the layout's reverse translation."""
     reverse = Reverse(dataset, layout)
     problem, kl_layout = reverse.problem()
@@ -32,6 +32,7 @@ def evaluate(dataset: Dataset, layout: Layout) -> Evaluation:
         evaluator=reverse.physics.flow.evaluator,
         layout=kl_layout,
         oriented=True,
+        initial=initial,
     )
     unit_cells = {
         net_id: {(kl_layout.units[u].x, kl_layout.units[u].y) for u in wire.units}
@@ -86,6 +87,7 @@ def evaluate(dataset: Dataset, layout: Layout) -> Evaluation:
         machines=machines,
         iterations=result.rounds,
         converged=result.converged,
+        initial=initial,
     )
 
 

@@ -21,7 +21,7 @@ from pydantic import ValidationError
 
 from kohakuefda.data.icons import IconIndex
 from kohakuefda.layout.settings import SOLVERS
-from kohakuefda.layout.stages import DEFAULTS, STAGES, StageError
+from kohakuefda.layout.stages import CHOICES, DEFAULTS, STAGES, StageError
 from kohakuefda.model.dataset import Dataset
 from kohakuefda.model.scenario import PlanMode, Scenario
 from kohakuefda.plan.alternatives import alternatives, bannable
@@ -96,6 +96,7 @@ class Api:
             "regions": ["valley4", "wuling"],
             "modes": [mode.value for mode in PlanMode],
             "stages": list(STAGES),
+            "choices": {stage: dict(params) for stage, params in CHOICES.items()},
             "basements": basements,
         }
 

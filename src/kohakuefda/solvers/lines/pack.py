@@ -1,11 +1,4 @@
-"""Level 1 of the lines: the groups as stacks of row rectangles packed against the bus line.
-
-The finished bases (game-knowledge PLC-09) tile the area with rectangular groups packed
-edge to edge; the groups the depot feeds stand on the unloader line. ``pack_groups``
-lays the bus groups side by side on the line and every other group at the corner of
-the placed groups' rows that grows the box least, the trunks to its partners counted
-in; a group is its rows' rectangles, so a short row leaves room beside it.
-"""
+"""The lines groups as stacks of row rectangles packed against the bus (game-knowledge PLC-09)."""
 
 from typing import Any
 
@@ -28,6 +21,14 @@ def apart(a: Rect, b: Rect, channel: int) -> bool:
     )
 
 
+def bbox(shape: list[Rect]) -> Rect:
+    x0 = min(r[0] for r in shape)
+    y0 = min(r[1] for r in shape)
+    x1 = max(r[0] + r[2] for r in shape)
+    y1 = max(r[1] + r[3] for r in shape)
+    return (x0, y0, x1 - x0, y1 - y0)
+
+
 def pack_groups(
     shapes: list[list[Rect]],
     faces: list[str | None],
@@ -39,15 +40,11 @@ def pack_groups(
     channel: int,
     weight: int = WEIGHT,
 ) -> list[tuple[int, int]]:
-    """A position per group. The north groups side by side on the line from ``left``
-    in their order, each as far left as the rows before it allow; then the west groups
-    down the west edge from the top, each as high as the rows before it allow; the
-    others, the larger first and the most linked first among equals, placed by a
-    search over the candidate corners (under or beside a placed row, ``channel``
-    cells off it, flush with its left or its right edge), within ``NODES`` nodes,
-    for the smallest box of everything placed plus ``weight`` cells per lane of trunk
-    between partners, centre to centre; a group the search never placed goes under
-    everything."""
+    """A position per group: the north groups side by side on the line, the west groups
+    down the west edge, each as near the corner as the rows before allow; the others,
+    larger and more linked first, by a search of at most ``NODES`` nodes over the
+    corners beside or under placed rows for the smallest box plus ``weight`` cells per
+    lane of trunk between partners; a group the search never placed goes under all."""
     placed: dict[int, list[Rect]] = {}
     origin: dict[int, tuple[int, int]] = {}
 
@@ -65,26 +62,16 @@ def pack_groups(
                     return False
         return True
 
-    def bbox(shape: list[Rect]) -> Rect:
-        x0 = min(r[0] for r in shape)
-        y0 = min(r[1] for r in shape)
-        x1 = max(r[0] + r[2] for r in shape)
-        y1 = max(r[1] + r[3] for r in shape)
-        return (x0, y0, x1 - x0, y1 - y0)
-
     def box(shapes_: list[list[Rect]]) -> int:
         rects = [r for shape in shapes_ for r in shape]
         x1 = max(r[0] + r[2] for r in rects)
         y1 = max(r[1] + r[3] for r in rects)
         return (x1 - left) * (y1 - top)
 
-    def lanes_to(g: int) -> dict[int, int]:
-        out: dict[int, int] = {}
-        for (a, b), n in links.items():
-            other = b if a == g else a if b == g else None
-            if other is not None and other in placed:
-                out[other] = out.get(other, 0) + n
-        return out
+    def floor(axis: int, start: int) -> int:
+        return max(
+            (r[axis] + r[axis + 2] for s in placed.values() for r in s), default=start
+        )
 
     def corners(width: int = 0) -> list[tuple[int, int]]:
         out = {(left, top)}
@@ -104,24 +91,18 @@ def pack_groups(
             found = None
             for cx, cy in corners():
                 at = (cx, top) if face == "N" else (left, cy)
-                moved = shifted(shape, at[0] - bx, at[1] - by)
-                if clear(moved):
+                if clear(shifted(shape, at[0] - bx, at[1] - by)):
                     found = (at[0] - bx, at[1] - by)
                     break
             if found is None:
-                x = max(
-                    (r[0] + r[2] for s_ in placed.values() for r in s_), default=left
-                )
-                y = max(
-                    (r[1] + r[3] for s_ in placed.values() for r in s_), default=top
-                )
                 found = (
-                    (x + channel - bx, top - by)
+                    (floor(0, left) + channel - bx, top - by)
                     if face == "N"
-                    else (left - bx, y + channel - by)
+                    else (left - bx, floor(1, top) + channel - by)
                 )
             origin[g] = found
             placed[g] = shifted(shape, *found)
+
     rest = [g for g in range(len(shapes)) if g not in placed]
     rest.sort(
         key=lambda g: (
@@ -157,15 +138,15 @@ def pack_groups(
                 best["cost"] = here
                 best["origin"] = dict(origin)
             return
+
         g = rest[index]
         shape = shapes[g]
-        bx, by, _, _ = bbox(shape)
+        bx, by, bw, _ = bbox(shape)
         options = []
-        for cx, cy in corners(bbox(shape)[2]):
+        for cx, cy in corners(bw):
             moved = shifted(shape, cx - bx, cy - by)
-            if not clear(moved):
-                continue
-            options.append((box([*placed.values(), moved]), cy, cx, moved))
+            if clear(moved):
+                options.append((box([*placed.values(), moved]), cy, cx, moved))
         options.sort(key=lambda o: o[:3])
         for grown, cy, cx, moved in options:
             if best["cost"] is not None and grown >= best["cost"]:
@@ -177,19 +158,13 @@ def pack_groups(
             del origin[g]
 
     search(0)
-    if len(best["origin"]) < len(rest) + len(origin):
-        for g in rest:
-            if g in best["origin"]:
-                continue
-            shape = shapes[g]
-            bx, by, _, _ = bbox(shape)
-            floor = max(
-                (r[1] + r[3] for s_ in placed.values() for r in s_), default=top
-            )
-            best["origin"][g] = (left - bx, floor + channel - by)
-            placed[g] = shifted(shape, *best["origin"][g])
+    for g in rest:
+        if g not in best["origin"]:
+            bx, by, _, _ = bbox(shapes[g])
+            best["origin"][g] = (left - bx, floor(1, top) + channel - by)
+            placed[g] = shifted(shapes[g], *best["origin"][g])
     origin.update(best["origin"])
     return [origin[g] for g in range(len(shapes))]
 
 
-__all__ = ["NODES", "WEIGHT", "apart", "pack_groups", "shifted"]
+__all__ = ["NODES", "WEIGHT", "apart", "bbox", "pack_groups", "shifted"]

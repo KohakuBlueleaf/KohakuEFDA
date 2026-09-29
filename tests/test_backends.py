@@ -28,7 +28,7 @@ def test_a_layout_run_routes_the_same_on_either_kernel(dataset: Dataset) -> None
             dataset,
             netlist,
             {
-                "solver": "regional",
+                "solver": "guided",
                 "seconds": 0,
                 "max_actions": 4000,
                 "backend": backend,

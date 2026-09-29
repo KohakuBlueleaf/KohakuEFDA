@@ -2,6 +2,7 @@
 scenario asks for one, every powered machine under a pylon, fluids from outside, and the
 15/min Hetonite line inside its 40×40 square."""
 
+import json
 from pathlib import Path
 
 import pytest
@@ -23,11 +24,12 @@ CORE = "sp_hub_1"
 PYLON = "power_diffuser_1"
 CORE_REACH = 0
 LAYOUT = {
-    "solver": "regional",
+    "solver": "guided",
     "seconds": 0,
     "backend": "auto",
     "workers": 1,
     "frame_every": 100000,
+    "solver_options": json.dumps({"seed_kind": "regional", "improvement_steps": 0}),
 }
 
 

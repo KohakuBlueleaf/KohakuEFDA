@@ -92,7 +92,7 @@ def test_every_solver_streams_checked_frames_through_real_stage(
         manager.shutdown()
 
 
-@pytest.mark.parametrize("name", ["hc", "sa", "regional"])
+@pytest.mark.parametrize("name", ["guided", "climb", "anneal"])
 def test_cancellation_preserves_terminal_frame_after_live_observation(
     dataset, netlist, name
 ):

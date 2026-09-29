@@ -51,11 +51,14 @@ def layout_scenario(
     params: dict | None = None,
     progress: Progress | None = None,
     record_frames: bool = False,
+    netlist_params: dict | None = None,
+    verify_params: dict | None = None,
 ) -> LayoutResult:
     """Run every stage; an infeasible plan or a netlist with errors stops before the layout.
 
-    ``params`` override the layout stage's defaults; ``progress`` receives a short stage name
-    each time a stage starts.
+    ``params`` override the layout stage's defaults, ``netlist_params`` and
+    ``verify_params`` those of the netlist and verify stages; ``progress`` receives a
+    short stage name each time a stage starts.
     """
     report_stage = progress or (lambda stage: None)
     frames: dict[str, list[dict]] = {"layout": []}
@@ -69,9 +72,11 @@ def layout_scenario(
     report_stage("planning")
     plan = plan_stage(dataset, scenario)
     report_stage("building the netlist")
-    netlist = netlist_stage(dataset, scenario, plan)
+    netlist = netlist_stage(dataset, scenario, plan, netlist_params)
     if plan.status == "infeasible" or netlist.errors:
-        report, _ = verify_stage(dataset, plan, netlist, None, None)
+        report, _ = verify_stage(
+            dataset, plan, netlist, None, None, params=verify_params
+        )
         log.warning(
             "run stopped before the layout",
             status=plan.status,
@@ -84,7 +89,9 @@ def layout_scenario(
         dataset, netlist, params, frames["layout"].append if record_frames else None
     )
     report_stage("verifying")
-    report, evaluation = verify_stage(dataset, plan, netlist, placement, layout)
+    report, evaluation = verify_stage(
+        dataset, plan, netlist, placement, layout, params=verify_params
+    )
     errors = [f for f in report.findings if f.severity == "error"]
     log.info(
         "run finished" if not errors else "run finished with errors",
