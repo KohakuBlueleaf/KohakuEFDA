@@ -74,6 +74,7 @@ const sidebarStructure = {
     "dev/internals.md",
     "dev/dependency-graph.md",
     "dev/testing.md",
+    "dev/solvers.md",
     "dev/frontend.md",
     "dev/kohakulayout-twin.md",
     "dev/assumptions.md",

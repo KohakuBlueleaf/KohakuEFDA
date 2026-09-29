@@ -307,7 +307,7 @@ scenario.toml --plan--> plan.json --netlist--> netlist.json
                                                |
          +------------------- layout stage ----+-------------------------------------+
          |  synth.problem_of   project netlist -> KohakuLayout Problem (Endfield pack) |
-         |  pipeline.solve     EndfieldRouter, endfield.regional / climb / anneal     |
+         |  pipeline.solve     EndfieldRouter, endfield.guided or a framework solver  |
          |  synth.layout_of    framework Layout -> the project's placement and layout |
          +---------------------------------------+-----------------------------------+
                                                  v
@@ -331,7 +331,7 @@ not only the ones the planner made.
 |---|---|---|
 | physics pack | the Core AIC Area and its ring; belts at 30/min and pipes at 120/min (`LOG-01`, `LOG-02`) sharing a cell, bridges where belts cross (`LOG-04`); junctions through splitters and convergers (`LOG-07`); pylons reaching 12×12, laid afresh by `PylonSweep` (`COV-01`); the depot bus and its bricks; gas zones (`ENV-01`, `ENV-02`); the flow hooks and the rules deck | `physics/` |
 | router policy and order | `LanePolicy` (lanes laid pipes first, then role, rate and span) and `EndfieldRouter` | `layout/router.py` |
-| solver construction | `EndfieldProposals` and `EndfieldSearch` under `endfield.regional`, `endfield.climb`, `endfield.anneal` | `solvers/` |
+| solver | `endfield.guided`: a lines or regional seed (`EndfieldSearch`), then local search repaired by contact proposals (`GuidedSearch`) | `solvers/` |
 | synth | `problem_of`, `layout_of`, `reverse`, the frame observer | `synth/` |
 | run service and frames | the Studio's live runs, frames and replays | `serve/`, `synth/frames.py` |
 

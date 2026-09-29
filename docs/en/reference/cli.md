@@ -90,12 +90,12 @@ Plan, then build one cell per machine and the nets between their pins. Prints ce
 ## `layout`
 
 ```
-kohakuefda layout SCENARIO.toml [-o DIR] [--seed N] [--attempts N] [-j WORKERS] [--png] [--frames] [-v ID] [--root PATH]
+kohakuefda layout SCENARIO.toml [-o DIR] [--seed N] [--solver NAME] [--solver-options JSON] [--backend B] [--seconds S] [--max-actions N] [--attempts N] [-j WORKERS] [--transport T] [--initial I] [--png] [--frames] [-v ID] [--root PATH]
 ```
 
 Run the whole pipeline. Writes `plan.json`, `netlist.json`, `placement.json`, `layout.json`, `evaluation.json` and `report.json` (and `layout.png` with `--png`, which needs matplotlib) into `DIR` (default `out`). `--frames` also writes `frames/layout.json`, the recorded catalogue, build and final frames. Prints the grid, the modules, the utilisation table and the findings.
 
-`--seed` makes work-bounded runs repeatable for fixed settings and backend. `--attempts` caps the baseline's spread attempts (0 leaves the solver's own default). `-j`/`--workers` selects concurrency for the solvers that take it; 0 auto-selects. `--solver` chooses a catalogue entry (`hc` by default; `sa`, `baseline`, `regional`, `inorder`, `rows`, `lines`), `--solver-options` is a JSON object of that solver's own params, and `--backend` selects the KohakuLayout kernel: `auto`, `python` or `native`. `--max-actions` and `--seconds` cap charged work or elapsed time; 0 means no cap, and with both at 0 the run stops after 20000 actions. Timed results depend on machine load. See the [KohakuLayout pages](../kohakulayout/README.md).
+`--seed` makes work-bounded runs repeatable for fixed settings and backend. `--attempts` caps the baseline's spread attempts (0 leaves the solver's own default). `-j`/`--workers` selects concurrency for the solvers that take it; 0 auto-selects. `--solver` chooses a catalogue entry (`guided` by default; `baseline`, `regional`, `climb`, `anneal`, `floorplan`, `inorder`; see [Layout solvers](../dev/solvers.md)), `--solver-options` is a JSON object of that solver's own params, `--transport` picks the netlist's transport (`legacy`, `rated`, `direct`), `--initial` where the flow check starts (`empty`, `declared`), and `--backend` selects the KohakuLayout kernel: `auto`, `python` or `native`. `--max-actions` and `--seconds` cap charged work or elapsed time; 0 means no cap, and with both at 0 the run stops after 20000 actions. Timed results depend on machine load. See the [KohakuLayout pages](../kohakulayout/README.md).
 
 The area is what the basement gives and is never enlarged to make a layout fit. A line the square cannot hold is reported with `layout.too_big` and the size it needed. Exit 1 on any error finding.
 

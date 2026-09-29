@@ -19,6 +19,7 @@ For people working on the tool itself.
 - [Internals](internals.md): the package map and the path of one run through the stages, with the files that carry each step.
 - [Dependency graph](dependency-graph.md): the import order between packages and modules.
 - [Testing](testing.md): the flat test suite, the benchmark scenarios, the engine tests, and the check commands.
+- [Layout solvers](solvers.md): the guided search, the framework solvers the studio offers, the stage knobs and the bench.
 - [Frontend](frontend.md): the web app's architecture, the run API, the event stream and the canvas renderers.
 - [Assumptions](assumptions.md): game mechanics the tool assumes and has not verified in play, data gaps, and known limits.
 

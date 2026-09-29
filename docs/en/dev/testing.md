@@ -36,7 +36,9 @@ tags:
 
 ## Benchmarks
 
-Three scenarios under `tests/fixtures/` exercise the whole pipeline: `scenario_valley_battery.toml` (LC Valley Battery, solids only, Infra-Station level 2), `scenario_wuling_hetonite.toml` (Hetonite with crucibles, a Purification Unit, refiners, shredders, Water Treatment Units and water from outside, Sky King Flats level 3) and `scenario_gas_xiranite.toml` (Xiranite in a stable-gas zone with the gas from outside, Sky King Flats level 2). `scenario_basic.toml` is the 15/min Hetonite line in Sky King Flats level 2.
+Three scenarios under `tests/fixtures/` exercise the whole pipeline: `scenario_valley_battery.toml` (LC Valley Battery, solids only, Infra-Station level 2), `scenario_wuling_hetonite.toml` (Hetonite with crucibles, a Purification Unit, refiners, shredders, Water Treatment Units and water from outside, Sky King Flats level 3) and `scenario_gas_xiranite.toml` (Xiranite in a stable-gas zone with the gas from outside, Sky King Flats level 2). `scenario_basic.toml` is the 15/min Hetonite line in Sky King Flats level 2. The
+`scenario_dense_*.toml` fixtures are the dense battery cases the bench runs; see
+[Layout solvers](solvers.md#the-bench).
 
 ## Checks
 
