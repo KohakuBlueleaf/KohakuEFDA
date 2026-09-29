@@ -11,10 +11,12 @@ from kohakuefda.model.rates import lanes_needed
 from kohakuefda.model.scenario import Scenario
 from kohakuefda.plan.depot import io_budget, via_depot_ok
 from kohakuefda.plan.machines import instantiate
+from kohakuefda.plan.transport import allocate, materialize
 from kohakuefda.plan.units import assign_units, extract
 
 log = logging.getLogger(__name__)
 BRICK_KINDS = ("unloader", "loader")
+TRANSPORT = ("legacy", "rated", "direct")
 
 
 def _refs(pins: list[tuple[CellInstance, Pin]], planned: Fraction) -> list[PinRef]:
@@ -25,11 +27,12 @@ def _refs(pins: list[tuple[CellInstance, Pin]], planned: Fraction) -> list[PinRe
 
 
 def build_nets(
-    dataset: Dataset, plan: Plan, cells: list[CellInstance]
+    dataset: Dataset, plan: Plan, cells: list[CellInstance], rated: bool = False
 ) -> list[NetSpec]:
     """One net per item, and one per ``Pin.net`` key of an item, named by the item and the
     key alone so the names hold across runs; keyed nets share the item's planned flow in
-    proportion to their own pins' rates."""
+    proportion to their own pins' rates; ``rated`` nets carry what their sources make.
+    """
     by_key: dict[tuple[str, str | None], dict[str, list[tuple[CellInstance, Pin]]]] = {}
     for cell in cells:
         for pin in cell.pins:
@@ -52,7 +55,10 @@ def build_nets(
         balance = plan.items.get(item_id)
         planned = balance.produced + balance.supplied if balance else Fraction(0)
         nominal = sum((p.rate for _, p in ends["in"]), Fraction(0))
-        if item_id in keyed:
+        if rated:
+            made = sum((p.rate for _, p in ends["out"]), Fraction(0))
+            planned = made if ends["out"] else nominal
+        elif item_id in keyed:
             share = min(1, planned / keyed[item_id]) if keyed[item_id] > 0 else 0
             planned = own[item_id, key] * share if key is not None else Fraction(0)
         elif ends["out"] and all(c.kind == "entry" for c, _ in ends["out"]):
@@ -175,19 +181,27 @@ def netlist_findings(
     return out
 
 
-def build_netlist(dataset: Dataset, scenario: Scenario, plan: Plan) -> Netlist:
+def build_netlist(
+    dataset: Dataset, scenario: Scenario, plan: Plan, transport: str = TRANSPORT[0]
+) -> Netlist:
+    """The plan's cells and nets under a ``TRANSPORT`` policy: ``legacy`` nominal
+    machines, ``rated`` exact operating points, ``direct`` the rated netlist re-laned by
+    the transport allocator (the rated one kept, with a warning, when it finds none)."""
+    if transport not in TRANSPORT:
+        raise ValueError(f"transport must be one of {TRANSPORT}")
+
+    rated = transport != "legacy"
     hierarchy = extract(dataset, plan)
-    cells, links = instantiate(dataset, scenario, plan, hierarchy)
+    cells, links = instantiate(dataset, scenario, plan, hierarchy, rated=rated)
     assign_units(hierarchy, cells)
-    nets = build_nets(dataset, plan, cells)
-    bricks = brick_count(cells)
+    nets = build_nets(dataset, plan, cells, rated=rated)
     log.info(
         "netlist built: %d cell(s), %d net(s), %d brick(s)",
         len(cells),
         len(nets),
-        bricks,
+        brick_count(cells),
     )
-    return Netlist(
+    netlist = Netlist(
         dataset_version=dataset.version.id,
         scenario=scenario,
         plan_status=plan.status,
@@ -196,3 +210,18 @@ def build_netlist(dataset: Dataset, scenario: Scenario, plan: Plan) -> Netlist:
         links=links,
         findings=netlist_findings(dataset, scenario, plan, cells, nets),
     )
+    if transport != "direct":
+        return netlist
+
+    allocation = allocate(dataset, netlist)
+    if allocation.feasible:
+        return materialize(dataset, netlist, allocation)
+    netlist.findings.append(
+        Finding(
+            rule="transport.direct",
+            severity="warning",
+            subject="transport",
+            message=f"no direct transport allocation ({allocation.reason}); the rated netlist stands",
+        )
+    )
+    return netlist

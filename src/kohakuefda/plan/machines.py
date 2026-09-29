@@ -22,7 +22,7 @@ import logging
 import math
 from fractions import Fraction
 
-from kohakuefda.flow.lanes import lane_capacity, lane_split
+from kohakuefda.flow.lanes import lane_capacity
 from kohakuefda.model.cells import (
     BUS_GROUP,
     CellInstance,
@@ -51,6 +51,7 @@ from kohakuefda.plan.depot import (
     line_sections,
     sections_needed,
 )
+from kohakuefda.plan.operating import operating_points, packed_rates
 from kohakuefda.plan.units import unit_name
 from kohakuefda.plan.zones import assign_zones
 
@@ -102,18 +103,21 @@ def lane_pins(
     ports: list[int],
     rate: Fraction,
     taken: set[int],
+    pack: bool = False,
 ) -> list[Pin]:
     """One pin per lane of ``item_id`` over the given ports; the lanes share the alternatives."""
     kind: LaneKind = "pipe" if dataset.items[item_id].phase.is_fluid else "belt"
-    split = lane_split(rate, lane_capacity(dataset, item_id))
+    rates = packed_rates(rate, lane_capacity(dataset, item_id))
+    if rates and not pack:
+        rates = (rate / len(rates),) * len(rates)
     candidates = [_port(machine, direction, i) for i in ports if i not in taken]
-    if len(candidates) < split.ports:
+    if len(candidates) < len(rates):
         raise ValueError(
-            f"{machine.id} needs {split.ports} {direction} ports for {item_id}, has {len(candidates)}"
+            f"{machine.id} needs {len(rates)} {direction} ports for {item_id}, has {len(candidates)}"
         )
     alternatives = [_ref(_port(machine, direction, i)) for i in ports]
     pins: list[Pin] = []
-    for n in range(split.ports):
+    for n, lane_rate in enumerate(rates):
         default = candidates[n]
         taken.add(default.index)
         pins.append(
@@ -122,7 +126,7 @@ def lane_pins(
                 direction=direction.value,
                 kind=kind,
                 item_id=item_id,
-                rate=split.per_port,
+                rate=lane_rate,
                 cell=(default.x, default.y),
                 edge=default.edge,
                 alternatives=alternatives,
@@ -171,8 +175,15 @@ def single_cell(
     )
 
 
-def recipe_cell(dataset: Dataset, cell_id: str, recipe: Recipe) -> CellInstance:
-    """One machine running ``recipe``: input, activation and output lanes on bound ports."""
+def recipe_cell(
+    dataset: Dataset,
+    cell_id: str,
+    recipe: Recipe,
+    utilisation: Fraction = Fraction(1),
+    pack: bool = False,
+) -> CellInstance:
+    """One recipe's rated input and output lanes; activation remains per built machine."""
+    utilisation = operating_points(utilisation, 1)[0]
     machine = dataset.machines[recipe.machine_id]
     taken_in: set[int] = set()
     taken_out: set[int] = set()
@@ -184,8 +195,9 @@ def recipe_cell(dataset: Dataset, cell_id: str, recipe: Recipe) -> CellInstance:
             PortDir.IN,
             stack.item_id,
             dataset.input_ports(recipe, stack.item_id),
-            recipe.input_rate(stack.item_id),
+            recipe.input_rate(stack.item_id) * utilisation,
             taken_in,
+            pack=pack,
         )
     activation = dataset.activations.get(machine.id)
     if activation:
@@ -209,8 +221,9 @@ def recipe_cell(dataset: Dataset, cell_id: str, recipe: Recipe) -> CellInstance:
             PortDir.OUT,
             stack.item_id,
             dataset.output_ports(recipe, stack.item_id),
-            recipe.output_rate(stack.item_id),
+            recipe.output_rate(stack.item_id) * utilisation,
             taken_out,
+            pack=pack,
         )
     return single_cell(
         dataset,
@@ -482,10 +495,15 @@ class CellFactory:
     """Hands out cell ids and builds cells for one plan."""
 
     def __init__(
-        self, dataset: Dataset, scenario: Scenario, hierarchy: Hierarchy | None = None
+        self,
+        dataset: Dataset,
+        scenario: Scenario,
+        hierarchy: Hierarchy | None = None,
+        rated: bool = False,
     ) -> None:
         self.dataset = dataset
         self.scenario = scenario
+        self.rated = rated
         self.cells: list[CellInstance] = []
         self.links: list[Link] = []
         self.units: dict[str, tuple[str, int]] = {}
@@ -497,14 +515,24 @@ class CellFactory:
     def _next_id(self, stem: str) -> str:
         return f"c{len(self.cells)}_{stem}"
 
-    def recipe_machines(self, recipe_id: str, machines: int) -> None:
-        """The recipe's cells in order, each named for its repeat unit and copy: the run of
-        cells cut into as many equal parts as the unit has copies."""
+    def recipe_machines(
+        self, recipe_id: str, machines: int, activity: Fraction | None = None
+    ) -> None:
+        """The recipe's cells, each named for its repeat unit and copy; ``rated`` runs them
+        at the plan's exact activity, whole machines before the partial remainder."""
         recipe = self.dataset.recipes[recipe_id]
         top, copies = self.units.get(recipe_id, ("", 1))
         run = max(1, machines // copies)
-        for index in range(machines):
-            cell = recipe_cell(self.dataset, self._next_id(recipe.machine_id), recipe)
+        if not self.rated or activity is None:
+            activity = Fraction(machines)
+        for index, duty in enumerate(operating_points(activity, machines)):
+            cell = recipe_cell(
+                self.dataset,
+                self._next_id(recipe.machine_id),
+                recipe,
+                duty,
+                pack=self.rated,
+            )
             if top:
                 cell.unit = unit_name(top, index // run)
             self.cells.append(cell)
@@ -578,7 +606,7 @@ class CellFactory:
             [r * min(1, demand / supply) for r in rooms],
             [p.rate * min(1, supply / demand) for _, p in sinks],
         )
-        if outside > 0:
+        if outside > 0 and not self.rated:
             world = len(sources)
             shares = [
                 [(world, sum(rate for _, rate in share))] if len(share) > 1 else share
@@ -744,6 +772,7 @@ def instantiate(
     scenario: Scenario,
     plan: Plan,
     hierarchy: Hierarchy | None = None,
+    rated: bool = False,
 ) -> tuple[list[CellInstance], list[Link]]:
     """Every cell the plan needs (machines, zones, dumps, outside inputs, conduits, stashes
     and the depot side) and the conduit links between inlet and outlet cells.
@@ -751,7 +780,7 @@ def instantiate(
     Solid supply lanes are packed by their sinks (one lane feeds each machine whole) when the
     depot's slot budget allows, else they are as few as the rate needs.
     """
-    factory = CellFactory(dataset, scenario, hierarchy)
+    factory = CellFactory(dataset, scenario, hierarchy, rated=rated)
     belt = dataset.constants.belt_per_min
     for use in plan.recipes:
         if use.machines <= 0:
@@ -760,7 +789,7 @@ def instantiate(
             for item_id, units in _dump_machines(dataset, plan, use.machine_id).items():
                 factory.dump_machines(use.machine_id, item_id, units)
         else:
-            factory.recipe_machines(use.recipe_id, use.machines)
+            factory.recipe_machines(use.recipe_id, use.machines, use.machines_exact)
     gas_needed: dict[str, Fraction] = {}
     for env, count in plan.zones.items():
         zones = factory.zones(env, count)

@@ -425,12 +425,12 @@ Shape = tuple[str, str, str, tuple[str, ...]]
 
 
 def shape_of(cell: CellInstance) -> Shape:
-    """What makes two cells interchangeable: kind, machine, recipe and the items on their pins."""
+    """The kind, recipe and rated pin signature required for interchangeable instances."""
     return (
         cell.kind,
         cell.machine_id,
         cell.recipe_id or "",
-        tuple(sorted(f"{p.direction}:{p.item_id}" for p in cell.pins)),
+        tuple(sorted(f"{p.direction}:{p.item_id}:{p.rate}" for p in cell.pins)),
     )
 
 
