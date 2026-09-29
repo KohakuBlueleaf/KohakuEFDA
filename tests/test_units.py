@@ -10,8 +10,6 @@ from kohakuefda.model.scenario import Scenario
 from kohakuefda.plan.netlist import build_netlist
 from kohakuefda.plan.planner import plan
 from kohakuefda.plan.units import assign_units, extract, unit_name
-from kohakuefda.synth import problem_of
-from kohakuefda.synth.hierarchy import hierarchical_of, instance_id
 from kohakuefda.synth.problem import lanes_of
 from kohakuefda.verify.complexity import Complexity, complexity_text, with_units
 
@@ -130,47 +128,6 @@ def test_the_report_carries_the_units(dataset: Dataset) -> None:
     found = with_units(Complexity(), extract(dataset, result))
     assert (found.unit_types, found.unit_copies, found.global_nets) == (4, 38, 3)
     assert complexity_text(found).endswith("units=4x38 global=3")
-
-
-def _signature(netlist):
-    cells = Counter(
-        (c.footprint, tuple((p.id, p.direction, p.carrier) for p in netlist.pins_of(k)))
-        for k, c in netlist.cells.items()
-    )
-    nets = Counter(
-        (
-            n.carrier,
-            n.rate,
-            tuple(sorted((netlist.cells[r.cell].footprint, r.pin) for r in n.sources)),
-            tuple(sorted((netlist.cells[r.cell].footprint, r.pin) for r in n.sinks)),
-        )
-        for n in netlist.nets.values()
-    )
-    return cells, nets
-
-
-@pytest.mark.parametrize("name", ["basic", "dense_valley18", "gas_xiranite"])
-def test_the_hierarchical_netlist_flattens_to_the_flat_one(
-    dataset: Dataset, name: str
-) -> None:
-    scenario, result = _plan(dataset, name)
-    netlist = build_netlist(dataset, scenario, result)
-    flat = problem_of(dataset, netlist).netlist
-    hier = hierarchical_of(netlist, flat)
-    assert hier.check() == []
-    assert hier.is_flat == (not any(c.unit for c in netlist.cells)) and flat.is_flat
-    copies = Counter(c.unit.rsplit("#", 1)[0] for c in netlist.cells if c.unit)
-    assert set(hier.modules) == {instance_id(t) for t in copies}
-    assert _signature(hier.flatten()) == _signature(flat)
-    for module in hier.modules.values():
-        assert module.ports and all(
-            p.inner.cell in module.body.cells for p in module.ports
-        )
-        assert all(
-            r.cell in module.body.cells
-            for n in module.body.nets.values()
-            for r in (*n.sources, *n.sinks)
-        )
 
 
 def test_lanes_pair_the_pins_of_one_copy_first(dataset: Dataset) -> None:

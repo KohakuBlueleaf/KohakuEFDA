@@ -569,8 +569,7 @@ class EndfieldRouter(LaneRouter):
     def route_all(
         self, world: Any, cell_id: str, pending: list[str], grown: set[str]
     ) -> Any:
-        """One tree per net routes the nets in the project's net order; the lane bundle lays their lanes in the project's lane order across nets; under ``mixed`` the tree nets go first, the rest as lanes. A net inside an instance (``<instance>/<net>``) is never routed here: its macro brings its wire."""
-        pending = [n for n in pending if "/" not in n]
+        """One tree per net routes the nets in the project's net order; the lane bundle lays their lanes in the project's lane order across nets; under ``mixed`` the tree nets go first, the rest as lanes."""
         if self.wire_model == "lanes":
             return super().route_all(world, cell_id, pending, grown)
         trees = [n for n in pending if self.as_tree(world, world.netlist.nets[n])]

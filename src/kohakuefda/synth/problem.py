@@ -35,8 +35,6 @@ from kohakuefda.physics.facts import (
     slot_text,
 )
 from kohakuefda.synth.footprints import ENTRY, library_of, ports_for
-from kohakuefda.synth.hierarchy import hierarchical_of
-from kohakuefda.synth.tiles import with_macros
 from kohakulayout.ir import Cell, Constraint, Group, Net, Netlist, Pin, PinRef, Problem
 
 UNPOWERED_KINDS = frozenset({"core", "pylon", "entry"})
@@ -158,7 +156,7 @@ def assign(
             out.append((key, sink, take))
             room[key] -= take
             demand[sink] -= take
-    large = [k for k in order if k not in small]
+    large = [k for k in order if room[k] > 0]
     at = 0
     for sink in targets:
         while demand[sink] > 0 and at < len(large):
@@ -440,13 +438,9 @@ def params_of(board: Board) -> dict[str, Any]:
 
 
 def problem_of(
-    dataset: Dataset,
-    netlist: ProjectNetlist,
-    board: Board | None = None,
-    macros: dict[str, Any] | None = None,
+    dataset: Dataset, netlist: ProjectNetlist, board: Board | None = None
 ) -> Problem:
-    """The framework problem for a project netlist on its basement; with ``macros`` (per
-    module id) the netlist is folded into modules and its instances stand on them."""
+    """The framework problem for a project netlist on its basement."""
     board = board if board is not None else board_of(dataset, netlist.scenario)
     library = library_of(dataset, netlist.cells)
     physics = EndfieldPhysics()
@@ -472,8 +466,6 @@ def problem_of(
             }
         },
     )
-    if macros is not None:
-        kl_netlist = with_macros(hierarchical_of(netlist, kl_netlist), macros)
     return Problem(
         physics=physics.ref,
         fabric=physics.fabric(params),
