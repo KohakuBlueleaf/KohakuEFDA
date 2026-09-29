@@ -51,7 +51,14 @@ const CATALOG = [
     defaults: { spread_attempts: 32000, spread_gap: 0, shrink_rounds: 200 },
   },
   { name: "regional", parallel: false, defaults: { attempts: 128, shrink_rounds: 200 } },
-  ...["hc", "sa"].map((name) => ({
+  {
+    name: "guided",
+    parallel: false,
+    defaults: { ...LOCAL, acceptance: "climb", seed_kind: "lines" },
+    parameter_types: { acceptance: "str", seed_kind: "str", until_budget: "bool" },
+    choices: { acceptance: ["climb", "anneal"], seed_kind: ["lines", "regional"] },
+  },
+  ...["climb", "anneal"].map((name) => ({
     name,
     parallel: false,
     defaults: { ...LOCAL },
@@ -59,7 +66,7 @@ const CATALOG = [
   })),
 ]
 
-function storeFor(name = "hc", last = {}) {
+function storeFor(name = "climb", last = {}) {
   const store = useAppStore()
   store.params = { layout: SHARED }
   store.solvers = CATALOG
@@ -75,7 +82,7 @@ beforeEach(() => setActivePinia(createPinia()))
 
 describe("catalog-driven layout controls", () => {
   it("promotes real budgets, retains every solver knob, and hides irrelevant controls", () => {
-    const fields = layoutFields(SHARED, CATALOG, "hc")
+    const fields = layoutFields(SHARED, CATALOG, "climb")
     const keys = fields.map((f) => f.key)
     for (const key of Object.keys(LOCAL)) expect(keys).toContain(key)
     for (const key of [
@@ -104,7 +111,7 @@ describe("catalog-driven layout controls", () => {
   it("serializes typed settings with solver options winning over legacy flat values", () => {
     const draft = {
       ...SHARED,
-      solver: "hc",
+      solver: "climb",
       workers: 4,
       spread_attempts: 65536,
       seconds: "300",
@@ -133,7 +140,7 @@ describe("catalog-driven layout controls", () => {
   })
 
   it("warns that zero global budgets still leave finite step caps", () => {
-    const draft = { ...SHARED, solver: "hc" }
+    const draft = { ...SHARED, solver: "climb" }
     expect(effectiveLimits(collectLayout(SHARED, CATALOG, draft)).untilBudget).toBe(false)
     expect(
       effectiveLimits(collectLayout(SHARED, CATALOG, { ...draft, seconds: 300 })).untilBudget,
@@ -147,26 +154,26 @@ describe("catalog-driven layout controls", () => {
     "rejects invalid solver JSON/values %s",
     (solver_options) => {
       expect(() =>
-        collectLayout(SHARED, CATALOG, { ...SHARED, solver: "hc", solver_options }),
+        collectLayout(SHARED, CATALOG, { ...SHARED, solver: "climb", solver_options }),
       ).toThrow()
     },
   )
 
   it.each(["", -1, Infinity, "NaN"])("rejects invalid global budget %s", (seconds) => {
-    expect(() => collectLayout(SHARED, CATALOG, { ...SHARED, solver: "hc", seconds })).toThrow()
+    expect(() => collectLayout(SHARED, CATALOG, { ...SHARED, solver: "climb", seconds })).toThrow()
   })
 
   it("preserves per-solver drafts when switching without carrying wrong options", () => {
     const store = storeFor("baseline", { spread_attempts: 99 })
     const draft = store.draftParams("layout")
     draft.seconds = 300
-    store.switchDraftSolver("sa")
+    store.switchDraftSolver("anneal")
     expect(JSON.parse(draft.solver_options)).not.toHaveProperty("spread_attempts")
     draft.solver_options = '{"layout_temperature":0.1,"until_budget":false}'
     store.switchDraftSolver("baseline")
     expect(JSON.parse(draft.solver_options).spread_attempts).toBe(99)
     expect(draft.seconds).toBe(300)
-    store.switchDraftSolver("sa")
+    store.switchDraftSolver("anneal")
     expect(JSON.parse(draft.solver_options).until_budget).toBe(false)
     expect(JSON.parse(draft.solver_options).layout_temperature).toBe(0.1)
   })
@@ -178,7 +185,7 @@ describe("catalog-driven layout controls", () => {
     const store = useAppStore(app.config.globalProperties.$pinia)
     store.params = { layout: SHARED }
     store.solvers = CATALOG
-    store.drafts.layout = { ...SHARED, solver: "hc" }
+    store.drafts.layout = { ...SHARED, solver: "climb" }
     const html = await renderToString(app)
     expect(html).toContain('data-setting="seconds"')
     expect(html).toContain('data-setting="max_actions"')
@@ -186,6 +193,20 @@ describe("catalog-driven layout controls", () => {
     expect(html).toContain("No global budget")
     expect(html).not.toContain('data-setting="spread_attempts"')
     expect(html.indexOf('data-setting="seconds"')).toBeLessThan(html.indexOf("<details"))
+  })
+
+  it("offers every catalogued solver and a choice parameter's values as a select", async () => {
+    const app = createSSRApp(LayoutSettings)
+    app.use(createPinia())
+    const store = useAppStore(app.config.globalProperties.$pinia)
+    store.params = { layout: SHARED }
+    store.solvers = CATALOG
+    store.drafts.layout = { ...SHARED, solver: "guided" }
+    const html = await renderToString(app)
+    for (const entry of CATALOG) expect(html).toContain(`value="${entry.name}"`)
+    expect(html).toMatch(/data-setting="seed_kind"[\s\S]*?<select[\s\S]*?value="regional"/)
+    expect(html).toMatch(/data-setting="acceptance"[\s\S]*?<select[\s\S]*?value="anneal"/)
+    expect(html).toContain("Hill climbing ignores")
   })
 })
 

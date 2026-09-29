@@ -3,12 +3,12 @@ import { expect, it } from "vitest"
 import { collectLayout, effectiveLimits } from "./layout-settings"
 import { useAppStore } from "./stores/app"
 
-it("new drafts and reset use time-budgeted HC while saved settings remain intact", () => {
+it("new drafts and reset use the time-budgeted default solver while saved settings remain intact", () => {
   setActivePinia(createPinia())
   const store = useAppStore()
   store.params = {
     layout: {
-      solver: "hc",
+      solver: "guided",
       seconds: 600,
       max_actions: 0,
       backend: "native",
@@ -21,7 +21,7 @@ it("new drafts and reset use time-budgeted HC while saved settings remain intact
   }
   store.solvers = [
     {
-      name: "hc",
+      name: "guided",
       defaults: {
         construction_steps: 128,
         improvement_steps: 2000,
@@ -31,7 +31,7 @@ it("new drafts and reset use time-budgeted HC while saved settings remain intact
   ]
   const draft = store.draftParams("layout")
   const payload = collectLayout(store.params.layout, store.solvers, draft)
-  expect(payload.solver).toBe("hc")
+  expect(payload.solver).toBe("guided")
   expect(payload.seconds).toBe(600)
   expect(payload.max_actions).toBe(0)
   expect(payload.backend).toBe("native")
@@ -43,7 +43,7 @@ it("new drafts and reset use time-budgeted HC while saved settings remain intact
   })
   store.drafts = {}
   const last = {
-    solver: "hc-tree",
+    solver: "anneal",
     seconds: 30,
     backend: "python",
     solver_options: '{"construction_steps":17}',

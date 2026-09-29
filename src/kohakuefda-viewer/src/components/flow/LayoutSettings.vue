@@ -45,11 +45,15 @@ const limits = computed(() =>
   checked.value.payload ? effectiveLimits(checked.value.payload) : null,
 )
 const choices = computed(() => ({
+  ...entry.value?.choices,
   solver: store.solvers.map((e) => e.name),
   backend: ["auto", "python", "native"],
-  entry_sides: ["NW", "N", "W", "NESW"],
-  flow_order: ["bottom-up", "top-down"],
 }))
+const climbing = computed(
+  () =>
+    draft.value.solver === "climb" ||
+    (limits.value?.options?.acceptance ?? entry.value?.defaults?.acceptance) === "climb",
+)
 function value(field) {
   if (field.scope === "stage") return draft.value[field.key] ?? field.default
   try {
@@ -130,7 +134,7 @@ function preset(seconds) {
         t("solverUI.improvementSkipped")
       }}</span>
       <span v-if="!entry.parallel">{{ t("solverUI.serial") }}</span>
-      <span v-if="draft.solver === 'hc'">{{ t("solverUI.hcTemperatures") }}</span>
+      <span v-if="climbing">{{ t("solverUI.hcTemperatures") }}</span>
     </div>
     <details v-for="group in groups" :key="group.key">
       <summary class="section-title cursor-pointer">{{ t(`paramGroup.${group.key}`) }}</summary>

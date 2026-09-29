@@ -196,14 +196,55 @@
     "center_weight": "中央提案权重",
     "corner_weight": "角落提案权重",
     "depot_window": "仓库候选窗口",
-    "depot_step": "仓库候选步距"
+    "depot_step": "仓库候选步距",
+    "transport": "运输",
+    "initial": "流量检查起点",
+    "acceptance": "接受规则",
+    "seed_kind": "初始布局",
+    "seed_gap": "区域初始间隙",
+    "seed_units": "产线初始动作预算",
+    "reseat_every": "每 N 次提案移动仓库存货口或取货口（0 = 关）",
+    "reseat_candidates": "存货口与取货口移动候选数",
+    "batch_moves": "一并放置移动的机器",
+    "adaptive_moves": "学习哪些移动有效",
+    "operator_decay": "移动回报衰减",
+    "operator_exploration": "移动探索率"
   },
   "choices": {
     "solver": {
+      "guided": "引导搜索",
       "baseline": "展开与压缩",
       "regional": "区域重建",
-      "hc": "爬山法",
-      "sa": "模拟退火"
+      "climb": "爬山法",
+      "anneal": "模拟退火",
+      "floorplan": "行式平面规划",
+      "inorder": "依序放置"
+    },
+    "acceptance": {
+      "climb": "爬山法",
+      "anneal": "模拟退火"
+    },
+    "seed_kind": {
+      "lines": "从仓库存取线起的产线",
+      "regional": "区域构建"
+    },
+    "transport": {
+      "legacy": "名义机器",
+      "rated": "精确运转点",
+      "direct": "直连传送带"
+    },
+    "initial": {
+      "empty": "空的传送带",
+      "declared": "规划流量"
+    },
+    "representation": {
+      "rows": "行",
+      "coordinate": "坐标"
+    },
+    "exact": {
+      "none": "无",
+      "cpsat": "CP-SAT",
+      "milp": "MILP"
     },
     "entry_sides": {
       "NW": "北与西",
@@ -568,7 +609,7 @@
     "constructionSkipped": "构建已停用（0 步）。新运行无法构建布局。",
     "improvementSkipped": "优化已停用（0 步）：找到第一个完整布线结果后停止。",
     "serial": "此求解器为单进程。基准的工作进程数和展开尝试次数不控制此求解器。",
-    "hcTemperatures": "HC 忽略温度与降温控制，这些设置仅影响 SA。",
+    "hcTemperatures": "爬山法忽略温度与降温控制，这些设置仅影响模拟退火。",
     "jsonHint": "高级：仅应用当前求解器的设置，与上方控件同步。",
     "routedResult": "已保留完整布线结果",
     "incompleteResult": "搜索已停止：未找到完整布线结果",

@@ -196,14 +196,55 @@
     "center_weight": "中央提案權重",
     "corner_weight": "角落提案權重",
     "depot_window": "倉庫候選視窗",
-    "depot_step": "倉庫候選步距"
+    "depot_step": "倉庫候選步距",
+    "transport": "運輸",
+    "initial": "流量檢查起點",
+    "acceptance": "接受規則",
+    "seed_kind": "初始佈局",
+    "seed_gap": "區域初始間隙",
+    "seed_units": "產線初始動作預算",
+    "reseat_every": "每 N 次提案移動倉庫存貨口或取貨口（0 = 關）",
+    "reseat_candidates": "存貨口與取貨口移動候選數",
+    "batch_moves": "一併放置移動的機器",
+    "adaptive_moves": "學習哪些移動有效",
+    "operator_decay": "移動回報衰減",
+    "operator_exploration": "移動探索率"
   },
   "choices": {
     "solver": {
+      "guided": "引導搜尋",
       "baseline": "展開與壓縮",
       "regional": "區域重建",
-      "hc": "爬山法",
-      "sa": "模擬退火"
+      "climb": "爬山法",
+      "anneal": "模擬退火",
+      "floorplan": "列式平面規劃",
+      "inorder": "依序放置"
+    },
+    "acceptance": {
+      "climb": "爬山法",
+      "anneal": "模擬退火"
+    },
+    "seed_kind": {
+      "lines": "由倉庫存取線起的產線",
+      "regional": "區域建構"
+    },
+    "transport": {
+      "legacy": "名目機器",
+      "rated": "精確運轉點",
+      "direct": "直連傳送帶"
+    },
+    "initial": {
+      "empty": "空的傳送帶",
+      "declared": "規劃流量"
+    },
+    "representation": {
+      "rows": "列",
+      "coordinate": "座標"
+    },
+    "exact": {
+      "none": "無",
+      "cpsat": "CP-SAT",
+      "milp": "MILP"
     },
     "entry_sides": {
       "NW": "北與西",
@@ -568,7 +609,7 @@
     "constructionSkipped": "建構已停用（0 步）。新執行無法建構佈局。",
     "improvementSkipped": "最佳化已停用（0 步）：找到第一個完整佈線結果後停止。",
     "serial": "此求解器為單程序。基準的工作程序數和展開嘗試次數不控制此求解器。",
-    "hcTemperatures": "HC 忽略溫度與降溫控制，這些設定僅影響 SA。",
+    "hcTemperatures": "爬山法忽略溫度與降溫控制，這些設定僅影響模擬退火。",
     "jsonHint": "進階：僅套用目前求解器的設定，與上方控制項同步。",
     "routedResult": "已保留完整佈線結果",
     "incompleteResult": "搜尋已停止：未找到完整佈線結果",

@@ -196,14 +196,55 @@
     "center_weight": "Center proposal weight",
     "corner_weight": "Corner proposal weight",
     "depot_window": "Depot proposal window",
-    "depot_step": "Depot proposal spacing"
+    "depot_step": "Depot proposal spacing",
+    "transport": "Transport",
+    "initial": "Flow check starts from",
+    "acceptance": "Acceptance",
+    "seed_kind": "Starting layout",
+    "seed_gap": "Regional seed clearance",
+    "seed_units": "Lines seed action budget",
+    "reseat_every": "Move a Depot Loader or Unloader every N proposals (0 = off)",
+    "reseat_candidates": "Loader and Unloader move shortlist",
+    "batch_moves": "Place moved machines together",
+    "adaptive_moves": "Learn which moves pay",
+    "operator_decay": "Move reward decay",
+    "operator_exploration": "Move exploration"
   },
   "choices": {
     "solver": {
+      "guided": "Guided search",
       "baseline": "Spread + shrink",
       "regional": "Regional reconstruction",
-      "hc": "Hill climbing",
-      "sa": "Simulated annealing"
+      "climb": "Hill climbing",
+      "anneal": "Simulated annealing",
+      "floorplan": "Rows floorplan",
+      "inorder": "In order"
+    },
+    "acceptance": {
+      "climb": "Hill climbing",
+      "anneal": "Simulated annealing"
+    },
+    "seed_kind": {
+      "lines": "Lines from the Depot Bus",
+      "regional": "Regional construction"
+    },
+    "transport": {
+      "legacy": "Nominal machines",
+      "rated": "Exact operating points",
+      "direct": "Direct lanes"
+    },
+    "initial": {
+      "empty": "Empty belts",
+      "declared": "Planned flows"
+    },
+    "representation": {
+      "rows": "Rows",
+      "coordinate": "Coordinates"
+    },
+    "exact": {
+      "none": "None",
+      "cpsat": "CP-SAT",
+      "milp": "MILP"
     },
     "entry_sides": {
       "NW": "north and west",
@@ -568,7 +609,7 @@
     "constructionSkipped": "Construction is disabled (0 steps). A new run cannot construct a layout.",
     "improvementSkipped": "Improvement is disabled (0 steps): stop at the first complete routed layout.",
     "serial": "This solver is serial. Baseline workers and spread attempts do not control it.",
-    "hcTemperatures": "HC ignores temperature and cooling controls; they affect SA only.",
+    "hcTemperatures": "Hill climbing ignores the temperature and cooling controls; they affect annealing only.",
     "jsonHint": "Advanced: overrides for the selected solver only. These are synchronized with the controls above.",
     "routedResult": "Complete routed layout retained",
     "incompleteResult": "Search stopped: no complete routed layout",

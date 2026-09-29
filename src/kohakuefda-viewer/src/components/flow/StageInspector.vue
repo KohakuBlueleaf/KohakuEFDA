@@ -70,6 +70,7 @@ function start(through = null) {
             type: typeof value === 'boolean' ? 'bool' : typeof value === 'string' ? 'str' : 'float',
           }"
           :value="params[key]"
+          :choices="store.meta?.choices?.[stage]?.[key] ?? []"
           @change="params[key] = $event"
         />
       </template>
